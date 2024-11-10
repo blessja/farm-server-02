@@ -30,7 +30,6 @@ const corsOptions = {
       [
         "http://localhost:3000",
         "http://localhost:4000",
-        "https://farm-managment-app.onrender.com",
         "http://localhost:8100",
         "capacitor://localhost",
         "https://localhost",
@@ -39,8 +38,6 @@ const corsOptions = {
         "http://localhost:8101",
         "http://192.168.0.21:8135",
         "http://192.168.0.103:8101",
-        "capacitor://localhost",
-        "ionic://localhost",
       ].indexOf(origin) !== -1
     ) {
       callback(null, true);
