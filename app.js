@@ -63,5 +63,6 @@ app.use("/api/clock", clockRoutes);
 app.use("/api/monitor-clockins", clockRoutes);
 app.use("/api/clocks", clockRoutes);
 app.use("/api/earliest-clock-in", clockRoutes);
+app.use("/api/clearAllCheckins", rowRoutes);
 
 module.exports = app;

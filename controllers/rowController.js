@@ -228,6 +228,7 @@ exports.getCurrentCheckin = async (req, res) => {
         if (row.worker_id === workerID && row.start_time && !row.time_spent) {
           activeCheckins.push({
             blockName: block.block_name,
+            job_type: row.job_type,
             rowNumber: row.row_number,
             workerID: row.worker_id,
             workerName: row.worker_name,
@@ -265,6 +266,7 @@ exports.getCurrentCheckins = async (req, res) => {
         if (row.worker_id && row.start_time && !row.time_spent) {
           activeCheckins.push({
             blockName: block.block_name,
+            job_type: row.job_type,
             rowNumber: row.row_number,
             workerID: row.worker_id,
             workerName: row.worker_name,
@@ -302,6 +304,7 @@ exports.getCurrentCheckin = async (req, res) => {
         if (row.worker_id === workerID && row.start_time && !row.time_spent) {
           activeCheckins.push({
             blockName: block.block_name,
+            job_type: row.job_type,
             rowNumber: row.row_number,
             workerID: row.worker_id,
             workerName: row.worker_name,
@@ -322,6 +325,37 @@ exports.getCurrentCheckin = async (req, res) => {
     return res.json(activeCheckins);
   } catch (error) {
     return res.status(500).json({ message: error.message });
+  }
+};
+
+// clear all currently active checkins
+exports.clearAllCheckins = async (req, res) => {
+  try {
+    // Find all blocks
+    const blocks = await Block.find();
+
+    // Iterate through each block and its rows
+    blocks.forEach((block) => {
+      block.rows.forEach((row) => {
+        // Clear check-in details if there's an active check-in
+        if (row.worker_id && row.start_time) {
+          row.worker_id = "";
+          row.worker_name = "";
+          row.start_time = null;
+          row.time_spent = 0;
+          row.job_type = "";
+          row.remaining_stock_count = null;
+        }
+      });
+    });
+
+    // Save updated blocks
+    await Promise.all(blocks.map((block) => block.save()));
+
+    return res.status(200).json({ message: "All active check-ins cleared." });
+  } catch (error) {
+    console.error("Error clearing check-ins:", error);
+    return res.status(500).json({ message: "An error occurred." });
   }
 };
 

@@ -23,6 +23,8 @@ router.get(
   rowController.getCurrentCheckin
 );
 
+router.put("/workers/clearAllCheckins", rowController.clearAllCheckins);
+
 // get workers
 router.get("/workers", rowController.getWorkers);
 

@@ -1,0 +1,4 @@
+{
+    "appService.defaultWebAppToDeploy": "/subscriptions/d9e9b338-e19e-4084-b278-09e4476c6656/resourceGroups/farm-server/providers/Microsoft.Web/sites/farm-backend",
+    "appService.deploySubpath": "."
+}
