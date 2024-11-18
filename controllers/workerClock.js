@@ -36,8 +36,18 @@ exports.addClockIn = async (req, res) => {
     }
 
     const now = moment().tz(timezone);
+    const startTime = moment
+      .tz(timezone)
+      .set({ hour: 7, minute: 30, second: 0 });
+
+    // Adjust clock-in time to start at 07:30 if the actual time is after 07:30 but within a reasonable buffer
+    const adjustedClockInTime =
+      now.isAfter(startTime) && now.diff(startTime, "minutes") <= 15
+        ? startTime
+        : now;
+
     worker.clockIns.push({
-      clockInTime: now.toDate(),
+      clockInTime: adjustedClockInTime.toDate(),
       day: now.format("dddd"), // Get the current day
     });
 
@@ -70,7 +80,12 @@ exports.addClockOut = async (req, res) => {
     }
 
     const now = moment().tz(timezone);
-    currentSession.clockOutTime = now.toDate();
+    const officialClockOutTime = moment.tz({ hour: 17, minute: 30 }, timezone);
+
+    // Ensure the clock-out time is set to 17:30 if current time is after 17:30
+    currentSession.clockOutTime = now.isAfter(officialClockOutTime)
+      ? officialClockOutTime.toDate()
+      : now.toDate();
 
     // Calculate the duration excluding lunch break between 12:00 PM and 1:00 PM
     const clockInTime = moment(currentSession.clockInTime).tz(timezone);
@@ -85,6 +100,7 @@ exports.addClockOut = async (req, res) => {
       .tz(clockInTime, timezone)
       .set({ hour: 13, minute: 0 });
 
+    // Deduct lunch break if applicable
     if (clockInTime.isBefore(lunchEnd) && clockOutTime.isAfter(lunchStart)) {
       const overlapStart = moment.max(clockInTime, lunchStart);
       const overlapEnd = moment.min(clockOutTime, lunchEnd);
