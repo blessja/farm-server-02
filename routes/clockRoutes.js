@@ -8,6 +8,7 @@ router.post("/clockout", workerClock.addClockOut);
 router.get("/monitor-clockins", monitorClockIns);
 router.get("/clocks", workerClock.getAllClockData);
 router.get("/earliest-clock-in", workerClock.getEarliestClockInDate);
+router.post("/autoClockOutEndpoint", workerClock.autoClockOutEndpoint);
 
 // router.post("/checkin", rowController.checkInWorker);
 // router.post("/checkout", rowController.checkOutWorker);

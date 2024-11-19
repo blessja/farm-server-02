@@ -1,3 +1,4 @@
+const cron = require("node-cron");
 const moment = require("moment-timezone");
 const WorkerClock = require("../models/WorkerClock");
 
@@ -127,6 +128,77 @@ exports.addClockOut = async (req, res) => {
   }
 };
 
+// Function to auto clock out workers
+const autoClockOut = async (timezone = "UTC") => {
+  try {
+    const workers = await WorkerClock.find({});
+
+    const now = moment().tz(timezone);
+    const officialClockOutTime = moment.tz({ hour: 17, minute: 30 }, timezone);
+
+    for (const worker of workers) {
+      // Find all sessions without clockOutTime
+      const unclockedSessions = worker.clockIns.filter(
+        (session) => !session.clockOutTime
+      );
+
+      for (const session of unclockedSessions) {
+        const clockInTime = moment(session.clockInTime).tz(timezone);
+        let clockOutTime = now.isAfter(officialClockOutTime)
+          ? officialClockOutTime
+          : now;
+
+        // Ensure lunch break deduction if applicable
+        let duration = clockOutTime.diff(clockInTime, "hours", true);
+
+        const lunchStart = moment
+          .tz(clockInTime, timezone)
+          .set({ hour: 12, minute: 0 });
+        const lunchEnd = moment
+          .tz(clockInTime, timezone)
+          .set({ hour: 13, minute: 0 });
+
+        if (
+          clockInTime.isBefore(lunchEnd) &&
+          clockOutTime.isAfter(lunchStart)
+        ) {
+          const overlapStart = moment.max(clockInTime, lunchStart);
+          const overlapEnd = moment.min(clockOutTime, lunchEnd);
+          const overlapDuration = overlapEnd.diff(overlapStart, "hours", true);
+          duration -= overlapDuration;
+        }
+
+        // Update the session with clock-out time and duration
+        session.clockOutTime = clockOutTime.toDate();
+        session.duration = duration;
+
+        // Update worker's total worked hours
+        const clockInDay = session.day;
+        worker.workedHoursPerDay[clockInDay] =
+          (worker.workedHoursPerDay[clockInDay] || 0) + duration;
+        worker.totalWorkedHours += duration;
+
+        console.log(
+          `Auto-clocked out worker ${worker.workerName} for session ${
+            session._id
+          }. Worked ${duration.toFixed(2)} hours.`
+        );
+      }
+
+      await worker.save();
+    }
+
+    console.log("Auto clock-out completed for outstanding sessions.");
+  } catch (error) {
+    console.error("Error during auto clock-out:", error);
+  }
+};
+
+// Run the auto clock-out daily at 6:00 PM
+cron.schedule("0 18 * * *", () => {
+  autoClockOut("UTC"); // Adjust timezone as needed
+});
+
 // Get all the clock data of the workers
 exports.getAllClockData = async (req, res) => {
   try {
@@ -159,5 +231,16 @@ exports.getEarliestClockInDate = async (req, res) => {
     }
   } catch (error) {
     res.status(500).json({ message: "Server error", error });
+  }
+};
+
+exports.autoClockOutEndpoint = async (req, res) => {
+  try {
+    await autoClockOut("UTC"); // Adjust timezone as needed
+    res.json({ message: "Auto clock-out completed successfully." });
+  } catch (error) {
+    res
+      .status(500)
+      .json({ message: "Server error during auto clock-out.", error });
   }
 };
