@@ -4,7 +4,7 @@ const WorkerClock = require("../models/WorkerClock");
 
 // Add a new clock-in entry for a worker
 exports.addClockIn = async (req, res) => {
-  const { workerID, workerName, timezone = "UTC" } = req.body;
+  const { workerID, workerName, timezone = "Africa/Johannesburg" } = req.body;
 
   try {
     let worker = await WorkerClock.findOne({ workerID });
@@ -26,6 +26,7 @@ exports.addClockIn = async (req, res) => {
       });
     }
 
+    // Check if there's an active session
     const activeSession = worker.clockIns.find(
       (session) => !session.clockOutTime
     );
@@ -36,29 +37,31 @@ exports.addClockIn = async (req, res) => {
       });
     }
 
+    // Define 07:30 SAST as the default clock-in time
     const now = moment().tz(timezone);
-    const startTime = moment
-      .tz(timezone)
-      .set({ hour: 7, minute: 30, second: 0 });
+    const startTime = moment.tz({ hour: 7, minute: 30 }, timezone);
 
-    // Adjust clock-in time to start at 07:30 if the actual time is after 07:30 but within a reasonable buffer
-    const adjustedClockInTime =
-      now.isAfter(startTime) && now.diff(startTime, "minutes") <= 15
-        ? startTime
+    // Always enforce clock-in time as 07:30 SAST
+    const clockInTime =
+      now.isAfter(startTime) && now.diff(startTime, "minutes") <= 30
+        ? startTime // Use 07:30 if worker clocks in slightly earlier or later
         : now;
 
     worker.clockIns.push({
-      clockInTime: adjustedClockInTime.toDate(),
-      day: now.format("dddd"), // Get the current day
+      clockInTime: clockInTime.toDate(),
+      day: now.format("dddd"), // Store the current day
     });
 
     await worker.save();
-    res.status(201).json({ message: "Clock-in entry added successfully" });
+
+    res.status(201).json({
+      message: `Clock-in entry added successfully for ${workerName}`,
+      clockInTime: clockInTime.format(),
+    });
   } catch (error) {
     res.status(500).json({ message: "Server error", error });
   }
 };
-
 // Clock-out a worker
 exports.addClockOut = async (req, res) => {
   const { workerID, workerName, timezone = "UTC" } = req.body;
@@ -128,8 +131,8 @@ exports.addClockOut = async (req, res) => {
   }
 };
 
-// Function to auto clock out workers
-const autoClockOut = async (timezone = "UTC") => {
+// Function to auto clock-out workers
+const autoClockOut = async (timezone = "Africa/Johannesburg") => {
   try {
     const workers = await WorkerClock.find({});
 
@@ -194,11 +197,24 @@ const autoClockOut = async (timezone = "UTC") => {
   }
 };
 
-// Run the auto clock-out daily at 6:00 PM
+// Schedule auto clock-out for 20:00 SAST (18:00 UTC)
 cron.schedule("0 18 * * *", () => {
-  autoClockOut("UTC"); // Adjust timezone as needed
+  const now = moment().tz("Africa/Johannesburg").format("YYYY-MM-DD HH:mm:ss");
+  console.log(`Cron job triggered at ${now} (SAST). Executing auto clock-out.`);
+  autoClockOut("Africa/Johannesburg");
 });
 
+// Manual endpoint for testing the auto clock-out function
+exports.autoClockOutEndpoint = async (req, res) => {
+  try {
+    await autoClockOut("Africa/Johannesburg");
+    res.json({ message: "Auto clock-out completed successfully." });
+  } catch (error) {
+    res
+      .status(500)
+      .json({ message: "Server error during auto clock-out.", error });
+  }
+};
 // Get all the clock data of the workers
 exports.getAllClockData = async (req, res) => {
   try {
@@ -234,13 +250,13 @@ exports.getEarliestClockInDate = async (req, res) => {
   }
 };
 
-exports.autoClockOutEndpoint = async (req, res) => {
-  try {
-    await autoClockOut("UTC"); // Adjust timezone as needed
-    res.json({ message: "Auto clock-out completed successfully." });
-  } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Server error during auto clock-out.", error });
-  }
-};
+// exports.autoClockOutEndpoint = async (req, res) => {
+//   try {
+//     await autoClockOut("UTC"); // Adjust timezone as needed
+//     res.json({ message: "Auto clock-out completed successfully." });
+//   } catch (error) {
+//     res
+//       .status(500)
+//       .json({ message: "Server error during auto clock-out.", error });
+//   }
+// };
