@@ -197,8 +197,9 @@ const autoClockOut = async (timezone = "Africa/Johannesburg") => {
   }
 };
 
-// Schedule auto clock-out for 20:00 SAST (18:00 UTC)
-cron.schedule("0 18 * * *", () => {
+// Schedule auto clock-out for 17:30 SAST (15:30 UTC)
+
+cron.schedule("30 15 * * *", () => {
   const now = moment().tz("Africa/Johannesburg").format("YYYY-MM-DD HH:mm:ss");
   console.log(`Cron job triggered at ${now} (SAST). Executing auto clock-out.`);
   autoClockOut("Africa/Johannesburg");
