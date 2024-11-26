@@ -7,6 +7,7 @@ exports.addClockIn = async (req, res) => {
   const { workerID, workerName, timezone = "Africa/Johannesburg" } = req.body;
 
   try {
+    // Find the worker's record or create a new one if not found
     let worker = await WorkerClock.findOne({ workerID });
 
     if (!worker) {
@@ -26,7 +27,7 @@ exports.addClockIn = async (req, res) => {
       });
     }
 
-    // Check if there's an active session
+    // Check if the worker is already clocked in
     const activeSession = worker.clockIns.find(
       (session) => !session.clockOutTime
     );
@@ -37,28 +38,41 @@ exports.addClockIn = async (req, res) => {
       });
     }
 
-    // Define 07:30 SAST as the default clock-in time
+    // Define 07:30 SAST as the fixed default clock-in time
     const now = moment().tz(timezone);
-    const startTime = moment.tz({ hour: 7, minute: 30 }, timezone);
+    const defaultClockInTime = moment.tz({ hour: 7, minute: 30 }, timezone);
 
-    // Always enforce clock-in time as 07:30 SAST
-    const clockInTime =
-      now.isAfter(startTime) && now.diff(startTime, "minutes") <= 30
-        ? startTime // Use 07:30 if worker clocks in slightly earlier or later
-        : now;
+    // Logic to determine the clock-in time
+    let clockInTime;
+    if (now.isBefore(defaultClockInTime)) {
+      // If the worker clocks in earlier, set it to 07:30
+      clockInTime = defaultClockInTime;
+    } else if (
+      now.isAfter(defaultClockInTime) &&
+      now.diff(defaultClockInTime, "minutes") <= 30
+    ) {
+      // If the worker clocks in within 30 minutes after 07:30, still use 07:30
+      clockInTime = defaultClockInTime;
+    } else {
+      // Otherwise, use the current time
+      clockInTime = now;
+    }
 
+    // Add the clock-in entry
     worker.clockIns.push({
       clockInTime: clockInTime.toDate(),
-      day: now.format("dddd"), // Store the current day
+      day: clockInTime.format("dddd"), // Store the day of the week
     });
 
+    // Save the worker's clock-in data
     await worker.save();
 
     res.status(201).json({
-      message: `Clock-in entry added successfully for ${workerName}`,
-      clockInTime: clockInTime.format(),
+      message: `Clock-in entry added successfully for ${workerName}.`,
+      clockInTime: clockInTime.format("YYYY-MM-DD HH:mm:ss"), // Return formatted time
     });
   } catch (error) {
+    console.error("Error during clock-in:", error);
     res.status(500).json({ message: "Server error", error });
   }
 };
