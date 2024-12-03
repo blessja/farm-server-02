@@ -1,6 +1,7 @@
 const cron = require("node-cron");
 const moment = require("moment-timezone");
 const WorkerClock = require("../models/WorkerClock");
+const Worker = require("../models/WorkerClock");
 
 // Add a new clock-in entry for a worker
 exports.addClockIn = async (req, res) => {
@@ -49,7 +50,7 @@ exports.addClockIn = async (req, res) => {
       clockInTime = defaultClockInTime;
     } else if (
       now.isAfter(defaultClockInTime) &&
-      now.diff(defaultClockInTime, "minutes") <= 30
+      now.diff(defaultClockInTime, "minutes") <= 10
     ) {
       // If the worker clocks in within 30 minutes after 07:30, still use 07:30
       clockInTime = defaultClockInTime;
@@ -264,6 +265,60 @@ exports.getEarliestClockInDate = async (req, res) => {
     res.status(500).json({ message: "Server error", error });
   }
 };
+
+/**
+ * GET workers by a dynamic range of IDs
+ */
+exports.getWorkersByIDs = async (req, res) => {
+  const { minID, maxID } = req.query;
+
+  console.log("Received minID:", minID, "maxID:", maxID); // Debug query parameters
+
+  if (!minID || !maxID) {
+    return res.status(400).json({
+      message: "Please provide both minID and maxID query parameters.",
+    });
+  }
+
+  try {
+    // Ensure minID and maxID are numbers
+    const min = parseInt(minID, 10);
+    const max = parseInt(maxID, 10);
+
+    if (isNaN(min) || isNaN(max)) {
+      return res.status(400).json({
+        message: "minID and maxID must be valid numbers.",
+      });
+    }
+
+    // Query to find workers within the dynamic range
+    const workers = await Worker.find({
+      workerID: {
+        $gte: min,
+        $lte: max,
+      },
+    });
+
+    if (workers.length === 0) {
+      return res
+        .status(404)
+        .json({ message: "No workers found in the specified range." });
+    }
+
+    res.status(200).json({
+      message: "Workers retrieved successfully",
+      data: workers,
+    });
+  } catch (error) {
+    console.error("Error fetching workers:", error); // Log full error details
+    res.status(500).json({
+      message: "Server error",
+      error: error.message || "Unknown error", // Send meaningful error message
+    });
+  }
+};
+
+// filter the workers from
 
 // exports.autoClockOutEndpoint = async (req, res) => {
 //   try {
