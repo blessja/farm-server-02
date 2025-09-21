@@ -19,6 +19,14 @@ const workerSchema = new mongoose.Schema({
       ],
     },
   ],
+  syncLogs: [
+    {
+      syncId: { type: String },
+      deviceId: { type: String },
+      type: { type: String },
+      time: { type: Date },
+    },
+  ],
 });
 
 const Worker = mongoose.model("Worker", workerSchema);

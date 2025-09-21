@@ -11,6 +11,7 @@ const blockRoutes = require("./routes/blockRoutes");
 const bunchRoutes = require("./routes/bunchRoutes");
 const workerRoutes = require("./routes/workerRoutes");
 const clockRoutes = require("./routes/clockRoutes");
+const syncRoutes = require("./routes/sync");
 
 const app = express();
 const port = 5000;
@@ -63,5 +64,6 @@ app.use("/api/clocks", clockRoutes);
 app.use("/api/earliest-clock-in", clockRoutes);
 app.use("/api/clearAllCheckins", rowRoutes);
 app.use("/api/autoClockOutEndpoint", clockRoutes);
+app.use("/sync", syncRoutes);
 
 module.exports = app;
