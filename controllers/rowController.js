@@ -482,3 +482,88 @@ exports.getWorkers = async (req, res) => {
     res.status(500).send({ message: "Server error", error });
   }
 };
+
+// Get remaining stocks for a specific row in a specific block
+exports.getRemainingStocksForBlockRow = async (req, res) => {
+  try {
+    const { blockName, rowNumber } = req.params;
+
+    // Find the block by name
+    const block = await Block.findOne({ block_name: blockName });
+
+    if (!block) {
+      return res.status(404).send({ message: "Block not found" });
+    }
+
+    // Find the specific row within the block
+    const row = block.rows.find((r) => r.row_number === rowNumber);
+
+    if (!row) {
+      return res.status(404).send({ message: "Row not found in this block" });
+    }
+
+    // Get remaining stocks from the row
+    // If remaining_stock_count exists, use it; otherwise fall back to stock_count
+    const remainingStocks =
+      row.remaining_stock_count !== undefined
+        ? row.remaining_stock_count
+        : row.stock_count;
+
+    res.send({
+      blockName,
+      rowNumber: row.row_number,
+      remainingStocks,
+      originalStockCount: row.stock_count,
+    });
+  } catch (error) {
+    console.error("Error fetching remaining stocks for row:", error);
+    res.status(500).send({ message: "Server error", error });
+  }
+};
+
+// Alternative: Get remaining stocks using worker ID and row number
+// (if you want to keep the original API structure)
+exports.getRemainingStocksForWorkerRow = async (req, res) => {
+  try {
+    const { workerID, rowNumber } = req.params;
+
+    // Find the block that has this worker checked in to this row
+    const block = await Block.findOne({
+      "rows.row_number": rowNumber,
+      "rows.worker_id": workerID,
+    });
+
+    if (!block) {
+      return res.status(404).send({
+        message: "No active check-in found for this worker and row",
+      });
+    }
+
+    // Find the specific row
+    const row = block.rows.find(
+      (r) => r.row_number === rowNumber && r.worker_id === workerID
+    );
+
+    if (!row) {
+      return res.status(404).send({ message: "Row not found" });
+    }
+
+    // Get remaining stocks
+    const remainingStocks =
+      row.remaining_stock_count !== undefined
+        ? row.remaining_stock_count
+        : row.stock_count;
+
+    res.send({
+      blockName: block.block_name,
+      rowNumber: row.row_number,
+      remainingStocks,
+      originalStockCount: row.stock_count,
+      workerID: row.worker_id,
+      workerName: row.worker_name,
+    });
+  } catch (error) {
+    console.error("Error fetching remaining stocks:", error);
+    res.status(500).send({ message: "Server error", error });
+  }
+};
