@@ -101,33 +101,41 @@ exports.checkOutWorker = async (req, res) => {
       return res.status(404).send({ message: "Row or worker not found" });
     }
 
-    const endTime = new Date();
-    const timeSpentInMinutes = (endTime - row.start_time) / 1000 / 60; // time in minutes
+    // Validate start_time exists
+    if (!row.start_time) {
+      return res
+        .status(400)
+        .send({ message: "Worker is not checked in to this row" });
+    }
 
-    // Validate and set calculated stock count
-    let calculatedStockCount;
+    const endTime = new Date();
+    const timeSpentInMinutes = (endTime - row.start_time) / 1000 / 60;
+
+    // Determine current remaining stock
+    const currentRemaining = row.remaining_stock_count || row.stock_count;
+
+    // Validate and set stock count completed
+    let stockCompleted;
     if (typeof stockCount === "undefined" || stockCount === null) {
-      calculatedStockCount = row.remaining_stock_count || row.stock_count;
+      // If no stock count provided, assume they completed all remaining
+      stockCompleted = currentRemaining;
     } else {
-      calculatedStockCount = Number(stockCount);
-      if (isNaN(calculatedStockCount)) {
+      stockCompleted = Number(stockCount);
+      if (isNaN(stockCompleted) || stockCompleted < 0) {
         return res.status(400).send({ message: "Invalid stock count value." });
       }
 
-      if (
-        calculatedStockCount > (row.remaining_stock_count || row.stock_count)
-      ) {
-        return res
-          .status(400)
-          .send({ message: "Invalid stock count: exceeds available stocks" });
+      if (stockCompleted > currentRemaining) {
+        return res.status(400).send({
+          message: `Invalid stock count: cannot complete ${stockCompleted} trees when only ${currentRemaining} remain.`,
+        });
       }
     }
 
     // Update remaining stock count
-    row.remaining_stock_count =
-      (row.remaining_stock_count || row.stock_count) - calculatedStockCount;
+    row.remaining_stock_count = currentRemaining - stockCompleted;
 
-    // Clear worker-specific details but keep the job type intact
+    // Clear worker-specific details
     row.worker_name = "";
     row.worker_id = "";
     row.start_time = null;
@@ -135,7 +143,7 @@ exports.checkOutWorker = async (req, res) => {
 
     await block.save();
 
-    // Update or create worker record
+    // Update worker record
     let worker = await Worker.findOne({ workerID });
     if (!worker) {
       worker = new Worker({
@@ -143,22 +151,22 @@ exports.checkOutWorker = async (req, res) => {
         name: workerName,
         blocks: [],
         total_stock_count: 0,
-        jobType: row.job_type, // Initial jobType set from row if worker does not exist
       });
     }
 
     const blockIndex = worker.blocks.findIndex(
       (b) => b.block_name === blockName
     );
-
     const currentDate = new Date();
+
     if (blockIndex === -1) {
       worker.blocks.push({
         block_name: blockName,
         rows: [
           {
             row_number: rowNumber,
-            stock_count: calculatedStockCount,
+            job_type: row.job_type,
+            stock_count: stockCompleted,
             time_spent: timeSpentInMinutes,
             date: currentDate,
             day_of_week: currentDate.toLocaleDateString("en-US", {
@@ -174,7 +182,8 @@ exports.checkOutWorker = async (req, res) => {
       if (rowIndex === -1) {
         worker.blocks[blockIndex].rows.push({
           row_number: rowNumber,
-          stock_count: calculatedStockCount,
+          job_type: row.job_type,
+          stock_count: stockCompleted,
           time_spent: timeSpentInMinutes,
           date: currentDate,
           day_of_week: currentDate.toLocaleDateString("en-US", {
@@ -182,24 +191,22 @@ exports.checkOutWorker = async (req, res) => {
           }),
         });
       } else {
-        worker.blocks[blockIndex].rows[rowIndex].stock_count +=
-          calculatedStockCount;
+        // Accumulate stock and time
+        worker.blocks[blockIndex].rows[rowIndex].stock_count += stockCompleted;
         worker.blocks[blockIndex].rows[rowIndex].time_spent +=
           timeSpentInMinutes;
         worker.blocks[blockIndex].rows[rowIndex].date = currentDate;
         worker.blocks[blockIndex].rows[rowIndex].day_of_week =
-          currentDate.toLocaleDateString("en-US", {
-            weekday: "long",
-          });
+          currentDate.toLocaleDateString("en-US", { weekday: "long" });
       }
     }
 
-    // Increment total stock count
-    worker.total_stock_count += calculatedStockCount;
+    worker.total_stock_count += stockCompleted;
     await worker.save();
 
     res.send({
       message: "Check-out successful",
+      stockCompleted: stockCompleted,
       timeSpent: `${Math.floor(timeSpentInMinutes / 60)}hr ${Math.round(
         timeSpentInMinutes % 60
       )}min`,
@@ -217,14 +224,11 @@ exports.getCurrentCheckin = async (req, res) => {
   const { workerID } = req.params;
 
   try {
-    // Find all blocks that contain rows
     const blocks = await Block.find();
-
     let activeCheckins = [];
 
     blocks.forEach((block) => {
       block.rows.forEach((row) => {
-        // Check if the row is checked in by the worker and not yet checked out
         if (row.worker_id === workerID && row.start_time && !row.time_spent) {
           activeCheckins.push({
             blockName: block.block_name,
@@ -232,7 +236,7 @@ exports.getCurrentCheckin = async (req, res) => {
             rowNumber: row.row_number,
             workerID: row.worker_id,
             workerName: row.worker_name,
-            stockCount: row.stock_count,
+            stockCount: row.remaining_stock_count || row.stock_count, // FIX: Return remaining stocks
             startTime: row.start_time,
             remainingStocks: row.remaining_stock_count || row.stock_count,
           });
