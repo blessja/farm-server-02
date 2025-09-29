@@ -1,7 +1,7 @@
 const mongoose = require("mongoose");
 
 const workerSchema = new mongoose.Schema({
-  workerID: { type: String, required: true }, // Ensure this field is included and required
+  workerID: { type: String, required: true },
   name: { type: String, required: true },
   total_stock_count: { type: Number, default: 0 },
   blocks: [
@@ -10,11 +10,11 @@ const workerSchema = new mongoose.Schema({
       rows: [
         {
           row_number: { type: String },
+          job_type: { type: String, required: true }, // Important: track job type
           stock_count: { type: Number },
           time_spent: { type: Number },
-          job_type: { type: String, required: false },
-          date: { type: Date }, // New field to track the date
-          day_of_week: { type: String }, // New field to track the day of the week
+          date: { type: Date },
+          day_of_week: { type: String },
         },
       ],
     },
