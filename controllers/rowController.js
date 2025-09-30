@@ -91,10 +91,6 @@ exports.checkOutWorker = async (req, res) => {
     req.body;
 
   try {
-    if (!workerID || !rowNumber || !blockName || !jobType) {
-      return res.status(400).send({ message: "Missing required fields" });
-    }
-
     const block = await Block.findOne({ block_name: blockName });
     if (!block) {
       return res.status(404).send({ message: "Block not found" });
@@ -105,34 +101,41 @@ exports.checkOutWorker = async (req, res) => {
       return res.status(404).send({ message: "Row not found" });
     }
 
-    // Initialize active_jobs if it doesn't exist (backward compatibility)
-    if (!row.active_jobs) {
-      row.active_jobs = [];
+    let job, jobIndex, timeSpentInMinutes, currentRemaining;
+
+    // Try NEW FORMAT first (active_jobs)
+    if (row.active_jobs && row.active_jobs.length > 0) {
+      jobIndex = row.active_jobs.findIndex(
+        (job) => job.worker_id === workerID && job.job_type === jobType
+      );
+
+      if (jobIndex !== -1) {
+        job = row.active_jobs[jobIndex];
+        const endTime = new Date();
+        timeSpentInMinutes = (endTime - job.start_time) / 1000 / 60;
+        currentRemaining = job.remaining_stock;
+      }
     }
 
-    // Find the specific job for this worker and job type
-    const jobIndex = row.active_jobs.findIndex(
-      (job) => job.worker_id === workerID && job.job_type === jobType
-    );
+    // Fallback to OLD FORMAT if not found in active_jobs
+    if (!job && row.worker_id === workerID) {
+      if (!row.start_time) {
+        return res
+          .status(400)
+          .send({ message: "Worker is not checked in to this row" });
+      }
+      const endTime = new Date();
+      timeSpentInMinutes = (endTime - row.start_time) / 1000 / 60;
+      currentRemaining = row.remaining_stock_count || row.stock_count;
+    }
 
-    if (jobIndex === -1) {
+    if (!job && row.worker_id !== workerID) {
       return res.status(404).send({
         message: `No active ${jobType} job found for ${workerName} on Row ${rowNumber}.`,
       });
     }
 
-    const job = row.active_jobs[jobIndex];
-
-    if (!job.start_time) {
-      return res.status(400).send({ message: "Invalid check-in data" });
-    }
-
-    const endTime = new Date();
-    const timeSpentInMinutes = (endTime - job.start_time) / 1000 / 60;
-
-    const currentRemaining = job.remaining_stock;
-
-    // Validate and set stock count completed
+    // Validate stock count
     let stockCompleted;
     if (typeof stockCount === "undefined" || stockCount === null) {
       stockCompleted = currentRemaining;
@@ -148,15 +151,23 @@ exports.checkOutWorker = async (req, res) => {
       }
     }
 
-    // Update remaining stock for this specific job
-    job.remaining_stock = currentRemaining - stockCompleted;
-
-    // Remove the job from active_jobs (checkout complete)
-    row.active_jobs.splice(jobIndex, 1);
+    // Update based on format
+    if (job) {
+      // NEW FORMAT
+      job.remaining_stock = currentRemaining - stockCompleted;
+      row.active_jobs.splice(jobIndex, 1);
+    } else {
+      // OLD FORMAT
+      row.remaining_stock_count = currentRemaining - stockCompleted;
+      row.worker_name = "";
+      row.worker_id = "";
+      row.start_time = null;
+      row.time_spent = null;
+    }
 
     await block.save();
 
-    // Update worker record
+    // Update worker record (same as before)
     let worker = await Worker.findOne({ workerID });
     if (!worker) {
       worker = new Worker({
@@ -223,7 +234,7 @@ exports.checkOutWorker = async (req, res) => {
         timeSpentInMinutes % 60
       )}min`,
       rowNumber: row.row_number,
-      remainingStocks: job.remaining_stock,
+      remainingStocks: job ? job.remaining_stock : row.remaining_stock_count,
       jobType: jobType,
     });
   } catch (error) {
@@ -242,7 +253,7 @@ exports.getCurrentCheckin = async (req, res) => {
 
     blocks.forEach((block) => {
       block.rows.forEach((row) => {
-        // Check new active_jobs array
+        // NEW FORMAT: Check active_jobs array first
         if (row.active_jobs && row.active_jobs.length > 0) {
           row.active_jobs.forEach((job) => {
             if (job.worker_id === workerID) {
@@ -259,8 +270,10 @@ exports.getCurrentCheckin = async (req, res) => {
             }
           });
         }
-        // Backward compatibility: check legacy fields
-        else if (
+
+        // OLD FORMAT: Fallback to legacy fields if active_jobs doesn't exist or is empty
+        if (
+          (!row.active_jobs || row.active_jobs.length === 0) &&
           row.worker_id === workerID &&
           row.start_time &&
           !row.time_spent
@@ -290,7 +303,6 @@ exports.getCurrentCheckin = async (req, res) => {
     return res.status(500).json({ message: error.message });
   }
 };
-
 // Get the worker's current check-in
 exports.getCurrentCheckins = async (req, res) => {
   try {
