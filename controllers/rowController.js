@@ -91,6 +91,10 @@ exports.checkOutWorker = async (req, res) => {
     req.body;
 
   try {
+    if (!workerID || !rowNumber || !blockName) {
+      return res.status(400).send({ message: "Missing required fields" });
+    }
+
     const block = await Block.findOne({ block_name: blockName });
     if (!block) {
       return res.status(404).send({ message: "Block not found" });
@@ -102,15 +106,25 @@ exports.checkOutWorker = async (req, res) => {
     }
 
     let job, jobIndex, timeSpentInMinutes, currentRemaining;
+    let usedJobType = jobType || "UNKNOWN"; // Fallback if jobType not provided
 
     // Try NEW FORMAT first (active_jobs)
     if (row.active_jobs && row.active_jobs.length > 0) {
-      jobIndex = row.active_jobs.findIndex(
-        (job) => job.worker_id === workerID && job.job_type === jobType
-      );
+      // If jobType provided, find specific job
+      if (jobType) {
+        jobIndex = row.active_jobs.findIndex(
+          (job) => job.worker_id === workerID && job.job_type === jobType
+        );
+      } else {
+        // If no jobType, find any job for this worker
+        jobIndex = row.active_jobs.findIndex(
+          (job) => job.worker_id === workerID
+        );
+      }
 
       if (jobIndex !== -1) {
         job = row.active_jobs[jobIndex];
+        usedJobType = job.job_type; // Use the actual job type from the record
         const endTime = new Date();
         timeSpentInMinutes = (endTime - job.start_time) / 1000 / 60;
         currentRemaining = job.remaining_stock;
@@ -124,6 +138,7 @@ exports.checkOutWorker = async (req, res) => {
           .status(400)
           .send({ message: "Worker is not checked in to this row" });
       }
+      usedJobType = row.job_type || "UNKNOWN";
       const endTime = new Date();
       timeSpentInMinutes = (endTime - row.start_time) / 1000 / 60;
       currentRemaining = row.remaining_stock_count || row.stock_count;
@@ -131,7 +146,7 @@ exports.checkOutWorker = async (req, res) => {
 
     if (!job && row.worker_id !== workerID) {
       return res.status(404).send({
-        message: `No active ${jobType} job found for ${workerName} on Row ${rowNumber}.`,
+        message: `No active job found for ${workerName} on Row ${rowNumber}.`,
       });
     }
 
@@ -167,7 +182,7 @@ exports.checkOutWorker = async (req, res) => {
 
     await block.save();
 
-    // Update worker record (same as before)
+    // Update worker record
     let worker = await Worker.findOne({ workerID });
     if (!worker) {
       worker = new Worker({
@@ -189,7 +204,7 @@ exports.checkOutWorker = async (req, res) => {
         rows: [
           {
             row_number: rowNumber,
-            job_type: jobType,
+            job_type: usedJobType, // IMPORTANT: Always include job_type
             stock_count: stockCompleted,
             time_spent: timeSpentInMinutes,
             date: currentDate,
@@ -201,12 +216,12 @@ exports.checkOutWorker = async (req, res) => {
       });
     } else {
       const rowIndex = worker.blocks[blockIndex].rows.findIndex(
-        (r) => r.row_number === rowNumber && r.job_type === jobType
+        (r) => r.row_number === rowNumber && r.job_type === usedJobType
       );
       if (rowIndex === -1) {
         worker.blocks[blockIndex].rows.push({
           row_number: rowNumber,
-          job_type: jobType,
+          job_type: usedJobType, // IMPORTANT: Always include job_type
           stock_count: stockCompleted,
           time_spent: timeSpentInMinutes,
           date: currentDate,
@@ -235,11 +250,11 @@ exports.checkOutWorker = async (req, res) => {
       )}min`,
       rowNumber: row.row_number,
       remainingStocks: job ? job.remaining_stock : row.remaining_stock_count,
-      jobType: jobType,
+      jobType: usedJobType,
     });
   } catch (error) {
     console.error("Error during worker check-out:", error);
-    res.status(500).send({ message: "Server error", error });
+    res.status(500).send({ message: "Server error", error: error.message });
   }
 };
 

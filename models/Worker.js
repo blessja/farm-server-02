@@ -10,7 +10,7 @@ const workerSchema = new mongoose.Schema({
       rows: [
         {
           row_number: { type: String },
-          job_type: { type: String, required: true }, // Important: track job type
+          job_type: { type: String, required: false, default: "Other" }, // Important: track job type
           stock_count: { type: Number },
           time_spent: { type: Number },
           date: { type: Date },
