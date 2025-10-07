@@ -50,13 +50,47 @@ exports.checkInWorker = async (req, res) => {
       });
     }
 
-    // Add new job to active_jobs
+    // ✅ FIX: Calculate the actual remaining stock for this job type
+    // Look for any previous incomplete work on this row for this job type
+    let actualRemainingStock = row.stock_count;
+
+    // Check if there's a remaining_stock_count from previous partial work
+    // This handles rows that were partially completed using the old system
+    if (
+      row.remaining_stock_count !== undefined &&
+      row.remaining_stock_count !== null
+    ) {
+      actualRemainingStock = row.remaining_stock_count;
+    }
+
+    // Also check if there are any completed jobs in active_jobs that left remaining stock
+    // (in case a job was partially done and removed from active_jobs)
+    const previousJobsForThisType = row.active_jobs.filter(
+      (job) => job.job_type === jobType
+    );
+
+    if (previousJobsForThisType.length > 0) {
+      // Use the remaining stock from the most recent job of this type
+      const lastJob =
+        previousJobsForThisType[previousJobsForThisType.length - 1];
+      if (lastJob.remaining_stock !== undefined) {
+        actualRemainingStock = lastJob.remaining_stock;
+      }
+    }
+
+    console.log(`Check-in for ${jobType} on Row ${rowNumber}:`, {
+      originalStockCount: row.stock_count,
+      legacyRemainingStock: row.remaining_stock_count,
+      actualRemainingStock: actualRemainingStock,
+    });
+
+    // Add new job to active_jobs with ACTUAL remaining stock
     row.active_jobs.push({
       worker_name: workerName,
       worker_id: workerID,
       job_type: jobType,
       start_time: new Date(),
-      remaining_stock: row.stock_count, // Each job starts with full count
+      remaining_stock: actualRemainingStock, // ✅ FIX: Use actual remaining, not full count
       time_spent: null,
     });
 
@@ -78,6 +112,7 @@ exports.checkInWorker = async (req, res) => {
       message: "Check-in successful",
       rowNumber: row.row_number,
       jobType: jobType,
+      remainingStock: actualRemainingStock, // Return this so frontend can display it
     });
   } catch (error) {
     console.error("Error during check-in:", error);
