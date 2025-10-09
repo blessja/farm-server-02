@@ -50,49 +50,52 @@ exports.checkInWorker = async (req, res) => {
       });
     }
 
-    // ✅ FIX: Calculate the actual remaining stock for this job type
-    // Look for any previous incomplete work on this row for this job type
-    let actualRemainingStock = row.stock_count;
+    // ✅ FIX: Determine the actual remaining stock for this job
+    let actualRemainingStock;
 
-    // Check if there's a remaining_stock_count from previous partial work
-    // This handles rows that were partially completed using the old system
+    // If remaining_stock_count exists and is not 0, use it (partial work from previous session)
     if (
       row.remaining_stock_count !== undefined &&
-      row.remaining_stock_count !== null
+      row.remaining_stock_count !== null &&
+      row.remaining_stock_count > 0
     ) {
       actualRemainingStock = row.remaining_stock_count;
+      console.log(
+        `Using remaining_stock_count from previous session: ${actualRemainingStock}`
+      );
+    } else {
+      // Otherwise, this is the first time working on this row, use full stock_count
+      actualRemainingStock = row.stock_count;
+      console.log(
+        `First time on this row, using full stock_count: ${actualRemainingStock}`
+      );
     }
 
-    // Also check if there are any completed jobs in active_jobs that left remaining stock
-    // (in case a job was partially done and removed from active_jobs)
-    const previousJobsForThisType = row.active_jobs.filter(
-      (job) => job.job_type === jobType
-    );
-
-    if (previousJobsForThisType.length > 0) {
-      // Use the remaining stock from the most recent job of this type
-      const lastJob =
-        previousJobsForThisType[previousJobsForThisType.length - 1];
-      if (lastJob.remaining_stock !== undefined) {
-        actualRemainingStock = lastJob.remaining_stock;
-      }
-    }
-
-    console.log(`Check-in for ${jobType} on Row ${rowNumber}:`, {
+    console.log("Check-in details:", {
+      rowNumber: row.row_number,
+      jobType: jobType,
       originalStockCount: row.stock_count,
-      legacyRemainingStock: row.remaining_stock_count,
+      remainingStockCount: row.remaining_stock_count,
       actualRemainingStock: actualRemainingStock,
     });
 
-    // Add new job to active_jobs with ACTUAL remaining stock
+    // Add new job to active_jobs
     row.active_jobs.push({
       worker_name: workerName,
       worker_id: workerID,
       job_type: jobType,
       start_time: new Date(),
-      remaining_stock: actualRemainingStock, // ✅ FIX: Use actual remaining, not full count
+      remaining_stock: actualRemainingStock, // ✅ Use actual remaining
       time_spent: null,
     });
+
+    // ✅ IMPORTANT: Also update legacy fields for backward compatibility
+    row.worker_name = workerName;
+    row.worker_id = workerID;
+    row.start_time = new Date();
+    row.job_type = jobType;
+    // DON'T reset remaining_stock_count to 0 here!
+    // It should keep its value from the previous checkout
 
     await block.save();
 
@@ -112,7 +115,7 @@ exports.checkInWorker = async (req, res) => {
       message: "Check-in successful",
       rowNumber: row.row_number,
       jobType: jobType,
-      remainingStock: actualRemainingStock, // Return this so frontend can display it
+      remainingStock: actualRemainingStock,
     });
   } catch (error) {
     console.error("Error during check-in:", error);
