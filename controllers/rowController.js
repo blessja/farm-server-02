@@ -129,6 +129,9 @@ exports.checkOutWorker = async (req, res) => {
     req.body;
 
   try {
+    console.log("=== CHECKOUT REQUEST ===");
+    console.log("Request body:", JSON.stringify(req.body, null, 2));
+
     if (!workerID || !rowNumber || !blockName) {
       return res.status(400).send({ message: "Missing required fields" });
     }
@@ -143,11 +146,22 @@ exports.checkOutWorker = async (req, res) => {
       return res.status(404).send({ message: "Row not found" });
     }
 
+    console.log("=== ROW DATA BEFORE CHECKOUT ===");
+    console.log("Row number:", row.row_number);
+    console.log("stock_count:", row.stock_count);
+    console.log("remaining_stock_count:", row.remaining_stock_count);
+    console.log("worker_id:", row.worker_id);
+    console.log("worker_name:", row.worker_name);
+    console.log("job_type:", row.job_type);
+    console.log("active_jobs:", JSON.stringify(row.active_jobs, null, 2));
+
     let job, jobIndex, timeSpentInMinutes, currentRemaining, stockCompleted;
     let usedJobType = jobType || "UNKNOWN";
 
     // Try NEW FORMAT first (active_jobs)
     if (row.active_jobs && row.active_jobs.length > 0) {
+      console.log("=== USING NEW FORMAT (active_jobs) ===");
+
       if (jobType) {
         jobIndex = row.active_jobs.findIndex(
           (job) => job.worker_id === workerID && job.job_type === jobType
@@ -158,6 +172,8 @@ exports.checkOutWorker = async (req, res) => {
         );
       }
 
+      console.log("Job index found:", jobIndex);
+
       if (jobIndex !== -1) {
         job = row.active_jobs[jobIndex];
         usedJobType = job.job_type;
@@ -165,17 +181,29 @@ exports.checkOutWorker = async (req, res) => {
         timeSpentInMinutes = (endTime - job.start_time) / 1000 / 60;
         currentRemaining = job.remaining_stock;
 
+        console.log("Job found in active_jobs:");
+        console.log("  - remaining_stock:", job.remaining_stock);
+        console.log("  - currentRemaining:", currentRemaining);
+        console.log("  - stockCount from request:", stockCount);
+
         // Calculate stock completed
         if (typeof stockCount === "undefined" || stockCount === null) {
           stockCompleted = currentRemaining;
+          console.log(
+            "  - No stockCount provided, using currentRemaining:",
+            stockCompleted
+          );
         } else {
           stockCompleted = Number(stockCount);
+          console.log("  - stockCount provided:", stockCompleted);
+
           if (isNaN(stockCompleted) || stockCompleted < 0) {
             return res
               .status(400)
               .send({ message: "Invalid stock count value." });
           }
           if (stockCompleted > currentRemaining) {
+            console.log("  - ERROR: stockCompleted > currentRemaining");
             return res.status(400).send({
               message: `Invalid stock count: cannot complete ${stockCompleted} trees when only ${currentRemaining} remain.`,
             });
@@ -184,16 +212,19 @@ exports.checkOutWorker = async (req, res) => {
 
         // Update remaining stock
         job.remaining_stock = currentRemaining - stockCompleted;
-
-        // Persist to legacy field before removing
         row.remaining_stock_count = job.remaining_stock;
 
+        console.log("  - New remaining_stock:", job.remaining_stock);
+
         row.active_jobs.splice(jobIndex, 1);
+        console.log("  - Removed job from active_jobs");
       }
     }
 
     // Fallback to OLD FORMAT if not found in active_jobs
     if (!job && row.worker_id === workerID) {
+      console.log("=== USING OLD FORMAT ===");
+
       if (!row.start_time) {
         return res
           .status(400)
@@ -204,42 +235,48 @@ exports.checkOutWorker = async (req, res) => {
       const endTime = new Date();
       timeSpentInMinutes = (endTime - row.start_time) / 1000 / 60;
 
-      // ✅ FIX: Use remaining_stock_count if it exists, otherwise use stock_count
       currentRemaining =
         row.remaining_stock_count !== undefined &&
         row.remaining_stock_count !== null
           ? row.remaining_stock_count
           : row.stock_count;
 
-      console.log("OLD FORMAT checkout:", {
-        rowNumber: row.row_number,
-        stockCount: row.stock_count,
-        remainingStockCount: row.remaining_stock_count,
-        currentRemaining: currentRemaining,
-        stockCountFromRequest: stockCount,
-      });
+      console.log("Old format values:");
+      console.log("  - row.remaining_stock_count:", row.remaining_stock_count);
+      console.log("  - row.stock_count:", row.stock_count);
+      console.log("  - currentRemaining:", currentRemaining);
+      console.log("  - stockCount from request:", stockCount);
 
       // Calculate stock completed
       if (typeof stockCount === "undefined" || stockCount === null) {
         stockCompleted = currentRemaining;
+        console.log(
+          "  - No stockCount provided, using currentRemaining:",
+          stockCompleted
+        );
       } else {
         stockCompleted = Number(stockCount);
+        console.log("  - stockCount provided:", stockCompleted);
+
         if (isNaN(stockCompleted) || stockCompleted < 0) {
           return res
             .status(400)
             .send({ message: "Invalid stock count value." });
         }
         if (stockCompleted > currentRemaining) {
+          console.log("  - ERROR: stockCompleted > currentRemaining");
+          console.log("  - stockCompleted:", stockCompleted);
+          console.log("  - currentRemaining:", currentRemaining);
           return res.status(400).send({
             message: `Invalid stock count: cannot complete ${stockCompleted} trees when only ${currentRemaining} remain.`,
           });
         }
       }
 
-      console.log("Stock completed:", stockCompleted);
-
       // Update remaining stock count
       row.remaining_stock_count = currentRemaining - stockCompleted;
+      console.log("  - New remaining_stock_count:", row.remaining_stock_count);
+
       row.worker_name = "";
       row.worker_id = "";
       row.start_time = null;
@@ -252,9 +289,11 @@ exports.checkOutWorker = async (req, res) => {
       });
     }
 
-    await block.save();
+    console.log("=== FINAL VALUES ===");
+    console.log("stockCompleted:", stockCompleted);
+    console.log("timeSpentInMinutes:", timeSpentInMinutes);
 
-    console.log("Saving to worker record - stockCompleted:", stockCompleted);
+    await block.save();
 
     // Update worker record
     let worker = await Worker.findOne({ workerID });
@@ -279,7 +318,7 @@ exports.checkOutWorker = async (req, res) => {
           {
             row_number: rowNumber,
             job_type: usedJobType,
-            stock_count: stockCompleted, // ✅ Using stockCompleted
+            stock_count: stockCompleted,
             time_spent: timeSpentInMinutes,
             date: currentDate,
             day_of_week: currentDate.toLocaleDateString("en-US", {
@@ -296,7 +335,7 @@ exports.checkOutWorker = async (req, res) => {
         worker.blocks[blockIndex].rows.push({
           row_number: rowNumber,
           job_type: usedJobType,
-          stock_count: stockCompleted, // ✅ Using stockCompleted
+          stock_count: stockCompleted,
           time_spent: timeSpentInMinutes,
           date: currentDate,
           day_of_week: currentDate.toLocaleDateString("en-US", {
@@ -304,7 +343,6 @@ exports.checkOutWorker = async (req, res) => {
           }),
         });
       } else {
-        // ✅ FIX: Adding stockCompleted, not overwriting
         worker.blocks[blockIndex].rows[rowIndex].stock_count += stockCompleted;
         worker.blocks[blockIndex].rows[rowIndex].time_spent +=
           timeSpentInMinutes;
@@ -314,13 +352,8 @@ exports.checkOutWorker = async (req, res) => {
       }
     }
 
-    // ✅ FIX: Add stockCompleted to total, not currentRemaining
     worker.total_stock_count += stockCompleted;
-
-    console.log(
-      "Worker total_stock_count after update:",
-      worker.total_stock_count
-    );
+    console.log("Worker total_stock_count:", worker.total_stock_count);
 
     await worker.save();
 
