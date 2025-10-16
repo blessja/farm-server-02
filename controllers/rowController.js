@@ -1,10 +1,19 @@
 const Worker = require("../models/Worker");
 const Block = require("../models/Block");
+// const RowModel = require("../models/Row");
 
 // Check-in a worker
 // Check-in a worker
+// Updated checkInWorker function with override capability
 exports.checkInWorker = async (req, res) => {
-  const { workerID, workerName, rowNumber, blockName, jobType } = req.body;
+  const {
+    workerID,
+    workerName,
+    rowNumber,
+    blockName,
+    jobType,
+    allowMultipleWorkers,
+  } = req.body;
 
   try {
     console.log("=== CHECK-IN REQUEST ===");
@@ -51,18 +60,22 @@ exports.checkInWorker = async (req, res) => {
       });
     }
 
-    // Check if ANOTHER worker is doing the SAME job type on this row
+    // ✅ NEW: Check if ANOTHER worker is doing the SAME job type on this row
     const sameJobType = row.active_jobs.find(
       (job) => job.job_type === jobType && job.worker_id !== workerID
     );
 
-    if (sameJobType) {
+    // ✅ NEW: Only block if override is NOT enabled
+    if (sameJobType && !allowMultipleWorkers) {
       return res.status(409).json({
         message: `Row ${rowNumber} is currently being worked on by ${sameJobType.worker_name} for ${jobType}.`,
+        conflict: true, // Flag to indicate this can be overridden
+        existingWorker: sameJobType.worker_name,
+        canOverride: true,
       });
     }
 
-    // ✅ FIX: Determine actual remaining stock
+    // ✅ Determine actual remaining stock
     let actualRemainingStock;
 
     // Check if there's partial work from previous session
@@ -100,17 +113,15 @@ exports.checkInWorker = async (req, res) => {
       worker_id: workerID,
       job_type: jobType,
       start_time: new Date(),
-      remaining_stock: actualRemainingStock, // ✅ This is the key fix
+      remaining_stock: actualRemainingStock,
       time_spent: null,
     });
 
-    // ✅ CRITICAL: Update legacy fields but DON'T change remaining_stock_count
+    // Update legacy fields
     row.worker_name = workerName;
     row.worker_id = workerID;
     row.start_time = new Date();
     row.job_type = jobType;
-    // ❌ DON'T DO THIS: row.remaining_stock_count = 0;
-    // The remaining_stock_count should only be updated during checkout!
 
     console.log("=== ROW DATA AFTER CHECK-IN (before save) ===");
     console.log("active_jobs:", JSON.stringify(row.active_jobs, null, 2));
@@ -133,10 +144,13 @@ exports.checkInWorker = async (req, res) => {
     }
 
     res.json({
-      message: "Check-in successful",
+      message: allowMultipleWorkers
+        ? "Check-in successful (multiple workers on same row)"
+        : "Check-in successful",
       rowNumber: row.row_number,
       jobType: jobType,
       remainingStock: actualRemainingStock,
+      multipleWorkersAllowed: allowMultipleWorkers || false,
     });
   } catch (error) {
     console.error("Error during check-in:", error);
@@ -690,5 +704,141 @@ exports.getRemainingStocksForWorkerRow = async (req, res) => {
   } catch (error) {
     console.error("Error fetching remaining stocks:", error);
     res.status(500).send({ message: "Server error", error });
+  }
+};
+
+// check for any rows which have an remaining stock count of more than 0 but no active jobs and reset them
+exports.resetStuckRows = async (req, res) => {
+  try {
+    const blocks = await Block.find();
+    let resetCount = 0;
+
+    for (const block of blocks) {
+      let blockModified = false;
+
+      for (const row of block.rows) {
+        // If remaining_stock_count > 0 but no active jobs, reset it
+        if (
+          row.remaining_stock_count > 0 &&
+          (!row.active_jobs || row.active_jobs.length === 0) &&
+          !row.worker_id
+        ) {
+          console.log(
+            `Resetting stuck row: Block ${block.block_name}, Row ${row.row_number}`
+          );
+          row.remaining_stock_count = null; // or set to row.stock_count if you want to reset to full
+          row.worker_id = "";
+          row.worker_name = "";
+          row.start_time = null;
+          row.time_spent = null;
+          row.job_type = "";
+          blockModified = true;
+          resetCount++;
+        }
+      }
+
+      if (blockModified) {
+        await block.save();
+      }
+    }
+
+    res.send({
+      message: `Reset ${resetCount} stuck rows.`,
+    });
+  } catch (error) {
+    console.error("Error resetting stuck rows:", error);
+    res.status(500).send({ message: "Server error", error });
+  }
+};
+
+// get all rows which have remaining stock count
+exports.getRowsWithRemainingStocks = async (req, res) => {
+  try {
+    const blocks = await Block.find();
+    let rowsWithRemainingStocks = [];
+
+    blocks.forEach((block) => {
+      block.rows.forEach((row) => {
+        if (row.remaining_stock_count > 0) {
+          rowsWithRemainingStocks.push({
+            blockName: block.block_name,
+            rowNumber: row.row_number,
+            remainingStocks: row.remaining_stock_count,
+            originalStockCount: row.stock_count,
+            workerID: row.worker_id,
+            workerName: row.worker_name,
+            jobType: row.job_type,
+            startTime: row.start_time,
+          });
+        }
+      });
+    });
+
+    if (rowsWithRemainingStocks.length === 0) {
+      return res
+        .status(404)
+        .json({ message: "No rows with remaining stocks found." });
+    }
+
+    return res.json(rowsWithRemainingStocks);
+  } catch (error) {
+    console.error("Error fetching rows with remaining stocks:", error);
+    res.status(500).send({ message: "Server error", error });
+  }
+};
+
+//  Delete single or multiple rows-with-remaining-stocks
+exports.deleteRowsWithRemainingStocks = async (req, res) => {
+  try {
+    const { blockName, rowNumber, rows } = req.body;
+
+    // ✅ Bulk delete case
+    if (Array.isArray(rows) && rows.length > 0) {
+      let deletedCount = 0;
+
+      for (const r of rows) {
+        const result = await Block.updateOne(
+          { block_name: r.blockName }, // ✅ Fixed field name
+          {
+            $pull: {
+              rows: {
+                row_number: r.rowNumber, // ✅ Fixed field name
+                remaining_stock_count: { $gt: 0 }, // ✅ Fixed field name
+              },
+            },
+          }
+        );
+        deletedCount += result.modifiedCount;
+      }
+
+      return res.json({
+        message: `${deletedCount} rows with remaining stocks deleted successfully.`,
+        deletedCount,
+      });
+    }
+
+    // ✅ Single delete case
+    const result = await Block.updateOne(
+      { block_name: blockName }, // ✅ Fixed field name
+      {
+        $pull: {
+          rows: {
+            row_number: rowNumber, // ✅ Fixed field name
+            remaining_stock_count: { $gt: 0 }, // ✅ Fixed field name
+          },
+        },
+      }
+    );
+
+    if (result.modifiedCount === 0) {
+      return res
+        .status(404)
+        .json({ message: "No row with remaining stocks found." });
+    }
+
+    return res.json({ message: "Row deleted successfully." });
+  } catch (error) {
+    console.error("Delete rows error:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 };

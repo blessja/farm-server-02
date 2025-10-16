@@ -25,6 +25,18 @@ router.get(
 
 router.put("/workers/clearAllCheckins", rowController.clearAllCheckins);
 
+//get rows with remaining stocks
+router.get(
+  "/rows-with-remaining-stocks",
+  rowController.getRowsWithRemainingStocks
+);
+
+//  Delete single or multiple rows-with-remaining-stocks
+router.delete(
+  "/rows-with-remaining-vines",
+  rowController.deleteRowsWithRemainingStocks
+);
+
 // get workers
 router.get("/workers", rowController.getWorkers);
 
