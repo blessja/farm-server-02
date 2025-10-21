@@ -1,10 +1,7 @@
 const Worker = require("../models/Worker");
 const Block = require("../models/Block");
-// const RowModel = require("../models/Row");
 
-// Check-in a worker
-// Check-in a worker
-// Updated checkInWorker function with override capability
+// Debug version of checkInWorker with detailed logging
 exports.checkInWorker = async (req, res) => {
   const {
     workerID,
@@ -17,7 +14,12 @@ exports.checkInWorker = async (req, res) => {
 
   try {
     console.log("=== CHECK-IN REQUEST ===");
-    console.log("Request:", req.body);
+    console.log("Request Body:", req.body);
+    console.log(
+      "allowMultipleWorkers:",
+      allowMultipleWorkers,
+      typeof allowMultipleWorkers
+    );
 
     if (!workerID || !workerName || !rowNumber || !blockName || !jobType) {
       return res.status(400).json({ message: "Missing required fields" });
@@ -55,30 +57,42 @@ exports.checkInWorker = async (req, res) => {
     );
 
     if (existingJob) {
+      console.log("BLOCKED: Same worker already checked in");
       return res.status(409).json({
         message: `You are already checked in to Row ${rowNumber} for ${jobType}.`,
       });
     }
 
-    // ✅ NEW: Check if ANOTHER worker is doing the SAME job type on this row
+    // Check if ANOTHER worker is doing the SAME job type on this row
     const sameJobType = row.active_jobs.find(
       (job) => job.job_type === jobType && job.worker_id !== workerID
     );
 
-    // ✅ NEW: Only block if override is NOT enabled
+    console.log("=== CONFLICT CHECK ===");
+    console.log("sameJobType found:", sameJobType ? "YES" : "NO");
+    if (sameJobType) {
+      console.log("Conflicting worker:", sameJobType.worker_name);
+      console.log("allowMultipleWorkers:", allowMultipleWorkers);
+    }
+
+    // Only block if override is NOT enabled
     if (sameJobType && !allowMultipleWorkers) {
+      console.log("CONFLICT DETECTED - Sending override response");
       return res.status(409).json({
         message: `Row ${rowNumber} is currently being worked on by ${sameJobType.worker_name} for ${jobType}.`,
-        conflict: true, // Flag to indicate this can be overridden
+        conflict: true,
         existingWorker: sameJobType.worker_name,
         canOverride: true,
       });
     }
 
-    // ✅ Determine actual remaining stock
+    if (sameJobType && allowMultipleWorkers) {
+      console.log("OVERRIDE ALLOWED - Multiple workers permitted");
+    }
+
+    // Determine actual remaining stock
     let actualRemainingStock;
 
-    // Check if there's partial work from previous session
     if (
       row.remaining_stock_count !== undefined &&
       row.remaining_stock_count !== null &&
@@ -90,14 +104,12 @@ exports.checkInWorker = async (req, res) => {
         actualRemainingStock
       );
     } else if (row.remaining_stock_count === 0) {
-      // Row was completed, use full stock_count for new work
       actualRemainingStock = row.stock_count;
       console.log(
-        "Row was completed (remaining=0), starting fresh with stock_count:",
+        "Row was completed, starting fresh with stock_count:",
         actualRemainingStock
       );
     } else {
-      // First time on this row
       actualRemainingStock = row.stock_count;
       console.log(
         "First time on row, using stock_count:",
@@ -105,9 +117,7 @@ exports.checkInWorker = async (req, res) => {
       );
     }
 
-    console.log("actualRemainingStock to be used:", actualRemainingStock);
-
-    // Add new job to active_jobs with correct remaining stock
+    // Add new job to active_jobs
     row.active_jobs.push({
       worker_name: workerName,
       worker_id: workerID,
@@ -129,7 +139,7 @@ exports.checkInWorker = async (req, res) => {
 
     await block.save();
 
-    console.log("Block saved successfully");
+    console.log("✅ Check-in successful");
 
     // Ensure worker record exists
     let worker = await Worker.findOne({ workerID });
@@ -153,8 +163,8 @@ exports.checkInWorker = async (req, res) => {
       multipleWorkersAllowed: allowMultipleWorkers || false,
     });
   } catch (error) {
-    console.error("Error during check-in:", error);
-    res.status(500).json({ message: "Server error", error });
+    console.error("❌ Error during check-in:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 };
 
