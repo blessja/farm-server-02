@@ -10,7 +10,7 @@ jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     permissions:
-      id-token: write      # Needed for OIDC login
+      id-token: write     
       contents: read
 
     steps:
@@ -39,5 +39,6 @@ jobs:
       - name: 🚀 Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
         with:
-          app-name: 'farm-backend'    # 👈 Replace with your Azure App Service name
+          app-name: 'farm-backend' 
           package: .
+
