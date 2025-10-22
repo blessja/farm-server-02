@@ -1,0 +1,44 @@
+name: Deploy Node.js Backend to Azure App Service - farm-backend
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write     
+      contents: read
+
+    steps:
+      - name: 🧩 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: ⚙️ Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: 📦 Install dependencies
+        run: npm install
+
+      - name: 🧱 Build step (optional)
+        run: |
+          echo "No build step required for backend" 
+
+      - name: 🔐 Login to Azure using OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_88919E2F7F1D4B19BA338B1918A8C3ED }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_65DEB110F55B4F7F8ED6E865CBE1027E }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_444B21C9918747DA8C93780BD02EF416 }}
+
+      - name: 🚀 Deploy to Azure Web App
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: 'farm-backend' 
+          package: .
+
