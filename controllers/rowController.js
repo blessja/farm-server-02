@@ -3,6 +3,7 @@ const Block = require("../models/Block");
 
 // Debug version of checkInWorker with detailed logging
 exports.checkInWorker = async (req, res) => {
+  console.log("=== CHECK-IN REQUEST RECEIVED ===");
   const {
     workerID,
     workerName,

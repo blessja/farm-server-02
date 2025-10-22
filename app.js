@@ -23,34 +23,43 @@ connectDB();
 // app.use(cors());
 app.use(express.json());
 
+const allowedOrigins = [
+  "http://localhost:3000",
+  "https://glenoakfarm.netlify.app",
+  "http://localhost:4000",
+  "http://localhost:8100",
+  "capacitor://localhost",
+  "https://localhost",
+  "ionic://localhost",
+  "http://localhost:5173",
+  "http://localhost:8101",
+  "http://192.168.0.21:8135",
+  "http://192.168.0.103:8101",
+  "https://6c469024e214.ngrok-free.app",
+];
+
+// Add this check for ngrok or other tunnels dynamically:
 const corsOptions = {
   origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or CURL requests)
     if (!origin) return callback(null, true);
-    if (
-      [
-        "http://localhost:3000",
-        "https://glenoakfarm.netlify.app",
-        "http://localhost:4000",
-        "http://localhost:8100",
-        "capacitor://localhost",
-        "https://localhost",
-        "ionic://localhost",
-        "http://localhost:5173",
-        "http://localhost:8101",
-        "http://192.168.0.21:8135",
-        "http://192.168.0.103:8101",
-      ].indexOf(origin) !== -1
-    ) {
-      callback(null, true);
-    } else {
-      callback(new Error("Not allowed by CORS"));
+
+    // Allow ngrok URLs automatically
+    if (origin && origin.includes("ngrok.io")) {
+      return callback(null, true);
     }
+
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+
+    callback(new Error("Not allowed by CORS"));
   },
-  methods: ["GET", "POST"],
-  allowedHeaders: ["Content-Type"],
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  allowedHeaders: ["Content-Type", "Authorization"],
 };
+
 app.use(cors(corsOptions));
+
 // Routes
 app.use("/api", rowRoutes);
 app.use("/api", clockRoutes);
