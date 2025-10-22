@@ -74,5 +74,8 @@ app.use("/api/earliest-clock-in", clockRoutes);
 app.use("/api/clearAllCheckins", rowRoutes);
 app.use("/api/autoClockOutEndpoint", clockRoutes);
 app.use("/sync", syncRoutes);
+app.get("/", (req, res) => {
+  res.send("✅ Backend is running on Azure!");
+});
 
 module.exports = app;
