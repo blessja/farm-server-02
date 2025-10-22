@@ -1,4 +1,4 @@
-name: Blue-Green Deploy Node.js API to Azure Web App - farm-backend
+name: Deploy Node.js Backend to Azure App Service - farm-backend
 
 on:
   push:
@@ -7,113 +7,37 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
+  build-and-deploy:
     runs-on: ubuntu-latest
     permissions:
+      id-token: write      # Needed for OIDC login
       contents: read
 
     steps:
-      - name: Checkout code
+      - name: 🧩 Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
+      - name: ⚙️ Set up Node.js
+        uses: actions/setup-node@v4
         with:
-          node-version: '20.x'
+          node-version: '20'
 
-      - name: Install dependencies
+      - name: 📦 Install dependencies
         run: npm install
 
-      - name: Upload build artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: node-app
-          path: ./
+      - name: 🧱 Build step (optional)
+        run: |
+          echo "No build step required for backend" 
 
-  deploy:
-    runs-on: ubuntu-latest
-    needs: build
-    permissions:
-      id-token: write
-      contents: read
-
-    steps:
-      - name: Download build artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: node-app
-
-      - name: Azure Login
+      - name: 🔐 Login to Azure using OIDC
         uses: azure/login@v2
         with:
           client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_88919E2F7F1D4B19BA338B1918A8C3ED }}
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_65DEB110F55B4F7F8ED6E865CBE1027E }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_444B21C9918747DA8C93780BD02EF416 }}
 
-      # Deploy to the STAGING slot
-      - name: Deploy to Azure Web App (Staging slot)
+      - name: 🚀 Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
-        id: deploy-to-staging
         with:
-          app-name: 'farm-backend'
-          slot-name: 'staging'
+          app-name: 'farm-backend'    # 👈 Replace with your Azure App Service name
           package: .
-
-      # Set Environment Variables on Staging
-      - name: Set environment variables on Staging
-        uses: azure/appservice-settings@v1
-        with:
-          app-name: 'farm-backend'
-          slot-name: 'staging'
-          app-settings-json: |
-            [
-              { "name": "MONGO_URI", "value": "${{ secrets.MONGO_URI }}" },
-              { "name": "PORT", "value": "8080" },
-              { "name": "NODE_ENV", "value": "staging" }
-            ]
-
-      # Restart Staging slot to apply settings
-      - name: Restart Staging Web App
-        run: |
-          az webapp restart --name farm-backend --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} --slot staging
-
-      # Health check with retry logic
-      - name: Health check staging environment (with retries)
-        run: |
-          echo "Starting health check for staging environment..."
-          STAGING_URL="https://farm-backend-staging.azurewebsites.net/health"
-          MAX_RETRIES=3
-          SLEEP_TIME=10
-          SUCCESS=false
-          
-          for ((i=1; i<=MAX_RETRIES; i++)); do
-            echo "Attempt $i: Checking $STAGING_URL ..."
-            if curl -fsS $STAGING_URL > /dev/null; then
-              echo "✅ Staging health check passed!"
-              SUCCESS=true
-              break
-            else
-              echo "❌ Health check failed. Retrying in ${SLEEP_TIME}s..."
-              sleep $SLEEP_TIME
-            fi
-          done
-
-          if [ "$SUCCESS" = false ]; then
-            echo "❌ Staging health check failed after ${MAX_RETRIES} attempts. Deployment stopped."
-            exit 1
-          fi
-
-      # Swap staging → production (Blue/Green)
-      - name: Swap Staging to Production
-        run: |
-          echo "Swapping staging slot to production..."
-          az webapp deployment slot swap \
-            --name farm-backend \
-            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
-            --slot staging \
-            --target-slot production
-
-      # Restart Production App (clean start)
-      - name: Restart Production Web App
-        run: |
-          az webapp restart --name farm-backend --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }}
