@@ -6,5 +6,5 @@ app.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`);
 });
 app.get("/", (req, res) => {
-  res.send("✅ Backend is running on Azure!");
+  res.send("✅ Backend is running!");
 });
