@@ -12,6 +12,7 @@ const bunchRoutes = require("./routes/bunchRoutes");
 const workerRoutes = require("./routes/workerRoutes");
 const clockRoutes = require("./routes/clockRoutes");
 const syncRoutes = require("./routes/sync");
+const fastPieceworkRoutes = require("./routes/fastPieceworkRoutes");
 
 const app = express();
 const port = 5000;
@@ -73,6 +74,7 @@ app.use("/api/clocks", clockRoutes);
 app.use("/api/earliest-clock-in", clockRoutes);
 app.use("/api/clearAllCheckins", rowRoutes);
 app.use("/api/autoClockOutEndpoint", clockRoutes);
+app.use("/api/fast-piecework", fastPieceworkRoutes);
 app.use("/sync", syncRoutes);
 app.get("/", (req, res) => {
   res.send("✅ Backend is running!");
