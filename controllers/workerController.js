@@ -191,3 +191,125 @@ exports.checkOutWorkers = async (req, res) => {
     return res.status(500).json({ message: error.message });
   }
 };
+
+// controllers/workerController.js - Add this new function
+exports.getRegularPieceworkTotals = async (req, res) => {
+  try {
+    const { jobType, date, blockName } = req.query;
+
+    const workers = await Worker.find({});
+    const blocks = await Block.find({});
+
+    // Fast piecework job types to exclude
+    const fastJobTypes = [
+      "LEAF PICKING",
+      "SUCKER REMOVAL",
+      "SHOOT THINNING",
+      "OTHER",
+    ];
+
+    const blockInfo = {};
+    blocks.forEach((block) => {
+      blockInfo[block.block_name] = {
+        totalVines: block.total_stocks,
+        totalRows: block.total_rows,
+        variety: block.variety,
+        size: block.size_ha,
+      };
+    });
+
+    let filteredData = [];
+
+    workers.forEach((worker) => {
+      let workerTotal = 0;
+      let workerRows = [];
+      let workerBlockSummary = {};
+
+      worker.blocks.forEach((block) => {
+        block.rows.forEach((row) => {
+          // Skip fast piecework jobs
+          const rowJobType = (row.job_type || "").toUpperCase();
+          if (fastJobTypes.includes(rowJobType)) {
+            return;
+          }
+
+          // Apply filters
+          if (jobType && row.job_type !== jobType) return;
+          if (date) {
+            const rowDate = new Date(row.date).toISOString().split("T")[0];
+            if (rowDate !== date) return;
+          }
+          if (blockName && block.block_name !== blockName) return;
+
+          workerTotal += row.stock_count;
+          workerRows.push({
+            blockName: block.block_name,
+            rowNumber: row.row_number,
+            vines: row.stock_count,
+            date: row.date,
+            jobType: row.job_type,
+            timeSpent: row.time_spent,
+          });
+
+          if (!workerBlockSummary[block.block_name]) {
+            workerBlockSummary[block.block_name] = {
+              completedVines: 0,
+              completedRows: new Set(),
+            };
+          }
+          workerBlockSummary[block.block_name].completedVines +=
+            row.stock_count;
+          workerBlockSummary[block.block_name].completedRows.add(
+            row.row_number
+          );
+        });
+      });
+
+      if (workerTotal > 0) {
+        const workerBlockCompletion = [];
+        Object.keys(workerBlockSummary).forEach((blockName) => {
+          const summary = workerBlockSummary[blockName];
+          const info = blockInfo[blockName];
+
+          if (info) {
+            workerBlockCompletion.push({
+              blockName,
+              expectedTotalVines: info.totalVines,
+              workerCompletedVines: summary.completedVines,
+              workerPercentage:
+                Math.round((summary.completedVines / info.totalVines) * 10000) /
+                100,
+              workerCompletedRows: summary.completedRows.size,
+              totalRowsInBlock: info.totalRows,
+              variety: info.variety,
+            });
+          }
+        });
+
+        filteredData.push({
+          workerID: worker.workerID,
+          workerName: worker.name,
+          totalVines: workerTotal,
+          rows: workerRows,
+          blockCompletion: workerBlockCompletion,
+        });
+      }
+    });
+
+    filteredData.sort((a, b) => b.totalVines - a.totalVines);
+
+    res.json({
+      workers: filteredData,
+      summary: {
+        totalWorkers: filteredData.length,
+        totalVines: filteredData.reduce((sum, w) => sum + w.totalVines, 0),
+        jobTypes: [
+          ...new Set(filteredData.flatMap((w) => w.rows.map((r) => r.jobType))),
+        ],
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching regular piecework totals:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
