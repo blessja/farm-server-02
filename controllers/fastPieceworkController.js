@@ -1,7 +1,8 @@
-const Worker = require("../models/Worker");
+// controllers/fastPieceworkController.js
+const PieceworkWorker = require("../models/PieceworkWorker"); // ✅ NEW
 const Block = require("../models/Block");
 
-// Fast check-in - assigns worker to row and immediately completes it
+// Fast check-in - saves to PieceworkWorker collection
 exports.fastCheckIn = async (req, res) => {
   const { workerID, workerName, rowNumber, blockName, jobType } = req.body;
 
@@ -11,6 +12,21 @@ exports.fastCheckIn = async (req, res) => {
 
     if (!workerID || !workerName || !rowNumber || !blockName || !jobType) {
       return res.status(400).json({ message: "Missing required fields" });
+    }
+
+    // Validate it's a fast piecework job type
+    const fastJobTypes = [
+      "LEAF PICKING",
+      "SUCKER REMOVAL",
+      "SHOOT THINNING",
+      "OTHER",
+    ];
+    if (!fastJobTypes.includes(jobType.toUpperCase())) {
+      return res.status(400).json({
+        message: `Invalid job type for fast piecework. Must be one of: ${fastJobTypes.join(
+          ", "
+        )}`,
+      });
     }
 
     const block = await Block.findOne({ block_name: blockName });
@@ -23,6 +39,7 @@ exports.fastCheckIn = async (req, res) => {
       return res.status(404).json({ message: "Row not found" });
     }
 
+    // Check if already completed for this job type
     if (row.active_jobs && row.active_jobs.length > 0) {
       const existingJob = row.active_jobs.find(
         (job) => job.job_type === jobType
@@ -38,6 +55,7 @@ exports.fastCheckIn = async (req, res) => {
     const currentTime = new Date();
     const timeSpentInMinutes = 1;
 
+    // Mark row as completed in Block collection
     if (!row.active_jobs) {
       row.active_jobs = [];
     }
@@ -53,29 +71,30 @@ exports.fastCheckIn = async (req, res) => {
 
     await block.save();
 
-    let worker = await Worker.findOne({ workerID });
-    if (!worker) {
-      worker = new Worker({
+    // ✅ Save to PieceworkWorker collection (NOT Worker collection)
+    let pieceworkWorker = await PieceworkWorker.findOne({ workerID });
+
+    if (!pieceworkWorker) {
+      pieceworkWorker = new PieceworkWorker({
         workerID,
         name: workerName,
-        total_stock_count: 0,
+        piecework_stock_count: 0,
         blocks: [],
       });
     }
 
-    const blockIndex = worker.blocks.findIndex(
+    const blockIndex = pieceworkWorker.blocks.findIndex(
       (b) => b.block_name === blockName
     );
 
     if (blockIndex === -1) {
-      worker.blocks.push({
+      pieceworkWorker.blocks.push({
         block_name: blockName,
         rows: [
           {
             row_number: rowNumber,
             job_type: jobType,
             stock_count: stockCount,
-            time_spent: timeSpentInMinutes,
             date: currentTime,
             day_of_week: currentTime.toLocaleDateString("en-US", {
               weekday: "long",
@@ -84,32 +103,31 @@ exports.fastCheckIn = async (req, res) => {
         ],
       });
     } else {
-      const rowIndex = worker.blocks[blockIndex].rows.findIndex(
+      const rowIndex = pieceworkWorker.blocks[blockIndex].rows.findIndex(
         (r) => r.row_number === rowNumber && r.job_type === jobType
       );
+
       if (rowIndex === -1) {
-        worker.blocks[blockIndex].rows.push({
+        pieceworkWorker.blocks[blockIndex].rows.push({
           row_number: rowNumber,
           job_type: jobType,
           stock_count: stockCount,
-          time_spent: timeSpentInMinutes,
           date: currentTime,
           day_of_week: currentTime.toLocaleDateString("en-US", {
             weekday: "long",
           }),
         });
       } else {
-        worker.blocks[blockIndex].rows[rowIndex].stock_count += stockCount;
-        worker.blocks[blockIndex].rows[rowIndex].time_spent +=
-          timeSpentInMinutes;
-        worker.blocks[blockIndex].rows[rowIndex].date = currentTime;
-        worker.blocks[blockIndex].rows[rowIndex].day_of_week =
+        // Update existing entry
+        pieceworkWorker.blocks[blockIndex].rows[rowIndex].stock_count +=
+          stockCount;
+        pieceworkWorker.blocks[blockIndex].rows[rowIndex].date = currentTime;
+        pieceworkWorker.blocks[blockIndex].rows[rowIndex].day_of_week =
           currentTime.toLocaleDateString("en-US", { weekday: "long" });
       }
     }
 
-    worker.total_stock_count += stockCount;
-    await worker.save();
+    await pieceworkWorker.save();
 
     console.log("✅ Fast piecework check-in successful");
 
@@ -120,6 +138,7 @@ exports.fastCheckIn = async (req, res) => {
       blockName: blockName,
       jobType: jobType,
       vinesCompleted: stockCount,
+      savedTo: "PieceworkWorker collection",
     });
   } catch (error) {
     console.error("❌ Error during fast piecework check-in:", error);
@@ -127,22 +146,14 @@ exports.fastCheckIn = async (req, res) => {
   }
 };
 
-// Get fast piecework totals with block completion tracking
-
+// Get fast piecework totals - reads from PieceworkWorker collection
 exports.getFastPieceworkTotals = async (req, res) => {
   try {
     const { jobType, date } = req.query;
 
-    const workers = await Worker.find({});
+    // ✅ Query PieceworkWorker collection instead of Worker
+    const pieceworkWorkers = await PieceworkWorker.find({});
     const blocks = await Block.find({});
-
-    // Fast piecework job types - ONLY include these
-    const fastPieceworkTypes = [
-      "LEAF PICKING",
-      "SUCKER REMOVAL",
-      "SHOOT THINNING",
-      "OTHER",
-    ];
 
     const blockInfo = {};
     blocks.forEach((block) => {
@@ -158,28 +169,21 @@ exports.getFastPieceworkTotals = async (req, res) => {
     let filteredData = [];
     let globalBlockCompletion = {};
 
-    workers.forEach((worker) => {
-      let workerFastPieceworkTotal = 0;
+    pieceworkWorkers.forEach((worker) => {
+      let workerTotal = 0;
       let workerRows = [];
       let workerBlockSummary = {};
 
       worker.blocks.forEach((block) => {
         block.rows.forEach((row) => {
-          const rowJobType = (row.job_type || "").toUpperCase();
-
-          // ONLY include fast piecework jobs
-          if (!fastPieceworkTypes.includes(rowJobType)) {
-            return;
-          }
-
-          // Apply additional filters
+          // Apply filters
           if (jobType && row.job_type !== jobType) return;
           if (date) {
             const rowDate = new Date(row.date).toISOString().split("T")[0];
             if (rowDate !== date) return;
           }
 
-          workerFastPieceworkTotal += row.stock_count;
+          workerTotal += row.stock_count;
           workerRows.push({
             blockName: block.block_name,
             rowNumber: row.row_number,
@@ -216,7 +220,7 @@ exports.getFastPieceworkTotals = async (req, res) => {
         });
       });
 
-      if (workerFastPieceworkTotal > 0) {
+      if (workerTotal > 0) {
         const workerBlockCompletion = [];
         Object.keys(workerBlockSummary).forEach((blockName) => {
           const summary = workerBlockSummary[blockName];
@@ -240,8 +244,8 @@ exports.getFastPieceworkTotals = async (req, res) => {
         filteredData.push({
           workerID: worker.workerID,
           workerName: worker.name,
-          totalVines: workerFastPieceworkTotal, // Filtered total
-          piecework_stock_count: worker.piecework_stock_count, // Overall fast piecework total
+          totalVines: workerTotal,
+          piecework_stock_count: worker.piecework_stock_count,
           rows: workerRows,
           blockCompletion: workerBlockCompletion,
         });
@@ -293,10 +297,7 @@ exports.getFastPieceworkTotals = async (req, res) => {
       summary: {
         totalWorkers: filteredData.length,
         totalVines: filteredData.reduce((sum, w) => sum + w.totalVines, 0),
-        totalPieceworkVines: workers.reduce(
-          (sum, w) => sum + (w.piecework_stock_count || 0),
-          0
-        ),
+        source: "PieceworkWorker collection",
       },
     });
   } catch (error) {

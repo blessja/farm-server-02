@@ -3,10 +3,10 @@ const express = require("express");
 const router = express.Router();
 const fastPieceworkController = require("../controllers/fastPieceworkController");
 
-// Fast check-in (single scan)
+// ✅ Fast piecework (single scan) - saves to PieceworkWorker collection
 router.post("/fast-checkin", fastPieceworkController.fastCheckIn);
 
-// ✅ Fast piecework totals endpoint (reads piecework_stock_count)
+// ✅ Fast piecework totals - reads from PieceworkWorker collection
 router.get("/fast-totals", fastPieceworkController.getFastPieceworkTotals);
 
 // Get available job types
