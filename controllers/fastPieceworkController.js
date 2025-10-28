@@ -135,20 +135,27 @@ exports.getFastPieceworkTotals = async (req, res) => {
     const workers = await Worker.find({});
     const blocks = await Block.find({});
 
-    // Create a map of block information from Block collection
+    // Fast piecework job types - ONLY include these
+    const fastPieceworkTypes = [
+      "LEAF PICKING",
+      "SUCKER REMOVAL",
+      "SHOOT THINNING",
+      "OTHER",
+    ];
+
     const blockInfo = {};
     blocks.forEach((block) => {
       blockInfo[block.block_name] = {
-        totalVines: block.total_stocks, // This is the actual total vines in the block
+        totalVines: block.total_stocks,
         totalRows: block.total_rows,
         variety: block.variety,
         size: block.size_ha,
-        rowsInBlock: block.rows.map((r) => r.row_number), // All row numbers in this block
+        rowsInBlock: block.rows.map((r) => r.row_number),
       };
     });
 
     let filteredData = [];
-    let globalBlockCompletion = {}; // Track completion across all workers
+    let globalBlockCompletion = {};
 
     workers.forEach((worker) => {
       let workerTotal = 0;
@@ -157,6 +164,13 @@ exports.getFastPieceworkTotals = async (req, res) => {
 
       worker.blocks.forEach((block) => {
         block.rows.forEach((row) => {
+          const rowJobType = (row.job_type || "").toUpperCase();
+
+          // ONLY include fast piecework jobs
+          if (!fastPieceworkTypes.includes(rowJobType)) {
+            return;
+          }
+
           if (jobType && row.job_type !== jobType) return;
 
           if (date) {
@@ -173,7 +187,6 @@ exports.getFastPieceworkTotals = async (req, res) => {
             jobType: row.job_type,
           });
 
-          // Track per-worker block summary
           if (!workerBlockSummary[block.block_name]) {
             workerBlockSummary[block.block_name] = {
               completedVines: 0,
@@ -186,7 +199,6 @@ exports.getFastPieceworkTotals = async (req, res) => {
             row.row_number
           );
 
-          // Track global block completion
           if (!globalBlockCompletion[block.block_name]) {
             globalBlockCompletion[block.block_name] = {
               completedVines: 0,
@@ -202,7 +214,6 @@ exports.getFastPieceworkTotals = async (req, res) => {
       });
 
       if (workerTotal > 0) {
-        // Calculate worker's contribution to each block
         const workerBlockCompletion = [];
         Object.keys(workerBlockSummary).forEach((blockName) => {
           const summary = workerBlockSummary[blockName];
@@ -229,13 +240,13 @@ exports.getFastPieceworkTotals = async (req, res) => {
           workerID: worker.workerID,
           workerName: worker.name,
           totalVines: workerTotal,
+          piecework_stock_count: worker.piecework_stock_count, // Fast piecework total
           rows: workerRows,
           blockCompletion: workerBlockCompletion,
         });
       }
     });
 
-    // Calculate global block completion status
     const globalBlockStatus = [];
     Object.keys(globalBlockCompletion).forEach((blockName) => {
       const completion = globalBlockCompletion[blockName];
@@ -261,7 +272,6 @@ exports.getFastPieceworkTotals = async (req, res) => {
           variety: info.variety,
           completedRowNumbers: Array.from(completion.completedRows).sort(
             (a, b) => {
-              // Sort row numbers naturally (1A, 1B, 2A, 2B, etc.)
               const aNum = parseInt(a);
               const bNum = parseInt(b);
               if (aNum !== bNum) return aNum - bNum;
