@@ -128,6 +128,7 @@ exports.fastCheckIn = async (req, res) => {
 };
 
 // Get fast piecework totals with block completion tracking
+
 exports.getFastPieceworkTotals = async (req, res) => {
   try {
     const { jobType, date } = req.query;
@@ -158,7 +159,7 @@ exports.getFastPieceworkTotals = async (req, res) => {
     let globalBlockCompletion = {};
 
     workers.forEach((worker) => {
-      let workerTotal = 0;
+      let workerFastPieceworkTotal = 0;
       let workerRows = [];
       let workerBlockSummary = {};
 
@@ -171,14 +172,14 @@ exports.getFastPieceworkTotals = async (req, res) => {
             return;
           }
 
+          // Apply additional filters
           if (jobType && row.job_type !== jobType) return;
-
           if (date) {
             const rowDate = new Date(row.date).toISOString().split("T")[0];
             if (rowDate !== date) return;
           }
 
-          workerTotal += row.stock_count;
+          workerFastPieceworkTotal += row.stock_count;
           workerRows.push({
             blockName: block.block_name,
             rowNumber: row.row_number,
@@ -187,6 +188,7 @@ exports.getFastPieceworkTotals = async (req, res) => {
             jobType: row.job_type,
           });
 
+          // Track block completion
           if (!workerBlockSummary[block.block_name]) {
             workerBlockSummary[block.block_name] = {
               completedVines: 0,
@@ -199,6 +201,7 @@ exports.getFastPieceworkTotals = async (req, res) => {
             row.row_number
           );
 
+          // Global block tracking
           if (!globalBlockCompletion[block.block_name]) {
             globalBlockCompletion[block.block_name] = {
               completedVines: 0,
@@ -213,22 +216,20 @@ exports.getFastPieceworkTotals = async (req, res) => {
         });
       });
 
-      if (workerTotal > 0) {
+      if (workerFastPieceworkTotal > 0) {
         const workerBlockCompletion = [];
         Object.keys(workerBlockSummary).forEach((blockName) => {
           const summary = workerBlockSummary[blockName];
           const info = blockInfo[blockName];
 
           if (info) {
-            const expectedVines = info.totalVines;
-            const workerVines = summary.completedVines;
-            const workerPercentage = (workerVines / expectedVines) * 100;
-
             workerBlockCompletion.push({
               blockName,
-              expectedTotalVines: expectedVines,
-              workerCompletedVines: workerVines,
-              workerPercentage: Math.round(workerPercentage * 100) / 100,
+              expectedTotalVines: info.totalVines,
+              workerCompletedVines: summary.completedVines,
+              workerPercentage:
+                Math.round((summary.completedVines / info.totalVines) * 10000) /
+                100,
               workerCompletedRows: summary.completedRows.size,
               totalRowsInBlock: info.totalRows,
               variety: info.variety,
@@ -239,14 +240,15 @@ exports.getFastPieceworkTotals = async (req, res) => {
         filteredData.push({
           workerID: worker.workerID,
           workerName: worker.name,
-          totalVines: workerTotal,
-          piecework_stock_count: worker.piecework_stock_count, // Fast piecework total
+          totalVines: workerFastPieceworkTotal, // Filtered total
+          piecework_stock_count: worker.piecework_stock_count, // Overall fast piecework total
           rows: workerRows,
           blockCompletion: workerBlockCompletion,
         });
       }
     });
 
+    // Calculate global block status
     const globalBlockStatus = [];
     Object.keys(globalBlockCompletion).forEach((blockName) => {
       const completion = globalBlockCompletion[blockName];
@@ -257,7 +259,6 @@ exports.getFastPieceworkTotals = async (req, res) => {
         const actualVines = completion.completedVines;
         const difference = actualVines - expectedVines;
         const completionPercentage = (actualVines / expectedVines) * 100;
-        const completedRowCount = completion.completedRows.size;
 
         globalBlockStatus.push({
           blockName,
@@ -267,7 +268,7 @@ exports.getFastPieceworkTotals = async (req, res) => {
           completionPercentage: Math.round(completionPercentage * 100) / 100,
           status:
             difference === 0 ? "complete" : difference > 0 ? "over" : "short",
-          completedRows: completedRowCount,
+          completedRows: completion.completedRows.size,
           totalRows: info.totalRows,
           variety: info.variety,
           completedRowNumbers: Array.from(completion.completedRows).sort(
@@ -289,6 +290,14 @@ exports.getFastPieceworkTotals = async (req, res) => {
       globalBlockStatus: globalBlockStatus.sort((a, b) =>
         a.blockName.localeCompare(b.blockName, undefined, { numeric: true })
       ),
+      summary: {
+        totalWorkers: filteredData.length,
+        totalVines: filteredData.reduce((sum, w) => sum + w.totalVines, 0),
+        totalPieceworkVines: workers.reduce(
+          (sum, w) => sum + (w.piecework_stock_count || 0),
+          0
+        ),
+      },
     });
   } catch (error) {
     console.error("Error fetching fast piecework totals:", error);
