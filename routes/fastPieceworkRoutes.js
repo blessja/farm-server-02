@@ -12,4 +12,7 @@ router.get("/fast-totals", fastPieceworkController.getFastPieceworkTotals);
 // Get available job types
 router.get("/job-types", fastPieceworkController.getFastPieceworkJobTypes);
 
+//swapp workers 
+router.post("/swap-worker", fastPieceworkController.swapFastPieceworkWorker);
+
 module.exports = router;

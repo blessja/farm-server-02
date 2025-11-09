@@ -320,3 +320,180 @@ exports.getFastPieceworkJobTypes = async (req, res) => {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
+
+// Swap/Change worker for a fast piecework entry
+exports.swapFastPieceworkWorker = async (req, res) => {
+  const { 
+    oldWorkerID, 
+    newWorkerID, 
+    newWorkerName, 
+    blockName, 
+    rowNumber, 
+    jobType 
+  } = req.body;
+
+  try {
+    console.log("=== SWAP FAST PIECEWORK WORKER ===");
+    console.log("Request Body:", req.body);
+
+    if (!oldWorkerID || !newWorkerID || !newWorkerName || !blockName || !rowNumber || !jobType) {
+      return res.status(400).json({ message: "Missing required fields" });
+    }
+
+    // Find the block
+    const block = await Block.findOne({ block_name: blockName });
+    if (!block) {
+      return res.status(404).json({ message: "Block not found" });
+    }
+
+    const row = block.rows.find((row) => row.row_number === rowNumber);
+    if (!row) {
+      return res.status(404).json({ message: "Row not found" });
+    }
+
+    // Find the active job to swap
+    if (!row.active_jobs || row.active_jobs.length === 0) {
+      return res.status(404).json({ 
+        message: "No active job found for this row" 
+      });
+    }
+
+    const jobIndex = row.active_jobs.findIndex(
+      (job) => job.worker_id === oldWorkerID && job.job_type === jobType
+    );
+
+    if (jobIndex === -1) {
+      return res.status(404).json({ 
+        message: "No matching job found for the specified worker" 
+      });
+    }
+
+    // Check if new worker is already on this row with same job type
+    const newWorkerExists = row.active_jobs.find(
+      (job) => job.worker_id === newWorkerID && job.job_type === jobType
+    );
+
+    if (newWorkerExists) {
+      return res.status(409).json({
+        message: `${newWorkerName} is already working on this row with job type ${jobType}`
+      });
+    }
+
+    // Remove entry from old worker in PieceworkWorker collection
+    const oldPieceworkWorker = await PieceworkWorker.findOne({ 
+      workerID: oldWorkerID 
+    });
+
+    if (oldPieceworkWorker) {
+      const blockIndex = oldPieceworkWorker.blocks.findIndex(
+        (b) => b.block_name === blockName
+      );
+
+      if (blockIndex !== -1) {
+        const rowIndex = oldPieceworkWorker.blocks[blockIndex].rows.findIndex(
+          (r) => r.row_number === rowNumber && r.job_type === jobType
+        );
+
+        if (rowIndex !== -1) {
+          // Remove this specific row entry
+          oldPieceworkWorker.blocks[blockIndex].rows.splice(rowIndex, 1);
+          
+          // If block has no more rows, remove the block
+          if (oldPieceworkWorker.blocks[blockIndex].rows.length === 0) {
+            oldPieceworkWorker.blocks.splice(blockIndex, 1);
+          }
+          
+          await oldPieceworkWorker.save();
+        }
+      }
+    }
+
+    // Update the active job in Block collection
+    const stockCount = row.stock_count;
+    const currentTime = new Date();
+    
+    row.active_jobs[jobIndex] = {
+      worker_name: newWorkerName,
+      worker_id: newWorkerID,
+      job_type: jobType,
+      start_time: currentTime,
+      remaining_stock: 0,
+      time_spent: 1,
+    };
+
+    await block.save();
+
+    // Add entry to new worker in PieceworkWorker collection
+    let newPieceworkWorker = await PieceworkWorker.findOne({ 
+      workerID: newWorkerID 
+    });
+
+    if (!newPieceworkWorker) {
+      newPieceworkWorker = new PieceworkWorker({
+        workerID: newWorkerID,
+        name: newWorkerName,
+        piecework_stock_count: 0,
+        blocks: [],
+      });
+    }
+
+    const newBlockIndex = newPieceworkWorker.blocks.findIndex(
+      (b) => b.block_name === blockName
+    );
+
+    if (newBlockIndex === -1) {
+      newPieceworkWorker.blocks.push({
+        block_name: blockName,
+        rows: [
+          {
+            row_number: rowNumber,
+            job_type: jobType,
+            stock_count: stockCount,
+            date: currentTime,
+            day_of_week: currentTime.toLocaleDateString("en-US", {
+              weekday: "long",
+            }),
+          },
+        ],
+      });
+    } else {
+      const newRowIndex = newPieceworkWorker.blocks[newBlockIndex].rows.findIndex(
+        (r) => r.row_number === rowNumber && r.job_type === jobType
+      );
+
+      if (newRowIndex === -1) {
+        newPieceworkWorker.blocks[newBlockIndex].rows.push({
+          row_number: rowNumber,
+          job_type: jobType,
+          stock_count: stockCount,
+          date: currentTime,
+          day_of_week: currentTime.toLocaleDateString("en-US", {
+            weekday: "long",
+          }),
+        });
+      } else {
+        // Update existing entry
+        newPieceworkWorker.blocks[newBlockIndex].rows[newRowIndex].stock_count += stockCount;
+        newPieceworkWorker.blocks[newBlockIndex].rows[newRowIndex].date = currentTime;
+        newPieceworkWorker.blocks[newBlockIndex].rows[newRowIndex].day_of_week =
+          currentTime.toLocaleDateString("en-US", { weekday: "long" });
+      }
+    }
+
+    await newPieceworkWorker.save();
+
+    console.log("✅ Worker swap successful");
+
+    res.json({
+      message: "Worker swapped successfully",
+      oldWorker: oldWorkerID,
+      newWorker: newWorkerName,
+      blockName: blockName,
+      rowNumber: rowNumber,
+      jobType: jobType,
+    });
+  } catch (error) {
+    console.error("❌ Error during worker swap:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
