@@ -74,4 +74,15 @@ router.get("/block/:blockName/rows", async (req, res) => {
 
 // router.get("/farm-data", rowController.getAllFarmData);
 
+// Add these routes to your existing rowRoutes.js
+
+// Reset completed fast piecework jobs (remaining_stock === 0)
+router.post("/reset-completed-fast-piecework", rowController.resetCompletedFastPiecework);
+
+// Reset specific row's active_jobs
+router.post("/reset-row-active-jobs", rowController.resetRowActiveJobs);
+
+// Reset ALL active_jobs (use with caution)
+router.post("/reset-all-active-jobs", rowController.resetAllActiveJobs);
+
 module.exports = router;

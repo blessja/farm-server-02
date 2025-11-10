@@ -853,3 +853,147 @@ exports.deleteRowsWithRemainingStocks = async (req, res) => {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
+
+// Reset completed fast piecework jobs from active_jobs
+exports.resetCompletedFastPiecework = async (req, res) => {
+  try {
+    const blocks = await Block.find();
+    let resetCount = 0;
+    let resetDetails = [];
+
+    for (const block of blocks) {
+      let blockModified = false;
+
+      for (const row of block.rows) {
+        if (row.active_jobs && row.active_jobs.length > 0) {
+          const initialJobCount = row.active_jobs.length;
+          
+          // Filter out completed jobs (remaining_stock === 0)
+          const completedJobs = row.active_jobs.filter(
+            (job) => job.remaining_stock === 0
+          );
+          
+          if (completedJobs.length > 0) {
+            // Remove completed jobs
+            row.active_jobs = row.active_jobs.filter(
+              (job) => job.remaining_stock > 0
+            );
+            
+            blockModified = true;
+            resetCount += completedJobs.length;
+            
+            completedJobs.forEach((job) => {
+              resetDetails.push({
+                blockName: block.block_name,
+                rowNumber: row.row_number,
+                workerName: job.worker_name,
+                workerID: job.worker_id,
+                jobType: job.job_type,
+                startTime: job.start_time,
+              });
+            });
+            
+            console.log(
+              `Reset ${completedJobs.length} completed job(s) from Block ${block.block_name}, Row ${row.row_number}`
+            );
+          }
+        }
+      }
+
+      if (blockModified) {
+        await block.save();
+      }
+    }
+
+    res.json({
+      message: `Reset ${resetCount} completed fast piecework job(s).`,
+      resetCount,
+      details: resetDetails,
+    });
+  } catch (error) {
+    console.error("Error resetting completed fast piecework:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+// Reset specific row's active_jobs (manual reset)
+exports.resetRowActiveJobs = async (req, res) => {
+  try {
+    const { blockName, rowNumber } = req.body;
+
+    if (!blockName || !rowNumber) {
+      return res.status(400).json({ 
+        message: "Missing required fields: blockName and rowNumber" 
+      });
+    }
+
+    const block = await Block.findOne({ block_name: blockName });
+    
+    if (!block) {
+      return res.status(404).json({ message: "Block not found" });
+    }
+
+    const row = block.rows.find((r) => r.row_number === rowNumber);
+    
+    if (!row) {
+      return res.status(404).json({ message: "Row not found" });
+    }
+
+    const removedJobs = row.active_jobs || [];
+    row.active_jobs = [];
+    
+    await block.save();
+
+    res.json({
+      message: `Successfully reset active jobs for Block ${blockName}, Row ${rowNumber}`,
+      removedJobs: removedJobs.map((job) => ({
+        workerName: job.worker_name,
+        workerID: job.worker_id,
+        jobType: job.job_type,
+        remainingStock: job.remaining_stock,
+      })),
+    });
+  } catch (error) {
+    console.error("Error resetting row active jobs:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+// Reset all active_jobs across all blocks (nuclear option)
+exports.resetAllActiveJobs = async (req, res) => {
+  try {
+    const blocks = await Block.find();
+    let resetCount = 0;
+    let resetDetails = [];
+
+    for (const block of blocks) {
+      for (const row of block.rows) {
+        if (row.active_jobs && row.active_jobs.length > 0) {
+          row.active_jobs.forEach((job) => {
+            resetDetails.push({
+              blockName: block.block_name,
+              rowNumber: row.row_number,
+              workerName: job.worker_name,
+              workerID: job.worker_id,
+              jobType: job.job_type,
+              remainingStock: job.remaining_stock,
+            });
+          });
+          
+          resetCount += row.active_jobs.length;
+          row.active_jobs = [];
+        }
+      }
+      await block.save();
+    }
+
+    res.json({
+      message: `Reset all active jobs. Total jobs cleared: ${resetCount}`,
+      resetCount,
+      details: resetDetails,
+    });
+  } catch (error) {
+    console.error("Error resetting all active jobs:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};

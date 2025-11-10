@@ -1,5 +1,5 @@
 // controllers/fastPieceworkController.js
-const PieceworkWorker = require("../models/PieceworkWorker"); // ✅ NEW
+const PieceworkWorker = require("../models/PieceworkWorker");
 const Block = require("../models/Block");
 
 // Fast check-in - saves to PieceworkWorker collection
@@ -329,11 +329,12 @@ exports.swapFastPieceworkWorker = async (req, res) => {
     newWorkerName, 
     blockName, 
     rowNumber, 
-    jobType 
+    jobType,
+    newRowNumber // NEW: for moving to different row
   } = req.body;
 
   try {
-    console.log("=== SWAP FAST PIECEWORK WORKER ===");
+    console.log("=== SWAP/MOVE FAST PIECEWORK WORKER ===");
     console.log("Request Body:", req.body);
 
     if (!oldWorkerID || !newWorkerID || !newWorkerName || !blockName || !rowNumber || !jobType) {
@@ -346,19 +347,19 @@ exports.swapFastPieceworkWorker = async (req, res) => {
       return res.status(404).json({ message: "Block not found" });
     }
 
-    const row = block.rows.find((row) => row.row_number === rowNumber);
-    if (!row) {
-      return res.status(404).json({ message: "Row not found" });
+    const oldRow = block.rows.find((row) => row.row_number === rowNumber);
+    if (!oldRow) {
+      return res.status(404).json({ message: "Original row not found" });
     }
 
-    // Find the active job to swap
-    if (!row.active_jobs || row.active_jobs.length === 0) {
+    // Find the active job to swap/move
+    if (!oldRow.active_jobs || oldRow.active_jobs.length === 0) {
       return res.status(404).json({ 
         message: "No active job found for this row" 
       });
     }
 
-    const jobIndex = row.active_jobs.findIndex(
+    const jobIndex = oldRow.active_jobs.findIndex(
       (job) => job.worker_id === oldWorkerID && job.job_type === jobType
     );
 
@@ -368,14 +369,22 @@ exports.swapFastPieceworkWorker = async (req, res) => {
       });
     }
 
-    // Check if new worker is already on this row with same job type
-    const newWorkerExists = row.active_jobs.find(
+    // If newRowNumber is provided, we're moving to a different row
+    const targetRowNumber = newRowNumber || rowNumber;
+    const targetRow = block.rows.find((row) => row.row_number === targetRowNumber);
+    
+    if (!targetRow) {
+      return res.status(404).json({ message: "Target row not found" });
+    }
+
+    // Check if new worker is already on target row with same job type
+    const newWorkerExists = targetRow.active_jobs && targetRow.active_jobs.find(
       (job) => job.worker_id === newWorkerID && job.job_type === jobType
     );
 
-    if (newWorkerExists) {
+    if (newWorkerExists && targetRowNumber !== rowNumber) {
       return res.status(409).json({
-        message: `${newWorkerName} is already working on this row with job type ${jobType}`
+        message: `${newWorkerName} is already working on row ${targetRowNumber} with job type ${jobType}`
       });
     }
 
@@ -383,6 +392,8 @@ exports.swapFastPieceworkWorker = async (req, res) => {
     const oldPieceworkWorker = await PieceworkWorker.findOne({ 
       workerID: oldWorkerID 
     });
+
+    let oldStockCount = 0;
 
     if (oldPieceworkWorker) {
       const blockIndex = oldPieceworkWorker.blocks.findIndex(
@@ -395,6 +406,9 @@ exports.swapFastPieceworkWorker = async (req, res) => {
         );
 
         if (rowIndex !== -1) {
+          // Save the stock count before removing
+          oldStockCount = oldPieceworkWorker.blocks[blockIndex].rows[rowIndex].stock_count;
+          
           // Remove this specific row entry
           oldPieceworkWorker.blocks[blockIndex].rows.splice(rowIndex, 1);
           
@@ -408,18 +422,39 @@ exports.swapFastPieceworkWorker = async (req, res) => {
       }
     }
 
-    // Update the active job in Block collection
-    const stockCount = row.stock_count;
+    // Remove from old row in Block collection
+    oldRow.active_jobs.splice(jobIndex, 1);
+
+    // Get stock count for target row
+    const stockCount = targetRow.stock_count;
     const currentTime = new Date();
     
-    row.active_jobs[jobIndex] = {
+    // Add to new/target row in Block collection
+    if (!targetRow.active_jobs) {
+      targetRow.active_jobs = [];
+    }
+
+    // If moving to different row, check again for conflicts
+    if (targetRowNumber !== rowNumber) {
+      const existingJobOnNewRow = targetRow.active_jobs.find(
+        (job) => job.worker_id === newWorkerID && job.job_type === jobType
+      );
+      
+      if (existingJobOnNewRow) {
+        return res.status(409).json({
+          message: `Worker already has an entry on row ${targetRowNumber}`
+        });
+      }
+    }
+
+    targetRow.active_jobs.push({
       worker_name: newWorkerName,
       worker_id: newWorkerID,
       job_type: jobType,
       start_time: currentTime,
       remaining_stock: 0,
       time_spent: 1,
-    };
+    });
 
     await block.save();
 
@@ -446,7 +481,7 @@ exports.swapFastPieceworkWorker = async (req, res) => {
         block_name: blockName,
         rows: [
           {
-            row_number: rowNumber,
+            row_number: targetRowNumber,
             job_type: jobType,
             stock_count: stockCount,
             date: currentTime,
@@ -458,12 +493,12 @@ exports.swapFastPieceworkWorker = async (req, res) => {
       });
     } else {
       const newRowIndex = newPieceworkWorker.blocks[newBlockIndex].rows.findIndex(
-        (r) => r.row_number === rowNumber && r.job_type === jobType
+        (r) => r.row_number === targetRowNumber && r.job_type === jobType
       );
 
       if (newRowIndex === -1) {
         newPieceworkWorker.blocks[newBlockIndex].rows.push({
-          row_number: rowNumber,
+          row_number: targetRowNumber,
           job_type: jobType,
           stock_count: stockCount,
           date: currentTime,
@@ -482,18 +517,21 @@ exports.swapFastPieceworkWorker = async (req, res) => {
 
     await newPieceworkWorker.save();
 
-    console.log("✅ Worker swap successful");
+    const actionType = newRowNumber ? "moved" : "swapped";
+    console.log(`✅ Worker ${actionType} successfully`);
 
     res.json({
-      message: "Worker swapped successfully",
+      message: `Worker ${actionType} successfully`,
       oldWorker: oldWorkerID,
       newWorker: newWorkerName,
       blockName: blockName,
-      rowNumber: rowNumber,
+      oldRowNumber: rowNumber,
+      newRowNumber: targetRowNumber,
       jobType: jobType,
+      actionType: actionType
     });
   } catch (error) {
-    console.error("❌ Error during worker swap:", error);
+    console.error("❌ Error during worker swap/move:", error);
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
