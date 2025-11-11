@@ -535,3 +535,80 @@ exports.swapFastPieceworkWorker = async (req, res) => {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
+
+// Delete a fast piecework entry
+exports.deleteFastPieceworkEntry = async (req, res) => {
+  const { workerID, blockName, rowNumber, jobType } = req.body;
+
+  try {
+    console.log("=== DELETE FAST PIECEWORK ENTRY ===");
+    console.log("Request Body:", req.body);
+
+    if (!workerID || !blockName || !rowNumber || !jobType) {
+      return res.status(400).json({ message: "Missing required fields" });
+    }
+
+    // Find the block
+    const block = await Block.findOne({ block_name: blockName });
+    if (!block) {
+      return res.status(404).json({ message: "Block not found" });
+    }
+
+    const row = block.rows.find((r) => r.row_number === rowNumber);
+    if (!row) {
+      return res.status(404).json({ message: "Row not found" });
+    }
+
+    // Remove from Block collection
+    if (row.active_jobs && row.active_jobs.length > 0) {
+      const jobIndex = row.active_jobs.findIndex(
+        (job) => job.worker_id === workerID && job.job_type === jobType
+      );
+
+      if (jobIndex !== -1) {
+        row.active_jobs.splice(jobIndex, 1);
+        await block.save();
+      }
+    }
+
+    // Remove from PieceworkWorker collection
+    const pieceworkWorker = await PieceworkWorker.findOne({ workerID });
+
+    if (pieceworkWorker) {
+      const blockIndex = pieceworkWorker.blocks.findIndex(
+        (b) => b.block_name === blockName
+      );
+
+      if (blockIndex !== -1) {
+        const rowIndex = pieceworkWorker.blocks[blockIndex].rows.findIndex(
+          (r) => r.row_number === rowNumber && r.job_type === jobType
+        );
+
+        if (rowIndex !== -1) {
+          // Remove this specific row entry
+          pieceworkWorker.blocks[blockIndex].rows.splice(rowIndex, 1);
+
+          // If block has no more rows, remove the block
+          if (pieceworkWorker.blocks[blockIndex].rows.length === 0) {
+            pieceworkWorker.blocks.splice(blockIndex, 1);
+          }
+
+          await pieceworkWorker.save();
+        }
+      }
+    }
+
+    console.log("✅ Entry deleted successfully");
+
+    res.json({
+      message: "Entry deleted successfully",
+      workerID,
+      blockName,
+      rowNumber,
+      jobType,
+    });
+  } catch (error) {
+    console.error("❌ Error deleting entry:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
