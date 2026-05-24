@@ -5,6 +5,7 @@ const dotenv = require("dotenv");
 dotenv.config({ path: "./.env" });
 dotenv.config();
 const connectDB = require("./config/db");
+const authRoutes = require("./routes/authRoutes");
 const rowRoutes = require("./routes/rowRoutes");
 const varietyRoutes = require("./routes/varietyRoutes");
 const blockRoutes = require("./routes/blockRoutes");
@@ -13,6 +14,7 @@ const workerRoutes = require("./routes/workerRoutes");
 const clockRoutes = require("./routes/clockRoutes");
 const syncRoutes = require("./routes/sync");
 const fastPieceworkRoutes = require("./routes/fastPieceworkRoutes");
+const { mobileAuthMiddleware } = require("./middleware/mobileAuth");
 
 const app = express();
 const port = 5000;
@@ -62,6 +64,9 @@ const corsOptions = {
 app.use(cors(corsOptions));
 
 // Routes
+app.use("/auth", authRoutes);
+app.use("/api", mobileAuthMiddleware);
+app.use("/sync", mobileAuthMiddleware);
 app.use("/api", rowRoutes);
 app.use("/api", clockRoutes);
 app.use("/api/variety", varietyRoutes);
