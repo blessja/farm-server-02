@@ -8,20 +8,33 @@ import ActionButton from "../components/ActionButton";
 import FeedbackBanner from "../components/FeedbackBanner";
 import { DEVICE_NAME } from "../config/env";
 
-export default function AuthScreen({ onAuthenticated }) {
-  const [supervisorName, setSupervisorName] = useState("");
+export default function AuthScreen({ onAuthenticated, initialSupervisorName = "" }) {
+  const [supervisorName, setSupervisorName] = useState(initialSupervisorName);
   const [pin, setPin] = useState("");
   const [feedback, setFeedback] = useState({ type: "info", message: "" });
   const [submitting, setSubmitting] = useState(false);
 
   async function handleLogin() {
+    const trimmedSupervisorName = supervisorName.trim();
+    const trimmedPin = pin.trim();
+
+    if (!trimmedSupervisorName) {
+      setFeedback({ type: "error", message: "Supervisor name is required." });
+      return;
+    }
+
+    if (!trimmedPin) {
+      setFeedback({ type: "error", message: "Supervisor PIN is required." });
+      return;
+    }
+
     setSubmitting(true);
     setFeedback({ type: "info", message: "" });
 
     try {
       const result = await api.login({
-        supervisorName,
-        pin,
+        supervisorName: trimmedSupervisorName,
+        pin: trimmedPin,
         deviceName: DEVICE_NAME,
       });
 
@@ -31,7 +44,7 @@ export default function AuthScreen({ onAuthenticated }) {
           message: "Server auth is disabled. Continuing without a token.",
         });
         onAuthenticated({
-          supervisorName: supervisorName.trim() || "Supervisor",
+          supervisorName: trimmedSupervisorName,
           authEnabled: false,
         });
       } else {
@@ -54,8 +67,8 @@ export default function AuthScreen({ onAuthenticated }) {
   return (
     <ScreenScroll>
       <SectionCard
-        title="Mobile access"
-        subtitle="Supervisors sign in with their name and PIN. The signed-in supervisor is shown in the app header for accountability."
+        title="Supervisor login"
+        subtitle="Supervisors must sign in before using the app. When backend auth is enabled, the name and PIN are verified by the server and the signed-in supervisor is shown in the header."
       >
         <Text style={styles.helper}>Device name: {DEVICE_NAME}</Text>
         <LabeledInput

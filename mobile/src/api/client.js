@@ -100,6 +100,8 @@ export const api = {
     ),
   getCurrentCheckins: () => request("/api/workers/current-checkins"),
   regularCheckin: (body) => queuedMutation("/api/checkin", body, "Regular check-in"),
+  moveRegularWorker: (body) =>
+    queuedMutation("/api/move-worker", body, "Move worker to correct row"),
   regularCheckout: (body) => queuedMutation("/api/checkout", body, "Regular checkout"),
   clockIn: (body) => queuedMutation("/api/clock/clockin", body, "Clock in"),
   clockOut: (body) => queuedMutation("/api/clock/clockout", body, "Clock out"),

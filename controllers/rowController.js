@@ -1,6 +1,26 @@
 const Worker = require("../models/Worker");
 const Block = require("../models/Block");
 
+function ensureActiveJobs(row) {
+  if (!row.active_jobs) {
+    row.active_jobs = [];
+  }
+
+  return row.active_jobs;
+}
+
+function findWorkerJobIndex(row, workerID, jobType) {
+  const activeJobs = ensureActiveJobs(row);
+
+  if (jobType) {
+    return activeJobs.findIndex(
+      (job) => job.worker_id === workerID && job.job_type === jobType
+    );
+  }
+
+  return activeJobs.findIndex((job) => job.worker_id === workerID);
+}
+
 // Debug version of checkInWorker with detailed logging
 exports.checkInWorker = async (req, res) => {
   console.log("=== CHECK-IN REQUEST RECEIVED ===");
@@ -166,6 +186,151 @@ exports.checkInWorker = async (req, res) => {
   } catch (error) {
     console.error("❌ Error during check-in:", error);
     res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+exports.moveWorkerToRow = async (req, res) => {
+  const {
+    workerID,
+    workerName,
+    blockName,
+    fromRowNumber,
+    toRowNumber,
+    jobType,
+    allowMultipleWorkers,
+  } = req.body;
+
+  try {
+    if (!workerID || !blockName || !toRowNumber) {
+      return res.status(400).json({
+        message:
+          "workerID, blockName and toRowNumber are required to move a worker.",
+      });
+    }
+
+    const block = await Block.findOne({ block_name: blockName });
+    if (!block) {
+      return res.status(404).json({ message: "Block not found" });
+    }
+
+    let sourceRow = null;
+    let sourceJob = null;
+    let sourceJobIndex = -1;
+
+    if (fromRowNumber) {
+      sourceRow = block.rows.find((row) => row.row_number === fromRowNumber);
+      if (!sourceRow) {
+        return res.status(404).json({ message: "Source row not found" });
+      }
+
+      sourceJobIndex = findWorkerJobIndex(sourceRow, workerID, jobType);
+      if (sourceJobIndex !== -1) {
+        sourceJob = ensureActiveJobs(sourceRow)[sourceJobIndex];
+      }
+    } else {
+      for (const row of block.rows) {
+        const jobIndex = findWorkerJobIndex(row, workerID, jobType);
+        if (jobIndex !== -1) {
+          sourceRow = row;
+          sourceJobIndex = jobIndex;
+          sourceJob = ensureActiveJobs(row)[jobIndex];
+          break;
+        }
+      }
+    }
+
+    if (!sourceRow || !sourceJob || sourceJobIndex === -1) {
+      return res.status(404).json({
+        message: "No active job found for this worker on the source row.",
+      });
+    }
+
+    const targetRow = block.rows.find((row) => row.row_number === toRowNumber);
+    if (!targetRow) {
+      return res.status(404).json({ message: "Target row not found" });
+    }
+
+    if (sourceRow.row_number === targetRow.row_number) {
+      return res.status(400).json({
+        message: "Source row and target row cannot be the same.",
+      });
+    }
+
+    const targetJobs = ensureActiveJobs(targetRow);
+
+    const sameWorkerOnTarget = targetJobs.find(
+      (job) => job.worker_id === workerID
+    );
+
+    if (sameWorkerOnTarget) {
+      return res.status(409).json({
+        message: `Worker ${workerName || sourceJob.worker_name} already has an active assignment on Row ${toRowNumber}.`,
+        conflict: true,
+        existingWorker: sameWorkerOnTarget.worker_name,
+        existingJobType: sameWorkerOnTarget.job_type,
+      });
+    }
+
+    const sameJobTypeOnTarget = targetJobs.find(
+      (job) =>
+        job.job_type === sourceJob.job_type && job.worker_id !== sourceJob.worker_id
+    );
+
+    if (sameJobTypeOnTarget && !allowMultipleWorkers) {
+      return res.status(409).json({
+        message: `Row ${toRowNumber} is currently being worked on by ${sameJobTypeOnTarget.worker_name} for ${sourceJob.job_type}.`,
+        conflict: true,
+        existingWorker: sameJobTypeOnTarget.worker_name,
+        existingJobType: sameJobTypeOnTarget.job_type,
+        canOverride: true,
+      });
+    }
+
+    ensureActiveJobs(sourceRow).splice(sourceJobIndex, 1);
+
+    targetJobs.push({
+      worker_name: sourceJob.worker_name,
+      worker_id: sourceJob.worker_id,
+      job_type: sourceJob.job_type,
+      start_time: sourceJob.start_time,
+      remaining_stock: sourceJob.remaining_stock,
+      time_spent: sourceJob.time_spent,
+    });
+
+    if (sourceRow.worker_id === workerID) {
+      sourceRow.worker_name = "";
+      sourceRow.worker_id = "";
+      sourceRow.start_time = null;
+      sourceRow.time_spent = null;
+      sourceRow.job_type = "";
+    }
+
+    targetRow.worker_name = sourceJob.worker_name;
+    targetRow.worker_id = sourceJob.worker_id;
+    targetRow.start_time = sourceJob.start_time;
+    targetRow.time_spent = null;
+    targetRow.job_type = sourceJob.job_type;
+
+    await block.save();
+
+    return res.json({
+      message: allowMultipleWorkers
+        ? `Worker moved to Row ${toRowNumber} with override allowed.`
+        : `Worker moved to Row ${toRowNumber} successfully.`,
+      workerID,
+      workerName: sourceJob.worker_name,
+      blockName,
+      fromRowNumber: sourceRow.row_number,
+      toRowNumber: targetRow.row_number,
+      jobType: sourceJob.job_type,
+      multipleWorkersAllowed: allowMultipleWorkers || false,
+    });
+  } catch (error) {
+    console.error("Error moving worker to another row:", error);
+    return res.status(500).json({
+      message: "Server error while moving worker to another row.",
+      error: error.message,
+    });
   }
 };
 
@@ -405,15 +570,32 @@ exports.getCurrentCheckin = async (req, res) => {
 // Get the worker's current check-in
 exports.getCurrentCheckins = async (req, res) => {
   try {
-    // Find all blocks that contain rows
     const blocks = await Block.find();
-
     let activeCheckins = [];
 
     blocks.forEach((block) => {
       block.rows.forEach((row) => {
-        // Check if the row is checked in by any worker and not yet checked out
-        if (row.worker_id && row.start_time && !row.time_spent) {
+        if (row.active_jobs && row.active_jobs.length > 0) {
+          row.active_jobs.forEach((job) => {
+            activeCheckins.push({
+              blockName: block.block_name,
+              job_type: job.job_type,
+              rowNumber: row.row_number,
+              workerID: job.worker_id,
+              workerName: job.worker_name,
+              stockCount: job.remaining_stock,
+              startTime: job.start_time,
+              remainingStocks: job.remaining_stock,
+            });
+          });
+        }
+
+        if (
+          (!row.active_jobs || row.active_jobs.length === 0) &&
+          row.worker_id &&
+          row.start_time &&
+          !row.time_spent
+        ) {
           activeCheckins.push({
             blockName: block.block_name,
             job_type: row.job_type,

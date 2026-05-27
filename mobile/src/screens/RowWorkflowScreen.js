@@ -1,5 +1,11 @@
-import React, { useState } from "react";
-import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
+import React, { useMemo, useState } from "react";
+import {
+  ActivityIndicator,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { api } from "../api/client";
 import ScreenScroll from "../components/ScreenScroll";
 import SectionCard from "../components/SectionCard";
@@ -27,19 +33,40 @@ const defaultCheckout = {
   jobType: "",
 };
 
+const defaultMove = {
+  workerID: "",
+  workerName: "",
+  fromRowNumber: "",
+  toRowNumber: "",
+  blockName: "",
+  jobType: "",
+  allowMultipleWorkers: false,
+};
+
 export default function RowWorkflowScreen({ sharedState, offlineQueue }) {
   const [checkinForm, setCheckinForm] = useState(defaultCheckin);
   const [checkoutForm, setCheckoutForm] = useState(defaultCheckout);
+  const [moveForm, setMoveForm] = useState(defaultMove);
   const [feedback, setFeedback] = useState({ type: "info", message: "" });
   const [submitting, setSubmitting] = useState(false);
+  const [pendingMoveOverride, setPendingMoveOverride] = useState(null);
+  const [selectedActiveAssignment, setSelectedActiveAssignment] = useState("");
 
   const blockName = sharedState.selectedBlock;
   const rowState = useAsyncData(
     () => (blockName ? api.getBlockRows(blockName) : Promise.resolve([])),
     [blockName]
   );
+  const checkinsState = useAsyncData(() => api.getCurrentCheckins(), []);
 
   const activeRows = Array.isArray(rowState.data) ? rowState.data : [];
+  const activeAssignments = useMemo(() => {
+    const source = Array.isArray(checkinsState.data) ? checkinsState.data : [];
+
+    return source.filter((item) =>
+      blockName ? item.blockName === blockName : true
+    );
+  }, [checkinsState.data, blockName]);
 
   async function handleCheckin() {
     setSubmitting(true);
@@ -81,6 +108,59 @@ export default function RowWorkflowScreen({ sharedState, offlineQueue }) {
     } finally {
       setSubmitting(false);
     }
+  }
+
+  async function handleMoveWorker(overridePayload = null) {
+    setSubmitting(true);
+    setFeedback({ type: "info", message: "" });
+
+    try {
+      const payload = overridePayload || {
+        ...moveForm,
+        blockName: moveForm.blockName || sharedState.selectedBlock,
+        toRowNumber: moveForm.toRowNumber || sharedState.selectedRow,
+      };
+
+      const result = await api.moveRegularWorker(payload);
+      setFeedback({ type: "success", message: result.message });
+      setMoveForm(defaultMove);
+      setPendingMoveOverride(null);
+      setSelectedActiveAssignment("");
+      await offlineQueue.refreshQueueCount();
+      await checkinsState.refresh();
+    } catch (error) {
+      if (error?.payload?.canOverride) {
+        setPendingMoveOverride({
+          ...moveForm,
+          blockName: moveForm.blockName || sharedState.selectedBlock,
+          toRowNumber: moveForm.toRowNumber || sharedState.selectedRow,
+          allowMultipleWorkers: true,
+        });
+      } else {
+        setPendingMoveOverride(null);
+      }
+
+      setFeedback({ type: "error", message: error.message });
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  function selectAssignment(assignment) {
+    setSelectedActiveAssignment(
+      `${assignment.workerID}-${assignment.rowNumber}-${assignment.job_type || ""}`
+    );
+    setMoveForm({
+      workerID: assignment.workerID,
+      workerName: assignment.workerName,
+      fromRowNumber: assignment.rowNumber,
+      toRowNumber: "",
+      blockName: assignment.blockName,
+      jobType: assignment.job_type || "",
+      allowMultipleWorkers: false,
+    });
+    setPendingMoveOverride(null);
+    setFeedback({ type: "info", message: "" });
   }
 
   return (
@@ -155,6 +235,10 @@ export default function RowWorkflowScreen({ sharedState, offlineQueue }) {
           onPress={handleCheckin}
           disabled={submitting}
         />
+        <FeedbackBanner
+          type={feedback.type === "error" ? "error" : "success"}
+          message={feedback.message}
+        />
       </SectionCard>
 
       <SectionCard
@@ -202,6 +286,102 @@ export default function RowWorkflowScreen({ sharedState, offlineQueue }) {
         />
         <FeedbackBanner type={feedback.type === "error" ? "error" : "success"} message={feedback.message} />
       </SectionCard>
+
+      <SectionCard
+        title="Move scanned worker"
+        subtitle="Use this when a worker was scanned onto the wrong row. Pick the already-active assignment below, then choose the correct row."
+      >
+        {checkinsState.loading ? <ActivityIndicator color="#294d39" /> : null}
+        {!activeAssignments.length && !checkinsState.loading ? (
+          <Text style={styles.helper}>
+            No active assignments found for this block yet.
+          </Text>
+        ) : null}
+        <View style={styles.assignmentList}>
+          {activeAssignments.map((assignment) => {
+            const assignmentId = `${assignment.workerID}-${assignment.rowNumber}-${assignment.job_type || ""}`;
+            const active = selectedActiveAssignment === assignmentId;
+
+            return (
+              <Pressable
+                key={assignmentId}
+                style={[styles.assignmentCard, active && styles.assignmentCardActive]}
+                onPress={() => selectAssignment(assignment)}
+              >
+                <Text
+                  style={[
+                    styles.assignmentTitle,
+                    active && styles.assignmentTitleActive,
+                  ]}
+                >
+                  {assignment.workerName} ({assignment.workerID})
+                </Text>
+                <Text
+                  style={[
+                    styles.assignmentMeta,
+                    active && styles.assignmentMetaActive,
+                  ]}
+                >
+                  Block {assignment.blockName} • Row {assignment.rowNumber} •{" "}
+                  {assignment.job_type || "No job type"}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+        <FeedbackBanner type="error" message={checkinsState.error} />
+        <LabeledInput
+          label="Selected worker"
+          value={moveForm.workerName}
+          onChangeText={(value) =>
+            setMoveForm((current) => ({ ...current, workerName: value }))
+          }
+          placeholder="Pick an active assignment above"
+          autoCapitalize="words"
+        />
+        <LabeledInput
+          label="Current wrong row"
+          value={moveForm.fromRowNumber}
+          onChangeText={(value) =>
+            setMoveForm((current) => ({ ...current, fromRowNumber: value }))
+          }
+          placeholder="Auto-filled from active assignment"
+        />
+        <LabeledInput
+          label="Job type"
+          value={moveForm.jobType}
+          onChangeText={(value) =>
+            setMoveForm((current) => ({ ...current, jobType: value }))
+          }
+          placeholder="Auto-filled from active assignment"
+          autoCapitalize="characters"
+        />
+        <ScannerInput
+          label="Correct row"
+          value={moveForm.toRowNumber}
+          onChangeText={(value) =>
+            setMoveForm((current) => ({ ...current, toRowNumber: value }))
+          }
+          placeholder="Uses selected row if blank"
+        />
+        <ActionButton
+          label={submitting ? "Moving..." : "Move worker to correct row"}
+          onPress={() => handleMoveWorker()}
+          disabled={submitting}
+        />
+        {pendingMoveOverride ? (
+          <ActionButton
+            label={submitting ? "Applying..." : "Move with same-job override"}
+            tone="secondary"
+            onPress={() => handleMoveWorker(pendingMoveOverride)}
+            disabled={submitting}
+          />
+        ) : null}
+        <FeedbackBanner
+          type={feedback.type === "error" ? "error" : "success"}
+          message={feedback.message}
+        />
+      </SectionCard>
     </ScreenScroll>
   );
 }
@@ -220,6 +400,37 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 10,
+  },
+  assignmentList: {
+    gap: 10,
+  },
+  assignmentCard: {
+    borderRadius: 18,
+    backgroundColor: "#f6ecd9",
+    padding: 14,
+    borderWidth: 1,
+    borderColor: "#e0d1b7",
+  },
+  assignmentCardActive: {
+    backgroundColor: "#294d39",
+    borderColor: "#294d39",
+  },
+  assignmentTitle: {
+    color: "#203428",
+    fontSize: 15,
+    fontWeight: "800",
+  },
+  assignmentTitleActive: {
+    color: "#fefcf7",
+  },
+  assignmentMeta: {
+    marginTop: 4,
+    color: "#6a6a61",
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  assignmentMetaActive: {
+    color: "#dce8dd",
   },
   rowChip: {
     backgroundColor: "#efe4cf",

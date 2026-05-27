@@ -5,6 +5,7 @@ const rowController = require("../controllers/rowController");
 const Block = require("../models/Block");
 
 router.post("/checkin", rowController.checkInWorker);
+router.post("/move-worker", rowController.moveWorkerToRow);
 router.post("/checkout", rowController.checkOutWorker);
 
 router.get("/block/:blockName/row/:rowNumber", rowController.getRowByNumber);

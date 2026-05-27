@@ -14,7 +14,15 @@ import QueueScreen from "./src/screens/QueueScreen";
 import TabBar from "./src/components/TabBar";
 import AuthScreen from "./src/screens/AuthScreen";
 import { api } from "./src/api/client";
-import { clearAuthToken, getAuthToken } from "./src/storage/authStorage";
+import {
+  clearAuthToken,
+  clearSupervisorSession,
+  getAuthToken,
+  getLastSupervisorName,
+  getSupervisorSession,
+  setLastSupervisorName,
+  setSupervisorSession,
+} from "./src/storage/authStorage";
 import { useOfflineQueue } from "./src/hooks/useOfflineQueue";
 
 const tabs = [
@@ -35,6 +43,7 @@ export default function App() {
     authRequired: false,
     authenticated: false,
     supervisorName: "",
+    rememberedSupervisorName: "",
   });
   const offlineQueue = useOfflineQueue();
 
@@ -51,12 +60,14 @@ export default function App() {
   useEffect(() => {
     async function bootstrap() {
       try {
-        const [authStatus, token] = await Promise.all([
+        const [authStatus, token, supervisorSession, lastSupervisorName] = await Promise.all([
           api.getAuthStatus(),
           getAuthToken(),
+          getSupervisorSession(),
+          getLastSupervisorName(),
         ]);
 
-        let authenticated = authStatus.authEnabled ? Boolean(token) : true;
+        let authenticated = false;
 
         if (authStatus.authEnabled && token) {
           try {
@@ -68,26 +79,40 @@ export default function App() {
               authenticated,
               supervisorName:
                 verification?.payload?.supervisorName || "Supervisor",
+              rememberedSupervisorName:
+                verification?.payload?.supervisorName ||
+                lastSupervisorName ||
+                "",
             });
             return;
           } catch (error) {
             await clearAuthToken();
+            await clearSupervisorSession();
             authenticated = false;
           }
+        }
+
+        if (!authStatus.authEnabled && supervisorSession?.supervisorName) {
+          authenticated = true;
         }
 
         setBootState({
           loading: false,
           authRequired: authStatus.authEnabled,
           authenticated,
-          supervisorName: authenticated ? "Supervisor" : "",
+          supervisorName: authenticated
+            ? supervisorSession?.supervisorName || "Supervisor"
+            : "",
+          rememberedSupervisorName:
+            supervisorSession?.supervisorName || lastSupervisorName || "",
         });
       } catch (error) {
         setBootState({
           loading: false,
           authRequired: false,
-          authenticated: true,
+          authenticated: false,
           supervisorName: "",
+          rememberedSupervisorName: "",
         });
       }
     }
@@ -97,6 +122,7 @@ export default function App() {
 
   async function handleLogout() {
     await api.logout();
+    await clearSupervisorSession();
     setActiveTab("dashboard");
     setSelectedBlock("");
     setSelectedRow("");
@@ -116,16 +142,23 @@ export default function App() {
       );
     }
 
-    if (bootState.authRequired && !bootState.authenticated) {
+    if (!bootState.authenticated) {
       return (
         <AuthScreen
-          onAuthenticated={({ supervisorName }) =>
+          initialSupervisorName={bootState.rememberedSupervisorName}
+          onAuthenticated={async ({ supervisorName, authEnabled }) => {
+            await setLastSupervisorName(supervisorName || "Supervisor");
+            await setSupervisorSession({
+              supervisorName: supervisorName || "Supervisor",
+              authEnabled,
+            });
             setBootState((current) => ({
               ...current,
               authenticated: true,
               supervisorName: supervisorName || "Supervisor",
-            }))
-          }
+              rememberedSupervisorName: supervisorName || "Supervisor",
+            }));
+          }}
         />
       );
     }
@@ -180,7 +213,7 @@ export default function App() {
                 ) : null}
               </View>
 
-              {bootState.authRequired && bootState.authenticated ? (
+              {bootState.authenticated ? (
                 <Pressable style={styles.logoutButton} onPress={handleLogout}>
                   <Text style={styles.logoutLabel}>Logout</Text>
                 </Pressable>
@@ -191,7 +224,7 @@ export default function App() {
 
         <View style={styles.content}>{renderContent()}</View>
 
-        {bootState.loading || (bootState.authRequired && !bootState.authenticated) ? null : (
+        {bootState.loading || !bootState.authenticated ? null : (
           <SafeAreaView style={styles.safeBottom} edges={["bottom"]}>
             <TabBar tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
           </SafeAreaView>
