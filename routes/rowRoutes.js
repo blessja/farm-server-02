@@ -6,6 +6,7 @@ const Block = require("../models/Block");
 
 router.post("/checkin", rowController.checkInWorker);
 router.post("/move-worker", rowController.moveWorkerToRow);
+router.post("/swap-workers", rowController.swapWorkersBetweenRows);
 router.post("/checkout", rowController.checkOutWorker);
 
 router.get("/block/:blockName/row/:rowNumber", rowController.getRowByNumber);
@@ -55,8 +56,22 @@ router.get("/block/:blockName", async (req, res) => {
 // Get all blocks for dropdown
 router.get("/blocks", async (req, res) => {
   try {
-    const blocks = await Block.find({});
-    res.json(blocks.map((block) => block.block_name));
+    const blocks = await Block.find(
+      {
+        block_name: { $exists: true, $nin: [null, ""] },
+      },
+      { block_name: 1 }
+    ).lean();
+
+    const blockNames = [...new Set(
+      blocks
+        .map((block) =>
+          typeof block.block_name === "string" ? block.block_name.trim() : ""
+        )
+        .filter(Boolean)
+    )];
+
+    res.json(blockNames);
   } catch (error) {
     res.status(500).json({ message: "Failed to fetch blocks", error });
   }
@@ -67,7 +82,18 @@ router.get("/block/:blockName/rows", async (req, res) => {
   try {
     const block = await Block.findOne({ block_name: req.params.blockName });
     if (!block) return res.status(404).json({ message: "Block not found" });
-    res.json(block.rows.map((row) => row.row_number));
+
+    const rowNumbers = [...new Set(
+      (Array.isArray(block.rows) ? block.rows : [])
+        .map((row) =>
+          typeof row?.row_number === "string"
+            ? row.row_number.trim()
+            : row?.row_number
+        )
+        .filter((rowNumber) => rowNumber !== null && rowNumber !== undefined && rowNumber !== "")
+    )];
+
+    res.json(rowNumbers);
   } catch (error) {
     res.status(500).json({ message: "Failed to fetch rows", error });
   }

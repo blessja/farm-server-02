@@ -4,7 +4,17 @@ const {
   getAuthConfigurationErrors,
 } = require("../utils/mobileAuth");
 
+function isTemporarilyPublicRoute(req) {
+  return (
+    req.method === "PUT" && req.path === "/workers/clearAllCheckins"
+  );
+}
+
 function mobileAuthMiddleware(req, res, next) {
+  if (isTemporarilyPublicRoute(req)) {
+    return next();
+  }
+
   if (!authEnabled()) {
     return next();
   }

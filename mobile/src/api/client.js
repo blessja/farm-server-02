@@ -102,6 +102,8 @@ export const api = {
   regularCheckin: (body) => queuedMutation("/api/checkin", body, "Regular check-in"),
   moveRegularWorker: (body) =>
     queuedMutation("/api/move-worker", body, "Move worker to correct row"),
+  swapRegularWorkers: (body) =>
+    queuedMutation("/api/swap-workers", body, "Swap workers between rows"),
   regularCheckout: (body) => queuedMutation("/api/checkout", body, "Regular checkout"),
   clockIn: (body) => queuedMutation("/api/clock/clockin", body, "Clock in"),
   clockOut: (body) => queuedMutation("/api/clock/clockout", body, "Clock out"),

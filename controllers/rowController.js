@@ -334,6 +334,167 @@ exports.moveWorkerToRow = async (req, res) => {
   }
 };
 
+exports.swapWorkersBetweenRows = async (req, res) => {
+  const {
+    firstWorkerID,
+    secondWorkerID,
+    blockName,
+    firstJobType,
+    secondJobType,
+  } = req.body;
+
+  try {
+    if (!firstWorkerID || !secondWorkerID || !blockName) {
+      return res.status(400).json({
+        message:
+          "firstWorkerID, secondWorkerID and blockName are required to swap workers.",
+      });
+    }
+
+    if (firstWorkerID === secondWorkerID) {
+      return res.status(400).json({
+        message: "Cannot swap a worker with themselves.",
+      });
+    }
+
+    const block = await Block.findOne({ block_name: blockName });
+    if (!block) {
+      return res.status(404).json({ message: "Block not found" });
+    }
+
+    let firstRow = null;
+    let firstJob = null;
+    let firstJobIndex = -1;
+    let secondRow = null;
+    let secondJob = null;
+    let secondJobIndex = -1;
+
+    for (const row of block.rows) {
+      if (!firstJob) {
+        const index = findWorkerJobIndex(row, firstWorkerID, firstJobType);
+        if (index !== -1) {
+          firstRow = row;
+          firstJobIndex = index;
+          firstJob = ensureActiveJobs(row)[index];
+        }
+      }
+
+      if (!secondJob) {
+        const index = findWorkerJobIndex(row, secondWorkerID, secondJobType);
+        if (index !== -1) {
+          secondRow = row;
+          secondJobIndex = index;
+          secondJob = ensureActiveJobs(row)[index];
+        }
+      }
+    }
+
+    if (!firstRow || !firstJob || firstJobIndex === -1) {
+      return res.status(404).json({
+        message: "First worker does not have an active assignment in this block.",
+      });
+    }
+
+    if (!secondRow || !secondJob || secondJobIndex === -1) {
+      return res.status(404).json({
+        message: "Second worker does not have an active assignment in this block.",
+      });
+    }
+
+    if (firstRow.row_number === secondRow.row_number) {
+      return res.status(400).json({
+        message: "Both workers are already on the same row.",
+      });
+    }
+
+    const firstTargetJobs = ensureActiveJobs(secondRow).filter(
+      (_, index) => index !== secondJobIndex
+    );
+    const secondTargetJobs = ensureActiveJobs(firstRow).filter(
+      (_, index) => index !== firstJobIndex
+    );
+
+    const firstTargetConflict = firstTargetJobs.find(
+      (job) => job.worker_id === firstWorkerID
+    );
+    if (firstTargetConflict) {
+      return res.status(409).json({
+        message: `${firstJob.worker_name} already has an assignment on Row ${secondRow.row_number}.`,
+      });
+    }
+
+    const secondTargetConflict = secondTargetJobs.find(
+      (job) => job.worker_id === secondWorkerID
+    );
+    if (secondTargetConflict) {
+      return res.status(409).json({
+        message: `${secondJob.worker_name} already has an assignment on Row ${firstRow.row_number}.`,
+      });
+    }
+
+    ensureActiveJobs(firstRow)[firstJobIndex] = {
+      worker_name: secondJob.worker_name,
+      worker_id: secondJob.worker_id,
+      job_type: secondJob.job_type,
+      start_time: secondJob.start_time,
+      remaining_stock: secondJob.remaining_stock,
+      time_spent: secondJob.time_spent,
+    };
+
+    ensureActiveJobs(secondRow)[secondJobIndex] = {
+      worker_name: firstJob.worker_name,
+      worker_id: firstJob.worker_id,
+      job_type: firstJob.job_type,
+      start_time: firstJob.start_time,
+      remaining_stock: firstJob.remaining_stock,
+      time_spent: firstJob.time_spent,
+    };
+
+    if (firstRow.worker_id === firstWorkerID) {
+      firstRow.worker_name = secondJob.worker_name;
+      firstRow.worker_id = secondJob.worker_id;
+      firstRow.start_time = secondJob.start_time;
+      firstRow.time_spent = null;
+      firstRow.job_type = secondJob.job_type;
+    }
+
+    if (secondRow.worker_id === secondWorkerID) {
+      secondRow.worker_name = firstJob.worker_name;
+      secondRow.worker_id = firstJob.worker_id;
+      secondRow.start_time = firstJob.start_time;
+      secondRow.time_spent = null;
+      secondRow.job_type = firstJob.job_type;
+    }
+
+    await block.save();
+
+    return res.json({
+      message: "Workers swapped successfully.",
+      blockName,
+      firstWorker: {
+        workerID: firstJob.worker_id,
+        workerName: firstJob.worker_name,
+        fromRowNumber: firstRow.row_number,
+        toRowNumber: secondRow.row_number,
+        jobType: firstJob.job_type,
+      },
+      secondWorker: {
+        workerID: secondJob.worker_id,
+        workerName: secondJob.worker_name,
+        fromRowNumber: secondRow.row_number,
+        toRowNumber: firstRow.row_number,
+        jobType: secondJob.job_type,
+      },
+    });
+  } catch (error) {
+    console.error("Error swapping workers between rows:", error);
+    return res.status(500).json({
+      message: "Server error while swapping workers.",
+      error: error.message,
+    });
+  }
+};
+
 // Check-out a worker
 exports.checkOutWorker = async (req, res) => {
   const { workerID, workerName, rowNumber, blockName, stockCount, jobType } =
@@ -663,31 +824,34 @@ exports.getCurrentCheckin = async (req, res) => {
 // clear all currently active checkins
 exports.clearAllCheckins = async (req, res) => {
   try {
-    // Find all blocks
-    const blocks = await Block.find();
+    const result = await Block.updateMany(
+      {
+        rows: { $exists: true, $type: "array" },
+      },
+      {
+        $set: {
+          "rows.$[].worker_id": "",
+          "rows.$[].worker_name": "",
+          "rows.$[].start_time": null,
+          "rows.$[].time_spent": 0,
+          "rows.$[].job_type": "",
+          "rows.$[].remaining_stock_count": null,
+          "rows.$[].active_jobs": [],
+        },
+      }
+    );
 
-    // Iterate through each block and its rows
-    blocks.forEach((block) => {
-      block.rows.forEach((row) => {
-        // Clear check-in details if there's an active check-in
-        if (row.worker_id && row.start_time) {
-          row.worker_id = "";
-          row.worker_name = "";
-          row.start_time = null;
-          row.time_spent = 0;
-          row.job_type = "";
-          row.remaining_stock_count = null;
-        }
-      });
+    return res.status(200).json({
+      message: "All active check-ins cleared.",
+      matchedBlocks: result.matchedCount,
+      updatedBlocks: result.modifiedCount,
     });
-
-    // Save updated blocks
-    await Promise.all(blocks.map((block) => block.save()));
-
-    return res.status(200).json({ message: "All active check-ins cleared." });
   } catch (error) {
     console.error("Error clearing check-ins:", error);
-    return res.status(500).json({ message: "An error occurred." });
+    return res.status(500).json({
+      message: "An error occurred while clearing check-ins.",
+      error: error.message,
+    });
   }
 };
 

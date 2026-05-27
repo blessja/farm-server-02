@@ -6,8 +6,8 @@ import {
   SafeAreaView,
 } from "react-native-safe-area-context";
 import DashboardScreen from "./src/screens/DashboardScreen";
-import BlocksScreen from "./src/screens/BlocksScreen";
-import RowWorkflowScreen from "./src/screens/RowWorkflowScreen";
+import DayWorkScreen from "./src/screens/DayWorkScreen";
+import MoveWorkersScreen from "./src/screens/MoveWorkersScreen";
 import ClockScreen from "./src/screens/ClockScreen";
 import FastPieceworkScreen from "./src/screens/FastPieceworkScreen";
 import QueueScreen from "./src/screens/QueueScreen";
@@ -26,11 +26,11 @@ import {
 import { useOfflineQueue } from "./src/hooks/useOfflineQueue";
 
 const tabs = [
-  { key: "dashboard", label: "Overview" },
-  { key: "blocks", label: "Blocks" },
-  { key: "workflow", label: "Rows" },
+  { key: "dashboard", label: "Home" },
+  { key: "daywork", label: "DayWork" },
+  { key: "move", label: "Move" },
   { key: "clock", label: "Clock" },
-  { key: "fast", label: "Fast PW" },
+  { key: "fast", label: "Fast" },
   { key: "queue", label: "Queue" },
 ];
 
@@ -164,11 +164,16 @@ export default function App() {
     }
 
     switch (activeTab) {
-      case "blocks":
-        return <BlocksScreen sharedState={sharedState} />;
-      case "workflow":
+      case "daywork":
         return (
-          <RowWorkflowScreen
+          <DayWorkScreen
+            sharedState={sharedState}
+            offlineQueue={offlineQueue}
+          />
+        );
+      case "move":
+        return (
+          <MoveWorkersScreen
             sharedState={sharedState}
             offlineQueue={offlineQueue}
           />
