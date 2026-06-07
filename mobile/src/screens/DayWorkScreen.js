@@ -110,6 +110,16 @@ export default function DayWorkScreen({ sharedState, offlineQueue }) {
     }
   }
 
+  function applyScannedWorker(setter) {
+    return ({ textValue, workerData }) => {
+      setter((current) => ({
+        ...current,
+        workerID: textValue || "",
+        workerName: workerData?.workerName || current.workerName,
+      }));
+    };
+  }
+
   return (
     <ScreenScroll
       refreshing={blocksState.loading || rowsState.loading || checkinsState.loading}
@@ -172,6 +182,7 @@ export default function DayWorkScreen({ sharedState, offlineQueue }) {
           label="Worker ID"
           value={checkinForm.workerID}
           onChangeText={(value) => setCheckinForm((current) => ({ ...current, workerID: value }))}
+          onScan={applyScannedWorker(setCheckinForm)}
           placeholder="e.g. 1024"
         />
         <LabeledInput
@@ -209,6 +220,7 @@ export default function DayWorkScreen({ sharedState, offlineQueue }) {
           label="Worker ID"
           value={checkoutForm.workerID}
           onChangeText={(value) => setCheckoutForm((current) => ({ ...current, workerID: value }))}
+          onScan={applyScannedWorker(setCheckoutForm)}
           placeholder="e.g. 1024"
         />
         <LabeledInput

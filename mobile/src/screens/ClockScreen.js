@@ -36,6 +36,14 @@ export default function ClockScreen({ offlineQueue }) {
     }
   }
 
+  function applyScannedWorker({ textValue, workerData }) {
+    setForm((current) => ({
+      ...current,
+      workerID: textValue || "",
+      workerName: workerData?.workerName || current.workerName,
+    }));
+  }
+
   const records = Array.isArray(clockState.data) ? clockState.data : [];
 
   return (
@@ -48,6 +56,7 @@ export default function ClockScreen({ offlineQueue }) {
           label="Worker ID"
           value={form.workerID}
           onChangeText={(value) => setForm((current) => ({ ...current, workerID: value }))}
+          onScan={applyScannedWorker}
           placeholder="e.g. 1024"
         />
         <LabeledInput

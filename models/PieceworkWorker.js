@@ -5,6 +5,8 @@ const pieceworkWorkerSchema = new mongoose.Schema({
   workerID: { type: String, required: true },
   name: { type: String, required: true },
   piecework_stock_count: { type: Number, default: 0 }, // Fast piecework total
+  total_stock_count: { type: Number, default: 0 },
+  total_bunches_worked: { type: Number, default: 0 },
   blocks: [
     {
       block_name: { type: String },

@@ -11,7 +11,7 @@ exports.syncClockIns = async (req, res) => {
 
     try {
       const alreadyExists = await Worker.findOne({
-        worker_id,
+        workerID,
         "syncLogs.syncId": syncId,
       });
 
@@ -21,7 +21,7 @@ exports.syncClockIns = async (req, res) => {
       }
 
       const updatedWorker = await Worker.findOneAndUpdate(
-        { worker_id: workerId }, // ✅ Now workerId is defined
+        { workerID: workerId },
         {
           $set: {
             isClockedIn: true,

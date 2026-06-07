@@ -84,7 +84,7 @@ exports.checkOutWorkers = async (req, res) => {
     // Calculate bunches worked
     const avgBunchesPerStock =
       row.stock_count > 0 ? row.bunches / row.stock_count : 0;
-    let bunchesWorked = avgBunchesPerStock * stockCount;
+    let bunchesWorked = avgBunchesPerStock * calculatedStockCount;
 
     // Round the bunches worked according to the rules
     const decimalPart = bunchesWorked % 1;

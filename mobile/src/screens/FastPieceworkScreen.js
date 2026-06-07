@@ -43,6 +43,14 @@ export default function FastPieceworkScreen({ sharedState, offlineQueue }) {
     }
   }
 
+  function applyScannedWorker({ textValue, workerData }) {
+    setForm((current) => ({
+      ...current,
+      workerID: textValue || "",
+      workerName: workerData?.workerName || current.workerName,
+    }));
+  }
+
   const totals = Array.isArray(totalsState.data?.workers)
     ? totalsState.data.workers
     : Array.isArray(totalsState.data)
@@ -59,6 +67,7 @@ export default function FastPieceworkScreen({ sharedState, offlineQueue }) {
           label="Worker ID"
           value={form.workerID}
           onChangeText={(value) => setForm((current) => ({ ...current, workerID: value }))}
+          onScan={applyScannedWorker}
           placeholder="e.g. 1024"
         />
         <LabeledInput

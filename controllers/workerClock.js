@@ -1,7 +1,6 @@
 const cron = require("node-cron");
 const moment = require("moment-timezone");
 const WorkerClock = require("../models/WorkerClock");
-const Worker = require("../models/WorkerClock");
 
 // Add a new clock-in entry for a worker
 exports.addClockIn = async (req, res) => {
@@ -291,8 +290,7 @@ exports.getWorkersByIDs = async (req, res) => {
       });
     }
 
-    // Query to find workers within the dynamic range
-    const workers = await Worker.find({
+    const workers = await WorkerClock.find({
       workerID: {
         $gte: min,
         $lte: max,

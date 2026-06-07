@@ -17,7 +17,6 @@ const fastPieceworkRoutes = require("./routes/fastPieceworkRoutes");
 const { mobileAuthMiddleware } = require("./middleware/mobileAuth");
 
 const app = express();
-const port = 5000;
 
 // Connect to MongoDB
 connectDB();
@@ -77,7 +76,6 @@ app.use("/api/clock", clockRoutes);
 app.use("/api/monitor-clockins", clockRoutes);
 app.use("/api/clocks", clockRoutes);
 app.use("/api/earliest-clock-in", clockRoutes);
-app.use("/api/clearAllCheckins", rowRoutes);
 app.use("/api/autoClockOutEndpoint", clockRoutes);
 app.use("/api/fast-piecework", fastPieceworkRoutes);
 app.use("/sync", syncRoutes);

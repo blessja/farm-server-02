@@ -15,7 +15,7 @@ exports.getBlockByName = async (req, res) => {
   const { blockName } = req.params;
 
   try {
-    const block = await Block.findOne({ blockName });
+    const block = await Block.findOne({ block_name: blockName });
 
     if (!block) {
       return res.status(404).json({ message: "Block not found" });

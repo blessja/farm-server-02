@@ -13,6 +13,7 @@ export default function ScannerInput({
   label,
   value,
   onChangeText,
+  onScan,
   placeholder,
   autoCapitalize = "none",
   keyboardType,
@@ -33,10 +34,46 @@ export default function ScannerInput({
     setIsOpen(true);
   }
 
+  function parseWorkerPayload(rawValue) {
+    if (typeof rawValue !== "string") {
+      return null;
+    }
+
+    try {
+      const parsed = JSON.parse(rawValue);
+      if (
+        parsed &&
+        typeof parsed.workerID !== "undefined" &&
+        typeof parsed.workerName === "string"
+      ) {
+        return {
+          workerID: String(parsed.workerID).trim(),
+          workerName: parsed.workerName.trim(),
+        };
+      }
+    } catch (error) {
+      return null;
+    }
+
+    return null;
+  }
+
   function handleScan(result) {
     if (hasScanned) return;
     setHasScanned(true);
-    onChangeText(result.data || "");
+    const rawValue = typeof result?.data === "string" ? result.data : "";
+    const workerData = parseWorkerPayload(rawValue);
+
+    if (typeof onScan === "function") {
+      onScan({
+        rawValue,
+        textValue: workerData?.workerID || rawValue,
+        workerData,
+      });
+    } else {
+      onChangeText(workerData?.workerID || rawValue);
+    }
+
     setIsOpen(false);
   }
 

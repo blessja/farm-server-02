@@ -858,7 +858,7 @@ exports.clearAllCheckins = async (req, res) => {
 // Get row data by row number
 exports.getRowByNumber = async (req, res) => {
   try {
-    const { rowNumber } = req.params;
+    const { blockName, rowNumber } = req.params;
     const block = await Block.findOne({ block_name: blockName });
 
     if (!block) {
@@ -882,6 +882,7 @@ exports.getRowByNumber = async (req, res) => {
 // Get all block data
 exports.getAllBlockData = async (req, res) => {
   try {
+    const { blockName } = req.params;
     const block = await Block.findOne({ block_name: blockName });
 
     if (!block) {
@@ -897,6 +898,7 @@ exports.getAllBlockData = async (req, res) => {
 // Get a block by name
 exports.getBlockByName = async (req, res) => {
   try {
+    const { blockName } = req.params;
     const block = await Block.findOne({ block_name: blockName });
 
     if (!block) {
@@ -911,6 +913,7 @@ exports.getBlockByName = async (req, res) => {
 
 exports.getRemainingStocks = async (req, res) => {
   try {
+    const { blockName } = req.params;
     const block = await Block.findOne({ block_name: blockName });
     if (!block) {
       return res.status(404).send({ message: "Block not found" });
