@@ -1,9 +1,8 @@
 import React, { useMemo, useState } from "react";
 import {
   ActivityIndicator,
-  Pressable,
-  StyleSheet,
   Text,
+  TouchableOpacity,
   View,
 } from "react-native";
 import { api } from "../api/client";
@@ -200,28 +199,35 @@ export default function MoveWorkersScreen({ sharedState, offlineQueue }) {
     <ScreenScroll refreshing={checkinsState.loading} onRefresh={checkinsState.refresh}>
       <SectionCard
         title="Move workers"
-        subtitle="Search active assignments, filter them by worker, block, row, or job type, then move or swap workers using the selected mode."
+        subtitle="Search active assignments, then move or swap workers between rows."
       >
-        <View style={styles.modeRow}>
+        <View className="flex-row gap-2.5">
           {modeOptions.map((option) => {
             const active = mode === option.key;
             return (
-              <Pressable
+              <TouchableOpacity
                 key={option.key}
-                style={[styles.modeChip, active && styles.modeChipActive]}
+                activeOpacity={0.7}
+                style={{
+                  flex: 1,
+                  borderRadius: 16,
+                  paddingVertical: 12,
+                  alignItems: "center",
+                  backgroundColor: active ? "#16a34a" : "#f3f4f6",
+                  borderWidth: active ? 0 : 1,
+                  borderColor: "#e5e7eb",
+                }}
                 onPress={() => setMode(option.key)}
               >
-                <Text
-                  style={[styles.modeChipText, active && styles.modeChipTextActive]}
-                >
+                <Text style={{ fontSize: 14, fontWeight: "800", color: active ? "#fff" : "#4b5563" }}>
                   {option.label}
                 </Text>
-              </Pressable>
+              </TouchableOpacity>
             );
           })}
         </View>
-        <View style={styles.searchRow}>
-          <View style={styles.searchField}>
+        <View className="gap-3">
+          <View className="flex-1">
             <LabeledInput
               label="Search"
               value={searchText}
@@ -230,26 +236,29 @@ export default function MoveWorkersScreen({ sharedState, offlineQueue }) {
               autoCapitalize="none"
             />
           </View>
-          <View style={styles.filterWrap}>
-            <Text style={styles.filterLabel}>Filter</Text>
-            <View style={styles.filterRow}>
+          <View className="gap-1.5">
+            <Text className="text-gray-600 text-xs font-bold">Filter</Text>
+            <View className="flex-row flex-wrap gap-2">
               {filterModes.map((mode) => {
                 const active = filterMode === mode.key;
                 return (
-                  <Pressable
+                  <TouchableOpacity
                     key={mode.key}
-                    style={[styles.filterChip, active && styles.filterChipActive]}
+                    activeOpacity={0.7}
+                    style={{
+                      borderRadius: 999,
+                      paddingHorizontal: 12,
+                      paddingVertical: 8,
+                      backgroundColor: active ? "#16a34a" : "#f3f4f6",
+                      borderWidth: active ? 0 : 1,
+                      borderColor: "#e5e7eb",
+                    }}
                     onPress={() => setFilterMode(mode.key)}
                   >
-                    <Text
-                      style={[
-                        styles.filterChipText,
-                        active && styles.filterChipTextActive,
-                      ]}
-                    >
+                    <Text style={{ fontSize: 12, fontWeight: "800", color: active ? "#fff" : "#4b5563" }}>
                       {mode.label}
                     </Text>
-                  </Pressable>
+                  </TouchableOpacity>
                 );
               })}
             </View>
@@ -261,15 +270,15 @@ export default function MoveWorkersScreen({ sharedState, offlineQueue }) {
         title="Active workers"
         subtitle={
           mode === "move"
-            ? "Choose an active assignment first. The current block, wrong row, and job type will fill in automatically."
-            : "Pick two active workers to swap their assignments."
+            ? "Choose an active assignment. Block, row, and job type auto-fill."
+            : "Pick two workers to swap their row assignments."
         }
       >
-        {checkinsState.loading ? <ActivityIndicator color="#294d39" /> : null}
+        {checkinsState.loading ? <ActivityIndicator color="#16a34a" /> : null}
         {!filteredAssignments.length && !checkinsState.loading ? (
-          <Text style={styles.helper}>No matching active workers found.</Text>
+          <Text className="text-gray-400 text-sm">No matching active workers found.</Text>
         ) : null}
-        <View style={styles.assignmentList}>
+        <View className="gap-2.5">
           {filteredAssignments.map((assignment, index) => {
             const assignmentId = getAssignmentId(assignment, index);
             const active =
@@ -278,9 +287,16 @@ export default function MoveWorkersScreen({ sharedState, offlineQueue }) {
                 : selectedSwapAssignment === assignmentId;
 
             return (
-              <Pressable
+              <TouchableOpacity
                 key={assignmentId}
-                style={[styles.assignmentCard, active && styles.assignmentCardActive]}
+                activeOpacity={0.7}
+                style={{
+                  borderRadius: 16,
+                  padding: 14,
+                  borderWidth: 1,
+                  backgroundColor: active ? "#16a34a" : "#f9fafb",
+                  borderColor: active ? "#16a34a" : "#f3f4f6",
+                }}
                 onPress={() => {
                   if (mode === "move") {
                     selectAssignment(assignment, index);
@@ -298,24 +314,14 @@ export default function MoveWorkersScreen({ sharedState, offlineQueue }) {
                   selectSwapWorker("second", assignment, index);
                 }}
               >
-                <Text
-                  style={[
-                    styles.assignmentTitle,
-                    active && styles.assignmentTitleActive,
-                  ]}
-                >
+                <Text style={{ fontSize: 15, fontWeight: "800", color: active ? "#fff" : "#111827" }}>
                   {assignment.workerName} ({assignment.workerID})
                 </Text>
-                <Text
-                  style={[
-                    styles.assignmentMeta,
-                    active && styles.assignmentMetaActive,
-                  ]}
-                >
+                <Text style={{ marginTop: 4, fontSize: 13, lineHeight: 18, color: active ? "#dcfce7" : "#9ca3af" }}>
                   Block {assignment.blockName} • Row {assignment.rowNumber} •{" "}
                   {assignment.job_type || "No job type"}
                 </Text>
-              </Pressable>
+              </TouchableOpacity>
             );
           })}
         </View>
@@ -325,7 +331,7 @@ export default function MoveWorkersScreen({ sharedState, offlineQueue }) {
       {mode === "move" ? (
         <SectionCard
           title="Move selected worker"
-          subtitle="Different job types may share a row. The same worker cannot be assigned twice on the target row."
+          subtitle="Different job types may share a row. Same worker cannot be on the target row twice."
         >
           <LabeledInput
             label="Selected worker"
@@ -371,9 +377,9 @@ export default function MoveWorkersScreen({ sharedState, offlineQueue }) {
             placeholder="Uses active Day row if blank"
           />
           {(moveForm.workerName || moveForm.toRowNumber || sharedState.selectedRow) ? (
-            <View style={styles.previewBox}>
-              <Text style={styles.previewTitle}>Preview</Text>
-              <Text style={styles.previewText}>
+            <View className="rounded-2xl bg-farm-50 border border-farm-200 p-3.5 gap-1.5">
+              <Text className="text-farm-800 text-xs font-extrabold uppercase">Preview</Text>
+              <Text className="text-farm-700 text-sm leading-5">
                 {moveForm.workerName || "Selected worker"} will move from Row{" "}
                 {moveForm.fromRowNumber || "?"} to Row{" "}
                 {moveForm.toRowNumber || sharedState.selectedRow || "?"} in Block{" "}
@@ -402,7 +408,7 @@ export default function MoveWorkersScreen({ sharedState, offlineQueue }) {
       ) : (
         <SectionCard
           title="Swap selected workers"
-          subtitle="Choose two workers from the same active pool and exchange their current row assignments."
+          subtitle="Choose two workers from the same block and exchange their row assignments."
         >
           <LabeledInput
             label="First worker"
@@ -419,10 +425,10 @@ export default function MoveWorkersScreen({ sharedState, offlineQueue }) {
             autoCapitalize="words"
           />
           {swapPreview.length ? (
-            <View style={styles.previewBox}>
-              <Text style={styles.previewTitle}>Preview</Text>
+            <View className="rounded-2xl bg-farm-50 border border-farm-200 p-3.5 gap-1.5">
+              <Text className="text-farm-800 text-xs font-extrabold uppercase">Preview</Text>
               {swapPreview.map((line) => (
-                <Text key={line} style={styles.previewText}>
+                <Text key={line} className="text-farm-700 text-sm leading-5">
                   {line}
                 </Text>
               ))}
@@ -442,118 +448,3 @@ export default function MoveWorkersScreen({ sharedState, offlineQueue }) {
     </ScreenScroll>
   );
 }
-
-const styles = StyleSheet.create({
-  modeRow: {
-    flexDirection: "row",
-    gap: 10,
-  },
-  modeChip: {
-    flex: 1,
-    borderRadius: 18,
-    backgroundColor: "#efe4cf",
-    paddingVertical: 12,
-    alignItems: "center",
-  },
-  modeChipActive: {
-    backgroundColor: "#294d39",
-  },
-  modeChipText: {
-    color: "#294132",
-    fontSize: 14,
-    fontWeight: "800",
-  },
-  modeChipTextActive: {
-    color: "#fefcf7",
-  },
-  searchRow: {
-    gap: 12,
-  },
-  searchField: {
-    flex: 1,
-  },
-  filterWrap: {
-    gap: 6,
-  },
-  filterLabel: {
-    color: "#415247",
-    fontSize: 13,
-    fontWeight: "700",
-  },
-  filterRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  filterChip: {
-    borderRadius: 999,
-    backgroundColor: "#efe4cf",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  filterChipActive: {
-    backgroundColor: "#294d39",
-  },
-  filterChipText: {
-    color: "#294132",
-    fontSize: 12,
-    fontWeight: "800",
-  },
-  filterChipTextActive: {
-    color: "#fefcf7",
-  },
-  helper: {
-    color: "#6a675f",
-    fontSize: 14,
-  },
-  assignmentList: {
-    gap: 10,
-  },
-  assignmentCard: {
-    borderRadius: 18,
-    backgroundColor: "#f6ecd9",
-    padding: 14,
-    borderWidth: 1,
-    borderColor: "#e0d1b7",
-  },
-  assignmentCardActive: {
-    backgroundColor: "#294d39",
-    borderColor: "#294d39",
-  },
-  assignmentTitle: {
-    color: "#203428",
-    fontSize: 15,
-    fontWeight: "800",
-  },
-  assignmentTitleActive: {
-    color: "#fefcf7",
-  },
-  assignmentMeta: {
-    marginTop: 4,
-    color: "#6a6a61",
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  assignmentMetaActive: {
-    color: "#dce8dd",
-  },
-  previewBox: {
-    borderRadius: 18,
-    backgroundColor: "#eef5ec",
-    borderWidth: 1,
-    borderColor: "#c8ddc7",
-    padding: 14,
-    gap: 6,
-  },
-  previewTitle: {
-    color: "#23442d",
-    fontSize: 13,
-    fontWeight: "800",
-    textTransform: "uppercase",
-  },
-  previewText: {
-    color: "#34523d",
-    fontSize: 14,
-    lineHeight: 20,
-  },
-});

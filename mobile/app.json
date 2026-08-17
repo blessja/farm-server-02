@@ -22,7 +22,7 @@
     ],
     "splash": {
       "resizeMode": "contain",
-      "backgroundColor": "#f4efe3"
+      "backgroundColor": "#ffffff"
     },
     "assetBundlePatterns": [
       "**/*"
@@ -35,7 +35,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#f4efe3"
+        "backgroundColor": "#ffffff"
       }
     },
     "web": {

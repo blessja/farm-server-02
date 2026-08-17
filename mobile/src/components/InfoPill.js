@@ -1,34 +1,13 @@
 import React from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Text, View } from "react-native";
 
 export default function InfoPill({ label, value }) {
   return (
-    <View style={styles.pill}>
-      <Text style={styles.label}>{label}</Text>
-      <Text style={styles.value}>{value}</Text>
+    <View className="min-w-24 rounded-2xl bg-gray-50 border border-gray-100 px-3 py-2.5 gap-1">
+      <Text className="text-gray-400 text-[11px] font-bold uppercase tracking-wider">
+        {label}
+      </Text>
+      <Text className="text-gray-900 text-base font-extrabold">{value}</Text>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  pill: {
-    minWidth: 96,
-    borderRadius: 18,
-    backgroundColor: "#efe4cf",
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    gap: 4,
-  },
-  label: {
-    color: "#786247",
-    fontSize: 11,
-    fontWeight: "700",
-    textTransform: "uppercase",
-    letterSpacing: 0.8,
-  },
-  value: {
-    color: "#203428",
-    fontSize: 16,
-    fontWeight: "800",
-  },
-});

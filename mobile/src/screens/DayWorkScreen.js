@@ -1,26 +1,24 @@
 import React, { useMemo, useState } from "react";
-import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Text, View } from "react-native";
 import { api } from "../api/client";
 import ScreenScroll from "../components/ScreenScroll";
 import SectionCard from "../components/SectionCard";
-import LabeledInput from "../components/LabeledInput";
 import ActionButton from "../components/ActionButton";
 import FeedbackBanner from "../components/FeedbackBanner";
-import ScannerInput from "../components/ScannerInput";
+import WorkerSuggestionInput from "../components/WorkerSuggestionInput";
 import SelectField from "../components/SelectField";
+import LabeledInput from "../components/LabeledInput";
 import { useAsyncData } from "../hooks/useAsyncData";
 
 const defaultCheckin = {
   workerID: "",
   workerName: "",
-  jobType: "",
 };
 
 const defaultCheckout = {
   workerID: "",
   workerName: "",
   stockCount: "",
-  jobType: "",
 };
 
 export default function DayWorkScreen({ sharedState, offlineQueue }) {
@@ -29,13 +27,16 @@ export default function DayWorkScreen({ sharedState, offlineQueue }) {
   const [feedback, setFeedback] = useState({ type: "info", message: "" });
   const [submitting, setSubmitting] = useState(false);
 
-  const blocksState = useAsyncData(() => api.getBlocks(), []);
+  const blocksState = useAsyncData(() => api.getBlocks(), [], {
+    cacheKey: "blocks",
+  });
   const rowsState = useAsyncData(
     () =>
       sharedState.selectedBlock
         ? api.getBlockRows(sharedState.selectedBlock)
         : Promise.resolve([]),
-    [sharedState.selectedBlock]
+    [sharedState.selectedBlock],
+    { cacheKey: sharedState.selectedBlock ? `rows-${sharedState.selectedBlock}` : undefined }
   );
   const checkinsState = useAsyncData(() => api.getCurrentCheckins(), []);
 
@@ -48,12 +49,19 @@ export default function DayWorkScreen({ sharedState, offlineQueue }) {
   const activeCheckins = Array.isArray(checkinsState.data) ? checkinsState.data : [];
 
   const occupiedRows = useMemo(() => {
+    const jt = sharedState.jobType?.trim().toUpperCase();
     return new Set(
       activeCheckins
-        .filter((item) => item.blockName === sharedState.selectedBlock)
+        .filter((item) => {
+          if (item.blockName !== sharedState.selectedBlock) return false;
+          if (jt && item.job_type) {
+            return item.job_type.toUpperCase() === jt;
+          }
+          return true;
+        })
         .map((item) => String(item.rowNumber))
     );
-  }, [activeCheckins, sharedState.selectedBlock]);
+  }, [activeCheckins, sharedState.selectedBlock, sharedState.jobType]);
 
   const availableRowOptions = [...new Set(rows.map((rowNumber) => String(rowNumber)))]
     .filter((rowNumber) => !occupiedRows.has(rowNumber))
@@ -69,23 +77,22 @@ export default function DayWorkScreen({ sharedState, offlineQueue }) {
     }));
 
   async function handleCheckin() {
-    setSubmitting(true);
-    setFeedback({ type: "info", message: "" });
-    try {
-      const payload = {
-        ...checkinForm,
-        blockName: sharedState.selectedBlock,
-        rowNumber: sharedState.selectedRow,
-      };
-      const result = await api.regularCheckin(payload);
-      setFeedback({ type: "success", message: result.message });
-      setCheckinForm(defaultCheckin);
-      await Promise.all([offlineQueue.refreshQueueCount(), checkinsState.refresh()]);
-    } catch (error) {
-      setFeedback({ type: "error", message: error.message });
-    } finally {
-      setSubmitting(false);
-    }
+    const payload = {
+      workerID: checkinForm.workerID,
+      workerName: checkinForm.workerName,
+      jobType: sharedState.jobType,
+      blockName: sharedState.selectedBlock,
+      rowNumber: sharedState.selectedRow,
+    };
+
+    setCheckinForm(defaultCheckin);
+    sharedState.setSelectedRow("");
+    setFeedback({ type: "success", message: "Check-in sent" });
+
+    api.regularCheckin(payload).then(() => {
+      offlineQueue.refreshQueueCount();
+      checkinsState.refresh();
+    }).catch(() => {});
   }
 
   async function handleCheckout() {
@@ -94,6 +101,7 @@ export default function DayWorkScreen({ sharedState, offlineQueue }) {
     try {
       const payload = {
         ...checkoutForm,
+        jobType: sharedState.jobType,
         blockName: sharedState.selectedBlock,
         rowNumber: sharedState.selectedRow,
         stockCount:
@@ -110,16 +118,6 @@ export default function DayWorkScreen({ sharedState, offlineQueue }) {
     }
   }
 
-  function applyScannedWorker(setter) {
-    return ({ textValue, workerData }) => {
-      setter((current) => ({
-        ...current,
-        workerID: textValue || "",
-        workerName: workerData?.workerName || current.workerName,
-      }));
-    };
-  }
-
   return (
     <ScreenScroll
       refreshing={blocksState.loading || rowsState.loading || checkinsState.loading}
@@ -131,22 +129,20 @@ export default function DayWorkScreen({ sharedState, offlineQueue }) {
     >
       <SectionCard
         title="DayWork"
-        subtitle="Choose today’s block and row, then use the same screen for check-in and checkout."
+        subtitle="Choose today's block and row, then check-in and checkout."
       >
-        <Text style={styles.contextLine}>
-          Active block: {sharedState.selectedBlock || "Not selected"}
-        </Text>
-        <Text style={styles.contextLine}>
-          Active row: {sharedState.selectedRow || "Not selected"}
+        <Text className="text-gray-600 text-sm leading-5">
+          Block: {sharedState.selectedBlock || "Not selected"}{"  "}
+          Row: {sharedState.selectedRow || "Not selected"}
         </Text>
       </SectionCard>
 
       <SectionCard
         title="Day selection"
-        subtitle="Rows that already have active workers assigned in this block are hidden from the row dropdown."
+        subtitle="Rows with active workers on the same job type are hidden."
       >
         {blocksState.loading && !blocks.length ? (
-          <ActivityIndicator color="#294d39" />
+          <ActivityIndicator color="#16a34a" />
         ) : null}
         <SelectField
           label="Block"
@@ -176,14 +172,19 @@ export default function DayWorkScreen({ sharedState, offlineQueue }) {
 
       <SectionCard
         title="Regular check-in"
-        subtitle="Uses the selected block and row from the DayWork dropdowns."
+        subtitle="Uses the selected block and row from above."
       >
-        <ScannerInput
+        <WorkerSuggestionInput
           label="Worker ID"
-          value={checkinForm.workerID}
-          onChangeText={(value) => setCheckinForm((current) => ({ ...current, workerID: value }))}
-          onScan={applyScannedWorker(setCheckinForm)}
-          placeholder="e.g. 1024"
+          workerID={checkinForm.workerID}
+          workerName={checkinForm.workerName}
+          onSelect={({ workerID, workerName }) =>
+            setCheckinForm((current) => ({
+              ...current,
+              workerID,
+              workerName: workerName || current.workerName,
+            }))
+          }
         />
         <LabeledInput
           label="Worker name"
@@ -194,16 +195,16 @@ export default function DayWorkScreen({ sharedState, offlineQueue }) {
         />
         <LabeledInput
           label="Job type"
-          value={checkinForm.jobType}
-          onChangeText={(value) => setCheckinForm((current) => ({ ...current, jobType: value }))}
+          value={sharedState.jobType}
+          onChangeText={(value) => sharedState.setJobType(value)}
           placeholder="e.g. PRUNING"
           autoCapitalize="characters"
         />
         <ActionButton
-          label={submitting ? "Submitting..." : "Submit check-in"}
+          label="Submit check-in"
           onPress={handleCheckin}
           disabled={
-            submitting || !sharedState.selectedBlock || !sharedState.selectedRow
+            !sharedState.selectedBlock || !sharedState.selectedRow || !checkinForm.workerID
           }
         />
         <FeedbackBanner
@@ -214,14 +215,19 @@ export default function DayWorkScreen({ sharedState, offlineQueue }) {
 
       <SectionCard
         title="Regular checkout"
-        subtitle="Uses the selected block and row from the DayWork dropdowns."
+        subtitle="Uses the selected block and row from above."
       >
-        <ScannerInput
+        <WorkerSuggestionInput
           label="Worker ID"
-          value={checkoutForm.workerID}
-          onChangeText={(value) => setCheckoutForm((current) => ({ ...current, workerID: value }))}
-          onScan={applyScannedWorker(setCheckoutForm)}
-          placeholder="e.g. 1024"
+          workerID={checkoutForm.workerID}
+          workerName={checkoutForm.workerName}
+          onSelect={({ workerID, workerName }) =>
+            setCheckoutForm((current) => ({
+              ...current,
+              workerID,
+              workerName: workerName || current.workerName,
+            }))
+          }
         />
         <LabeledInput
           label="Worker name"
@@ -232,9 +238,9 @@ export default function DayWorkScreen({ sharedState, offlineQueue }) {
         />
         <LabeledInput
           label="Job type"
-          value={checkoutForm.jobType}
-          onChangeText={(value) => setCheckoutForm((current) => ({ ...current, jobType: value }))}
-          placeholder="Optional if backend can infer"
+          value={sharedState.jobType}
+          onChangeText={(value) => sharedState.setJobType(value)}
+          placeholder="e.g. PRUNING"
           autoCapitalize="characters"
         />
         <LabeledInput
@@ -260,11 +266,3 @@ export default function DayWorkScreen({ sharedState, offlineQueue }) {
     </ScreenScroll>
   );
 }
-
-const styles = StyleSheet.create({
-  contextLine: {
-    color: "#304137",
-    fontSize: 14,
-    lineHeight: 20,
-  },
-});

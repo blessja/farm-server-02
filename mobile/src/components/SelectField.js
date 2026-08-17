@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Text, TouchableOpacity, View } from "react-native";
 
 export default function SelectField({
   label,
@@ -12,19 +12,35 @@ export default function SelectField({
   const [open, setOpen] = useState(false);
 
   return (
-    <View style={styles.wrapper}>
-      <Text style={styles.label}>{label}</Text>
-      <Pressable style={styles.trigger} onPress={() => setOpen((current) => !current)}>
-        <Text style={[styles.triggerText, !value && styles.placeholder]}>
+    <View style={{ gap: 6 }}>
+      <Text style={{ color: "#4b5563", fontSize: 12, fontWeight: "700" }}>{label}</Text>
+      <TouchableOpacity
+        activeOpacity={0.7}
+        style={{
+          borderRadius: 12,
+          borderWidth: 1,
+          borderColor: "#e5e7eb",
+          backgroundColor: "#fff",
+          paddingHorizontal: 14,
+          paddingVertical: 12,
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-between",
+        }}
+        onPress={() => setOpen((current) => !current)}
+      >
+        <Text style={{ fontSize: 15, flex: 1, color: value ? "#111827" : "#9ca3af" }}>
           {value || placeholder}
         </Text>
-        <Text style={styles.chevron}>{open ? "▲" : "▼"}</Text>
-      </Pressable>
+        <Text style={{ color: "#9ca3af", fontSize: 12, fontWeight: "800", marginLeft: 10 }}>
+          {open ? "▲" : "▼"}
+        </Text>
+      </TouchableOpacity>
 
       {open ? (
-        <View style={styles.menu}>
+        <View style={{ borderRadius: 12, borderWidth: 1, borderColor: "#e5e7eb", backgroundColor: "#fff", overflow: "hidden" }}>
           {!options.length ? (
-            <Text style={styles.empty}>{emptyMessage}</Text>
+            <Text style={{ color: "#9ca3af", fontSize: 14, paddingHorizontal: 14, paddingVertical: 12 }}>{emptyMessage}</Text>
           ) : (
             options.map((option, index) => {
               const selected = value === option.value;
@@ -33,18 +49,25 @@ export default function SelectField({
                   ? `option-${index}`
                   : `${option.value}-${index}`;
               return (
-                <Pressable
+                <TouchableOpacity
                   key={optionKey}
-                  style={[styles.option, selected && styles.optionSelected]}
+                  activeOpacity={0.7}
+                  style={{
+                    paddingHorizontal: 14,
+                    paddingVertical: 12,
+                    borderTopWidth: 1,
+                    borderTopColor: "#f3f4f6",
+                    backgroundColor: selected ? "#16a34a" : "#fff",
+                  }}
                   onPress={() => {
                     onSelect(option.value);
                     setOpen(false);
                   }}
                 >
-                  <Text style={[styles.optionText, selected && styles.optionTextSelected]}>
+                  <Text style={{ color: selected ? "#fff" : "#111827", fontSize: 14, fontWeight: "700" }}>
                     {option.label}
                   </Text>
-                </Pressable>
+                </TouchableOpacity>
               );
             })
           )}
@@ -53,69 +76,3 @@ export default function SelectField({
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  wrapper: {
-    gap: 6,
-  },
-  label: {
-    color: "#415247",
-    fontSize: 13,
-    fontWeight: "700",
-  },
-  trigger: {
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#d9ccb4",
-    backgroundColor: "#fff",
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  triggerText: {
-    color: "#1f2d22",
-    fontSize: 15,
-    flex: 1,
-  },
-  placeholder: {
-    color: "#8b8f88",
-  },
-  chevron: {
-    color: "#5f655c",
-    fontSize: 12,
-    fontWeight: "800",
-    marginLeft: 10,
-  },
-  menu: {
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#d9ccb4",
-    backgroundColor: "#fffaf1",
-    overflow: "hidden",
-  },
-  option: {
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderTopWidth: 1,
-    borderTopColor: "#efe4cf",
-  },
-  optionSelected: {
-    backgroundColor: "#294d39",
-  },
-  optionText: {
-    color: "#1f2d22",
-    fontSize: 14,
-    fontWeight: "700",
-  },
-  optionTextSelected: {
-    color: "#fefcf7",
-  },
-  empty: {
-    color: "#6a675f",
-    fontSize: 14,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-  },
-});

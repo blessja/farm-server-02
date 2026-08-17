@@ -1,57 +1,36 @@
 import React from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Text, TouchableOpacity, View } from "react-native";
 
 export default function TabBar({ tabs, activeTab, onChange }) {
   return (
-    <View style={styles.shell}>
-      <View style={styles.bar}>
+    <View style={{ paddingHorizontal: 12, paddingTop: 8, paddingBottom: 16, backgroundColor: "#fff", borderTopWidth: 1, borderTopColor: "#f3f4f6" }}>
+      <View style={{ flexDirection: "row", borderRadius: 16, backgroundColor: "#f3f4f6", padding: 6 }}>
         {tabs.map((tab) => {
           const active = tab.key === activeTab;
           return (
-            <Pressable
+            <TouchableOpacity
               key={tab.key}
-              style={[styles.item, active && styles.activeItem]}
+              activeOpacity={0.7}
               onPress={() => onChange(tab.key)}
+              style={{
+                flex: 1,
+                borderRadius: 12,
+                paddingVertical: 12,
+                alignItems: "center",
+                backgroundColor: active ? "#16a34a" : "transparent",
+              }}
             >
-              <Text style={[styles.label, active && styles.activeLabel]}>
+              <Text style={{
+                fontSize: 12,
+                fontWeight: "800",
+                color: active ? "#fff" : "#6b7280",
+              }}>
                 {tab.label}
               </Text>
-            </Pressable>
+            </TouchableOpacity>
           );
         })}
       </View>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  shell: {
-    paddingHorizontal: 12,
-    paddingTop: 8,
-    paddingBottom: 18,
-    backgroundColor: "#f4efe3",
-  },
-  bar: {
-    flexDirection: "row",
-    borderRadius: 22,
-    backgroundColor: "#e9dcc4",
-    padding: 6,
-  },
-  item: {
-    flex: 1,
-    borderRadius: 18,
-    paddingVertical: 12,
-    alignItems: "center",
-  },
-  activeItem: {
-    backgroundColor: "#294d39",
-  },
-  label: {
-    color: "#5f5a4c",
-    fontSize: 12,
-    fontWeight: "800",
-  },
-  activeLabel: {
-    color: "#fefcf7",
-  },
-});

@@ -1,5 +1,5 @@
 import React from "react";
-import { RefreshControl, ScrollView, StyleSheet } from "react-native";
+import { RefreshControl, ScrollView } from "react-native";
 
 export default function ScreenScroll({
   children,
@@ -8,8 +8,8 @@ export default function ScreenScroll({
 }) {
   return (
     <ScrollView
-      style={styles.scroll}
-      contentContainerStyle={styles.content}
+      className="flex-1"
+      contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 120, gap: 14 }}
       refreshControl={
         onRefresh ? (
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
@@ -20,14 +20,3 @@ export default function ScreenScroll({
     </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  scroll: {
-    flex: 1,
-  },
-  content: {
-    paddingHorizontal: 16,
-    paddingBottom: 120,
-    gap: 14,
-  },
-});

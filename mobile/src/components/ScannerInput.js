@@ -1,12 +1,5 @@
 import React, { useState } from "react";
-import {
-  Modal,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { Modal, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { CameraView, useCameraPermissions } from "expo-camera";
 
 export default function ScannerInput({
@@ -79,33 +72,37 @@ export default function ScannerInput({
 
   return (
     <>
-      <View style={styles.wrapper}>
-        <Text style={styles.label}>{label}</Text>
-        <View style={styles.row}>
+      <View className="gap-1.5">
+        <Text className="text-gray-600 text-xs font-bold">{label}</Text>
+        <View className="flex-row gap-2.5 items-center">
           <TextInput
-            style={styles.input}
+            className="flex-1 rounded-xl border border-gray-200 bg-white px-3.5 py-3 text-gray-900 text-[15px]"
             value={value}
             onChangeText={onChangeText}
             placeholder={placeholder}
-            placeholderTextColor="#8b8f88"
+            placeholderTextColor="#9ca3af"
             keyboardType={keyboardType}
             autoCapitalize={autoCapitalize}
           />
-          <Pressable style={styles.scanButton} onPress={openScanner}>
-            <Text style={styles.scanLabel}>Scan</Text>
-          </Pressable>
+          <TouchableOpacity
+            activeOpacity={0.7}
+            style={{ borderRadius: 12, backgroundColor: "#16a34a", paddingHorizontal: 14, paddingVertical: 12 }}
+            onPress={openScanner}
+          >
+            <Text style={{ color: "#fff", fontWeight: "800", fontSize: 13 }}>Scan</Text>
+          </TouchableOpacity>
         </View>
       </View>
 
       <Modal visible={isOpen} animationType="slide">
-        <View style={styles.modal}>
-          <Text style={styles.modalTitle}>Scan barcode or QR code</Text>
-          <Text style={styles.modalSubtitle}>
+        <View className="flex-1 bg-gray-900 px-4 pt-16 pb-8">
+          <Text className="text-white text-2xl font-extrabold">Scan barcode or QR code</Text>
+          <Text className="mt-2 text-gray-300 text-sm leading-5">
             Point the camera at a worker badge or row label.
           </Text>
-          <View style={styles.cameraFrame}>
+          <View className="flex-1 mt-6 rounded-3xl overflow-hidden border border-gray-700">
             <CameraView
-              style={styles.camera}
+              style={{ flex: 1 }}
               barcodeScannerSettings={{
                 barcodeTypes: [
                   "qr",
@@ -120,90 +117,15 @@ export default function ScannerInput({
               onBarcodeScanned={handleScan}
             />
           </View>
-          <Pressable style={styles.closeButton} onPress={() => setIsOpen(false)}>
-            <Text style={styles.closeLabel}>Close scanner</Text>
-          </Pressable>
+          <TouchableOpacity
+            activeOpacity={0.7}
+            style={{ marginTop: 16, borderRadius: 16, backgroundColor: "#1f2937", paddingVertical: 14, alignItems: "center", borderWidth: 1, borderColor: "#374151" }}
+            onPress={() => setIsOpen(false)}
+          >
+            <Text style={{ color: "#fff", fontSize: 15, fontWeight: "800" }}>Close scanner</Text>
+          </TouchableOpacity>
         </View>
       </Modal>
     </>
   );
 }
-
-const styles = StyleSheet.create({
-  wrapper: {
-    gap: 6,
-  },
-  label: {
-    color: "#415247",
-    fontSize: 13,
-    fontWeight: "700",
-  },
-  row: {
-    flexDirection: "row",
-    gap: 10,
-    alignItems: "center",
-  },
-  input: {
-    flex: 1,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#d9ccb4",
-    backgroundColor: "#fff",
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    color: "#1f2d22",
-    fontSize: 15,
-  },
-  scanButton: {
-    borderRadius: 14,
-    backgroundColor: "#294d39",
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-  },
-  scanLabel: {
-    color: "#fefcf7",
-    fontWeight: "800",
-    fontSize: 13,
-  },
-  modal: {
-    flex: 1,
-    backgroundColor: "#122319",
-    paddingHorizontal: 18,
-    paddingTop: 60,
-    paddingBottom: 30,
-  },
-  modalTitle: {
-    color: "#fefcf7",
-    fontSize: 24,
-    fontWeight: "800",
-  },
-  modalSubtitle: {
-    marginTop: 8,
-    color: "#c4d5c6",
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  cameraFrame: {
-    flex: 1,
-    marginTop: 24,
-    borderRadius: 24,
-    overflow: "hidden",
-    borderWidth: 1,
-    borderColor: "#3b5944",
-  },
-  camera: {
-    flex: 1,
-  },
-  closeButton: {
-    marginTop: 18,
-    borderRadius: 18,
-    backgroundColor: "#e6dac3",
-    paddingVertical: 14,
-    alignItems: "center",
-  },
-  closeLabel: {
-    color: "#284132",
-    fontSize: 15,
-    fontWeight: "800",
-  },
-});

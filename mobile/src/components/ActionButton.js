@@ -1,5 +1,5 @@
 import React from "react";
-import { Pressable, StyleSheet, Text } from "react-native";
+import { Text, TouchableOpacity } from "react-native";
 
 export default function ActionButton({
   label,
@@ -8,52 +8,31 @@ export default function ActionButton({
   disabled = false,
 }) {
   return (
-    <Pressable
-      style={[
-        styles.button,
-        tone === "secondary" ? styles.secondary : styles.primary,
-        disabled && styles.disabled,
-      ]}
+    <TouchableOpacity
+      activeOpacity={0.7}
+      style={{
+        borderRadius: 16,
+        paddingHorizontal: 16,
+        paddingVertical: 14,
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: tone === "secondary" ? "#f3f4f6" : "#16a34a",
+        borderWidth: tone === "secondary" ? 1 : 0,
+        borderColor: tone === "secondary" ? "#e5e7eb" : "transparent",
+        opacity: disabled ? 0.5 : 1,
+      }}
       onPress={onPress}
       disabled={disabled}
     >
       <Text
-        style={[
-          styles.label,
-          tone === "secondary" ? styles.secondaryLabel : styles.primaryLabel,
-        ]}
+        style={{
+          fontSize: 15,
+          fontWeight: "800",
+          color: tone === "secondary" ? "#374151" : "#fff",
+        }}
       >
         {label}
       </Text>
-    </Pressable>
+    </TouchableOpacity>
   );
 }
-
-const styles = StyleSheet.create({
-  button: {
-    borderRadius: 18,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  primary: {
-    backgroundColor: "#294d39",
-  },
-  secondary: {
-    backgroundColor: "#e6dac3",
-  },
-  disabled: {
-    opacity: 0.5,
-  },
-  label: {
-    fontSize: 15,
-    fontWeight: "800",
-  },
-  primaryLabel: {
-    color: "#fefcf7",
-  },
-  secondaryLabel: {
-    color: "#284132",
-  },
-});

@@ -3,7 +3,6 @@ import {
   ActivityIndicator,
   Modal,
   ScrollView,
-  StyleSheet,
   Text,
   View,
 } from "react-native";
@@ -185,106 +184,118 @@ export default function QueueScreen({ offlineQueue }) {
   return (
     <>
       <ScreenScroll refreshing={false} onRefresh={offlineQueue.refreshQueue}>
-      <SectionCard
-        title="Supervisor queue"
-        subtitle="Inspect locally queued actions, retry one item immediately, or resolve field conflicts before they sync."
-      >
-        <View style={styles.topRow}>
-          <Text style={styles.count}>{offlineQueue.queueCount} queued</Text>
-          <Text style={styles.conflictCount}>
-            {conflictCount} need supervisor review
-          </Text>
-          <View style={styles.topActions}>
-            <ActionButton
-              label="Sync all"
-              onPress={offlineQueue.syncQueue}
-              disabled={busyId === "all"}
-            />
-            <ActionButton
-              label="Clear all"
-              tone="secondary"
-              onPress={handleClear}
-              disabled={busyId === "all" || offlineQueue.queueCount === 0}
-            />
-          </View>
-        </View>
-        <Text style={styles.syncNote}>
-          {offlineQueue.lastSyncMessage || "Queued actions are waiting for retry."}
-        </Text>
-        <FeedbackBanner
-          type={feedback.type === "error" ? "error" : "success"}
-          message={feedback.message}
-        />
-      </SectionCard>
-
-      <SectionCard
-        title="Queued items"
-        subtitle="Each entry stores the endpoint, payload, attempt count, and latest retry error."
-      >
-        {!offlineQueue.queueItems.length ? (
-          <Text style={styles.empty}>No offline actions are waiting.</Text>
-        ) : null}
-
-        {offlineQueue.queueItems.map((item) => (
-          <View key={item.id} style={styles.itemCard}>
-            <Text style={styles.itemTitle}>{item.queueLabel || item.path}</Text>
-            <Text style={styles.meta}>
-              {item.method || "POST"} {item.path}
+        <SectionCard
+          title="Supervisor queue"
+          subtitle="Inspect locally queued actions, retry, or resolve conflicts before they sync."
+        >
+          <View className="gap-3">
+            <Text className="text-gray-900 text-lg font-extrabold">
+              {offlineQueue.queueCount} queued
             </Text>
-            <Text style={styles.meta}>Queued: {formatTimestamp(item.createdAt)}</Text>
-            <Text style={styles.meta}>Attempts: {item.attempts || 0}</Text>
-            {item.lastStatus ? (
-              <Text style={styles.meta}>Last status: {item.lastStatus}</Text>
-            ) : null}
-            {item.lastError ? (
-              <Text style={styles.errorText}>Last error: {item.lastError}</Text>
-            ) : null}
-            {item.lastPayload?.message ? (
-              <Text style={styles.errorText}>
-                Backend message: {item.lastPayload.message}
-              </Text>
-            ) : null}
-            <View style={styles.payloadBox}>
-              <Text style={styles.payloadText}>
-                {JSON.stringify(item.body || {}, null, 2)}
-              </Text>
-            </View>
-            <View style={styles.itemActions}>
+            <Text className="text-red-600 text-[13px] font-bold">
+              {conflictCount} need supervisor review
+            </Text>
+            <View className="gap-2.5">
               <ActionButton
-                label={busyId === item.id ? "Retrying..." : "Retry"}
-                onPress={() => handleRetry(item.id)}
-                disabled={busyId === item.id}
+                label="Sync all"
+                onPress={offlineQueue.syncQueue}
+                disabled={busyId === "all"}
               />
-              {isConflictItem(item) ? (
+              <ActionButton
+                label="Clear all"
+                tone="secondary"
+                onPress={handleClear}
+                disabled={busyId === "all" || offlineQueue.queueCount === 0}
+              />
+            </View>
+          </View>
+          <Text className="text-gray-500 text-sm leading-5">
+            {offlineQueue.lastSyncMessage || "Queued actions are waiting for retry."}
+          </Text>
+          <FeedbackBanner
+            type={feedback.type === "error" ? "error" : "success"}
+            message={feedback.message}
+          />
+        </SectionCard>
+
+        <SectionCard
+          title="Queued items"
+          subtitle="Each entry stores the endpoint, payload, attempt count, and last retry error."
+        >
+          {!offlineQueue.queueItems.length ? (
+            <Text className="text-gray-400 text-sm">No offline actions are waiting.</Text>
+          ) : null}
+
+          {offlineQueue.queueItems.map((item) => (
+            <View key={item.id} className="rounded-2xl bg-gray-50 border border-gray-100 p-3.5 gap-2">
+              <Text className="text-gray-900 text-[15px] font-extrabold">
+                {item.queueLabel || item.path}
+              </Text>
+              <Text className="text-gray-400 text-[13px] leading-5">
+                {item.method || "POST"} {item.path}
+              </Text>
+              <Text className="text-gray-400 text-[13px] leading-5">
+                Queued: {formatTimestamp(item.createdAt)}
+              </Text>
+              <Text className="text-gray-400 text-[13px] leading-5">
+                Attempts: {item.attempts || 0}
+              </Text>
+              {item.lastStatus ? (
+                <Text className="text-gray-400 text-[13px] leading-5">
+                  Last status: {item.lastStatus}
+                </Text>
+              ) : null}
+              {item.lastError ? (
+                <Text className="text-red-600 text-[13px] leading-5 font-bold">
+                  Last error: {item.lastError}
+                </Text>
+              ) : null}
+              {item.lastPayload?.message ? (
+                <Text className="text-red-600 text-[13px] leading-5 font-bold">
+                  Backend message: {item.lastPayload.message}
+                </Text>
+              ) : null}
+              <View className="rounded-xl bg-white p-3 border border-gray-100">
+                <Text className="text-gray-600 text-xs leading-5 font-mono">
+                  {JSON.stringify(item.body || {}, null, 2)}
+                </Text>
+              </View>
+              <View className="gap-2.5">
                 <ActionButton
-                  label="Resolve conflict"
-                  tone="secondary"
-                  onPress={() => openResolver(item)}
+                  label={busyId === item.id ? "Retrying..." : "Retry"}
+                  onPress={() => handleRetry(item.id)}
                   disabled={busyId === item.id}
                 />
-              ) : null}
-              <ActionButton
-                label="Remove"
-                tone="secondary"
-                onPress={() => handleRemove(item.id)}
-                disabled={busyId === item.id}
-              />
+                {isConflictItem(item) ? (
+                  <ActionButton
+                    label="Resolve conflict"
+                    tone="secondary"
+                    onPress={() => openResolver(item)}
+                    disabled={busyId === item.id}
+                  />
+                ) : null}
+                <ActionButton
+                  label="Remove"
+                  tone="secondary"
+                  onPress={() => handleRemove(item.id)}
+                  disabled={busyId === item.id}
+                />
+              </View>
             </View>
-          </View>
-        ))}
+          ))}
 
-        {busyId === "all" ? <ActivityIndicator color="#294d39" /> : null}
-      </SectionCard>
+          {busyId === "all" ? <ActivityIndicator color="#16a34a" /> : null}
+        </SectionCard>
       </ScreenScroll>
 
       <Modal visible={Boolean(resolverItem)} animationType="slide">
-        <View style={styles.modalShell}>
-          <Text style={styles.modalTitle}>Resolve queued conflict</Text>
-          <Text style={styles.modalSubtitle}>
+        <View className="flex-1 bg-white pt-16 px-4 pb-6">
+          <Text className="text-gray-900 text-2xl font-extrabold">Resolve queued conflict</Text>
+          <Text className="mt-2 text-gray-400 text-sm leading-5">
             Update the queued payload to match current server state, then retry it.
           </Text>
 
-          <ScrollView contentContainerStyle={styles.modalContent}>
+          <ScrollView contentContainerStyle={{ paddingTop: 18, paddingBottom: 32, gap: 12 }}>
             {resolverItem?.lastPayload?.message ? (
               <FeedbackBanner type="error" message={resolverItem.lastPayload.message} />
             ) : null}
@@ -312,7 +323,7 @@ export default function QueueScreen({ offlineQueue }) {
               />
             ) : null}
 
-            <View style={styles.modalActions}>
+            <View className="gap-2.5 mt-1.5">
               <ActionButton
                 label={resolverBusy ? "Saving..." : "Save and retry"}
                 onPress={handleResolverSaveAndRetry}
@@ -331,96 +342,3 @@ export default function QueueScreen({ offlineQueue }) {
     </>
   );
 }
-
-const styles = StyleSheet.create({
-  topRow: {
-    gap: 12,
-  },
-  count: {
-    color: "#203428",
-    fontSize: 18,
-    fontWeight: "800",
-  },
-  conflictCount: {
-    color: "#7b2518",
-    fontSize: 13,
-    fontWeight: "700",
-  },
-  topActions: {
-    gap: 10,
-  },
-  syncNote: {
-    color: "#425248",
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  empty: {
-    color: "#6a6a61",
-    fontSize: 14,
-  },
-  itemCard: {
-    borderRadius: 18,
-    backgroundColor: "#f6ecd9",
-    padding: 14,
-    gap: 8,
-  },
-  itemTitle: {
-    color: "#203428",
-    fontSize: 15,
-    fontWeight: "800",
-  },
-  meta: {
-    color: "#5f665c",
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  errorText: {
-    color: "#7b2518",
-    fontSize: 13,
-    lineHeight: 18,
-    fontWeight: "700",
-  },
-  payloadBox: {
-    borderRadius: 14,
-    backgroundColor: "#fffaf1",
-    padding: 12,
-    borderWidth: 1,
-    borderColor: "#e2d4bc",
-  },
-  payloadText: {
-    color: "#324238",
-    fontSize: 12,
-    lineHeight: 18,
-    fontFamily: "Courier",
-  },
-  itemActions: {
-    gap: 10,
-  },
-  modalShell: {
-    flex: 1,
-    backgroundColor: "#f4efe3",
-    paddingTop: 60,
-    paddingHorizontal: 18,
-    paddingBottom: 24,
-  },
-  modalTitle: {
-    color: "#1d3828",
-    fontSize: 24,
-    fontWeight: "800",
-  },
-  modalSubtitle: {
-    marginTop: 8,
-    color: "#4f5d54",
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  modalContent: {
-    paddingTop: 18,
-    paddingBottom: 32,
-    gap: 12,
-  },
-  modalActions: {
-    gap: 10,
-    marginTop: 6,
-  },
-});

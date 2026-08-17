@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Text, View } from "react-native";
 import { api } from "../api/client";
 import ScreenScroll from "../components/ScreenScroll";
 import SectionCard from "../components/SectionCard";
@@ -7,7 +7,7 @@ import LabeledInput from "../components/LabeledInput";
 import ActionButton from "../components/ActionButton";
 import FeedbackBanner from "../components/FeedbackBanner";
 import { useAsyncData } from "../hooks/useAsyncData";
-import ScannerInput from "../components/ScannerInput";
+import WorkerSuggestionInput from "../components/WorkerSuggestionInput";
 
 const initialForm = {
   workerID: "",
@@ -43,14 +43,6 @@ export default function FastPieceworkScreen({ sharedState, offlineQueue }) {
     }
   }
 
-  function applyScannedWorker({ textValue, workerData }) {
-    setForm((current) => ({
-      ...current,
-      workerID: textValue || "",
-      workerName: workerData?.workerName || current.workerName,
-    }));
-  }
-
   const totals = Array.isArray(totalsState.data?.workers)
     ? totalsState.data.workers
     : Array.isArray(totalsState.data)
@@ -61,14 +53,19 @@ export default function FastPieceworkScreen({ sharedState, offlineQueue }) {
     <ScreenScroll refreshing={totalsState.loading} onRefresh={totalsState.refresh}>
       <SectionCard
         title="Fast piecework"
-        subtitle="Built for single-scan style jobs such as leaf picking and sucker removal."
+        subtitle="Single-scan jobs: leaf picking, sucker removal, shoot thinning, other."
       >
-        <ScannerInput
+        <WorkerSuggestionInput
           label="Worker ID"
-          value={form.workerID}
-          onChangeText={(value) => setForm((current) => ({ ...current, workerID: value }))}
-          onScan={applyScannedWorker}
-          placeholder="e.g. 1024"
+          workerID={form.workerID}
+          workerName={form.workerName}
+          onSelect={({ workerID, workerName }) =>
+            setForm((current) => ({
+              ...current,
+              workerID,
+              workerName: workerName || current.workerName,
+            }))
+          }
         />
         <LabeledInput
           label="Worker name"
@@ -90,7 +87,7 @@ export default function FastPieceworkScreen({ sharedState, offlineQueue }) {
           onChangeText={(value) => setForm((current) => ({ ...current, blockName: value }))}
           placeholder="Uses selected block if blank"
         />
-        <ScannerInput
+        <LabeledInput
           label="Row override"
           value={form.rowNumber}
           onChangeText={(value) => setForm((current) => ({ ...current, rowNumber: value }))}
@@ -106,47 +103,25 @@ export default function FastPieceworkScreen({ sharedState, offlineQueue }) {
 
       <SectionCard
         title="Fast totals"
-        subtitle="Useful for the supervisor view and wage calculations."
+        subtitle="Worker piecework summary for wage calculations."
       >
         {totalsState.loading && !totalsState.data ? (
-          <ActivityIndicator color="#294d39" />
+          <ActivityIndicator color="#16a34a" />
         ) : (
           totals.slice(0, 8).map((worker) => (
-            <View key={worker.workerID} style={styles.totalCard}>
-              <Text style={styles.workerName}>{worker.workerName}</Text>
-              <Text style={styles.workerMeta}>
+            <View key={worker.workerID} className="rounded-xl bg-gray-50 border border-gray-100 p-3.5">
+              <Text className="text-gray-900 text-[15px] font-extrabold">{worker.workerName}</Text>
+              <Text className="mt-1 text-gray-400 text-[13px]">
                 ID {worker.workerID} • Vines {worker.totalVines || worker.piecework_stock_count || 0}
               </Text>
             </View>
           ))
         )}
         {!totals.length && !totalsState.loading ? (
-          <Text style={styles.empty}>No fast piecework totals returned yet.</Text>
+          <Text className="text-gray-400 text-sm">No fast piecework totals returned yet.</Text>
         ) : null}
         <FeedbackBanner type="error" message={totalsState.error} />
       </SectionCard>
     </ScreenScroll>
   );
 }
-
-const styles = StyleSheet.create({
-  totalCard: {
-    borderRadius: 16,
-    backgroundColor: "#f6ecd9",
-    padding: 14,
-  },
-  workerName: {
-    color: "#203428",
-    fontSize: 15,
-    fontWeight: "800",
-  },
-  workerMeta: {
-    marginTop: 4,
-    color: "#6a6a61",
-    fontSize: 13,
-  },
-  empty: {
-    color: "#6a6a61",
-    fontSize: 14,
-  },
-});

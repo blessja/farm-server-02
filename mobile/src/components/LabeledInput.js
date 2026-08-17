@@ -1,5 +1,5 @@
 import React from "react";
-import { StyleSheet, Text, TextInput, View } from "react-native";
+import { Text, TextInput, View } from "react-native";
 
 export default function LabeledInput({
   label,
@@ -11,14 +11,14 @@ export default function LabeledInput({
   secureTextEntry = false,
 }) {
   return (
-    <View style={styles.wrapper}>
-      <Text style={styles.label}>{label}</Text>
+    <View className="gap-1.5">
+      <Text className="text-gray-600 text-xs font-bold">{label}</Text>
       <TextInput
-        style={styles.input}
+        className="rounded-xl border border-gray-200 bg-white px-3.5 py-3 text-gray-900 text-[15px]"
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
-        placeholderTextColor="#8b8f88"
+        placeholderTextColor="#9ca3af"
         keyboardType={keyboardType}
         autoCapitalize={autoCapitalize}
         secureTextEntry={secureTextEntry}
@@ -26,24 +26,3 @@ export default function LabeledInput({
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  wrapper: {
-    gap: 6,
-  },
-  label: {
-    color: "#415247",
-    fontSize: 13,
-    fontWeight: "700",
-  },
-  input: {
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#d9ccb4",
-    backgroundColor: "#fff",
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    color: "#1f2d22",
-    fontSize: 15,
-  },
-});

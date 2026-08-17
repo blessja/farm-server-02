@@ -1,6 +1,6 @@
 import { API_BASE_URL } from "../config/env";
 import { getAuthToken, setAuthToken, clearAuthToken } from "../storage/authStorage";
-import { enqueueAction } from "../storage/offlineQueue";
+import { enqueueAction, removeQueuedAction } from "../storage/offlineQueue";
 
 function isNetworkError(error) {
   const message = error?.message || "";
@@ -69,6 +69,29 @@ async function queuedMutation(path, body, queueLabel) {
   }
 }
 
+async function queueAndPush(path, body, queueLabel) {
+  const entry = await enqueueAction({
+    path,
+    method: "POST",
+    body,
+    queueLabel,
+  });
+
+  try {
+    const result = await request(path, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+    await removeQueuedAction(entry.id);
+    return result;
+  } catch {
+    return {
+      queued: true,
+      message: `${queueLabel} saved and will sync.`,
+    };
+  }
+}
+
 export const api = {
   getAuthStatus: () => request("/auth/status"),
   verifyAuth: () => request("/auth/verify"),
@@ -99,7 +122,7 @@ export const api = {
       )}`
     ),
   getCurrentCheckins: () => request("/api/workers/current-checkins"),
-  regularCheckin: (body) => queuedMutation("/api/checkin", body, "Regular check-in"),
+  regularCheckin: (body) => queueAndPush("/api/checkin", body, "Regular check-in"),
   moveRegularWorker: (body) =>
     queuedMutation("/api/move-worker", body, "Move worker to correct row"),
   swapRegularWorkers: (body) =>

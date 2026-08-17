@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Text, View } from "react-native";
 import { api } from "../api/client";
 import ScreenScroll from "../components/ScreenScroll";
 import SectionCard from "../components/SectionCard";
@@ -7,7 +7,7 @@ import LabeledInput from "../components/LabeledInput";
 import ActionButton from "../components/ActionButton";
 import FeedbackBanner from "../components/FeedbackBanner";
 import { useAsyncData } from "../hooks/useAsyncData";
-import ScannerInput from "../components/ScannerInput";
+import WorkerSuggestionInput from "../components/WorkerSuggestionInput";
 
 const initialForm = {
   workerID: "",
@@ -36,28 +36,25 @@ export default function ClockScreen({ offlineQueue }) {
     }
   }
 
-  function applyScannedWorker({ textValue, workerData }) {
-    setForm((current) => ({
-      ...current,
-      workerID: textValue || "",
-      workerName: workerData?.workerName || current.workerName,
-    }));
-  }
-
   const records = Array.isArray(clockState.data) ? clockState.data : [];
 
   return (
     <ScreenScroll refreshing={clockState.loading} onRefresh={clockState.refresh}>
       <SectionCard
         title="Daily clock"
-        subtitle="Maps directly to the backend `clockin` and `clockout` endpoints."
+        subtitle="Clock in and out for hourly attendance tracking."
       >
-        <ScannerInput
+        <WorkerSuggestionInput
           label="Worker ID"
-          value={form.workerID}
-          onChangeText={(value) => setForm((current) => ({ ...current, workerID: value }))}
-          onScan={applyScannedWorker}
-          placeholder="e.g. 1024"
+          workerID={form.workerID}
+          workerName={form.workerName}
+          onSelect={({ workerID, workerName }) =>
+            setForm((current) => ({
+              ...current,
+              workerID,
+              workerName: workerName || current.workerName,
+            }))
+          }
         />
         <LabeledInput
           label="Worker name"
@@ -72,7 +69,7 @@ export default function ClockScreen({ offlineQueue }) {
           onChangeText={(value) => setForm((current) => ({ ...current, timezone: value }))}
           placeholder="Africa/Johannesburg"
         />
-        <View style={styles.actions}>
+        <View className="gap-2.5">
           <ActionButton
             label={submitting ? "Working..." : "Clock in"}
             onPress={() => submit("in")}
@@ -90,50 +87,25 @@ export default function ClockScreen({ offlineQueue }) {
 
       <SectionCard
         title="Recent clock records"
-        subtitle="Useful for an admin overview or supervisor screen."
+        subtitle="Worker attendance overview."
       >
         {clockState.loading && !clockState.data ? (
-          <ActivityIndicator color="#294d39" />
+          <ActivityIndicator color="#16a34a" />
         ) : (
           records.slice(0, 8).map((worker) => (
-            <View key={worker._id || worker.workerID} style={styles.record}>
-              <Text style={styles.recordName}>{worker.workerName}</Text>
-              <Text style={styles.recordMeta}>
+            <View key={worker._id || worker.workerID} className="rounded-xl bg-gray-50 border border-gray-100 p-3.5">
+              <Text className="text-gray-900 text-[15px] font-extrabold">{worker.workerName}</Text>
+              <Text className="mt-1 text-gray-400 text-[13px]">
                 ID {worker.workerID} • Sessions {worker.clockIns?.length || 0}
               </Text>
             </View>
           ))
         )}
         {!records.length && !clockState.loading ? (
-          <Text style={styles.empty}>No clock records returned yet.</Text>
+          <Text className="text-gray-400 text-sm">No clock records returned yet.</Text>
         ) : null}
         <FeedbackBanner type="error" message={clockState.error} />
       </SectionCard>
     </ScreenScroll>
   );
 }
-
-const styles = StyleSheet.create({
-  actions: {
-    gap: 10,
-  },
-  record: {
-    borderRadius: 16,
-    backgroundColor: "#f6ecd9",
-    padding: 14,
-  },
-  recordName: {
-    color: "#203428",
-    fontSize: 15,
-    fontWeight: "800",
-  },
-  recordMeta: {
-    marginTop: 4,
-    color: "#6a6a61",
-    fontSize: 13,
-  },
-  empty: {
-    color: "#6a6a61",
-    fontSize: 14,
-  },
-});

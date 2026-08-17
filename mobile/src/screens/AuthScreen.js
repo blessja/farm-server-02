@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { StyleSheet, Text } from "react-native";
+import { Text } from "react-native";
 import { api } from "../api/client";
 import ScreenScroll from "../components/ScreenScroll";
 import SectionCard from "../components/SectionCard";
@@ -68,9 +68,9 @@ export default function AuthScreen({ onAuthenticated, initialSupervisorName = ""
     <ScreenScroll>
       <SectionCard
         title="Supervisor login"
-        subtitle="Supervisors must sign in before using the app. When backend auth is enabled, the name and PIN are verified by the server and the signed-in supervisor is shown in the header."
+        subtitle="Supervisors must sign in before using the app. When backend auth is enabled, the name and PIN are verified by the server."
       >
-        <Text style={styles.helper}>Device name: {DEVICE_NAME}</Text>
+        <Text className="text-gray-600 text-sm leading-5">Device: {DEVICE_NAME}</Text>
         <LabeledInput
           label="Supervisor name"
           value={supervisorName}
@@ -99,11 +99,3 @@ export default function AuthScreen({ onAuthenticated, initialSupervisorName = ""
     </ScreenScroll>
   );
 }
-
-const styles = StyleSheet.create({
-  helper: {
-    color: "#314238",
-    fontSize: 14,
-    lineHeight: 20,
-  },
-});

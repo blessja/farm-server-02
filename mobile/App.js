@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Pressable, StatusBar, StyleSheet, Text, View } from "react-native";
+import { StatusBar, Text, TouchableOpacity, View } from "react-native";
 import { StatusBar as ExpoStatusBar } from "expo-status-bar";
+import "./global.css";
 import {
   SafeAreaProvider,
   SafeAreaView,
@@ -38,6 +39,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [selectedBlock, setSelectedBlock] = useState("");
   const [selectedRow, setSelectedRow] = useState("");
+  const [jobType, setJobType] = useState("");
   const [bootState, setBootState] = useState({
     loading: true,
     authRequired: false,
@@ -53,8 +55,10 @@ export default function App() {
       setSelectedBlock,
       selectedRow,
       setSelectedRow,
+      jobType,
+      setJobType,
     }),
-    [selectedBlock, selectedRow]
+    [selectedBlock, selectedRow, jobType]
   );
 
   useEffect(() => {
@@ -126,6 +130,7 @@ export default function App() {
     setActiveTab("dashboard");
     setSelectedBlock("");
     setSelectedRow("");
+    setJobType("");
     setBootState((current) => ({
       ...current,
       authenticated: false,
@@ -136,8 +141,10 @@ export default function App() {
   const renderContent = () => {
     if (bootState.loading) {
       return (
-        <View style={styles.loadingState}>
-          <Text style={styles.loadingText}>Preparing mobile workspace...</Text>
+        <View className="flex-1 px-5 justify-center">
+          <Text className="text-gray-800 text-base font-bold">
+            Preparing mobile workspace...
+          </Text>
         </View>
       );
     }
@@ -204,33 +211,43 @@ export default function App() {
     <SafeAreaProvider>
       <ExpoStatusBar style="dark" />
       <StatusBar barStyle="dark-content" />
-      <View style={styles.screen}>
-        <SafeAreaView style={styles.safeTop} edges={["top"]}>
-          <View style={styles.header}>
-            <View style={styles.headerTopRow}>
-              <View style={styles.headerTextWrap}>
-                <Text style={styles.kicker}>Farm Operations</Text>
-                <Text style={styles.title}>Glen Oak Farm @2026</Text>
+      <View className="flex-1 bg-white">
+        <SafeAreaView className="bg-white" edges={["top"]}>
+          <View className="px-5 pt-3.5 pb-3">
+            <View className="flex-row items-start justify-between gap-3">
+              <View className="flex-1">
+                <Text className="text-farm-600 text-xs font-bold tracking-widest uppercase">
+                  Farm Operations
+                </Text>
+                <Text className="mt-1 text-gray-900 text-2xl font-extrabold">
+                  Glen Oak Farm
+                </Text>
                 {bootState.authenticated && bootState.supervisorName ? (
-                  <Text style={styles.subtitle}>
+                  <Text className="mt-1 text-gray-400 text-sm leading-5">
                     Signed in as {bootState.supervisorName}
                   </Text>
                 ) : null}
               </View>
 
               {bootState.authenticated ? (
-                <Pressable style={styles.logoutButton} onPress={handleLogout}>
-                  <Text style={styles.logoutLabel}>Logout</Text>
-                </Pressable>
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  style={{ marginTop: 6, borderRadius: 12, backgroundColor: "#f3f4f6", borderWidth: 1, borderColor: "#e5e7eb", paddingHorizontal: 14, paddingVertical: 10 }}
+                  onPress={handleLogout}
+                >
+                  <Text style={{ color: "#374151", fontSize: 13, fontWeight: "800" }}>
+                    Logout
+                  </Text>
+                </TouchableOpacity>
               ) : null}
             </View>
           </View>
         </SafeAreaView>
 
-        <View style={styles.content}>{renderContent()}</View>
+        <View className="flex-1">{renderContent()}</View>
 
         {bootState.loading || !bootState.authenticated ? null : (
-          <SafeAreaView style={styles.safeBottom} edges={["bottom"]}>
+          <SafeAreaView className="bg-white" edges={["bottom"]}>
             <TabBar tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
           </SafeAreaView>
         )}
@@ -238,74 +255,3 @@ export default function App() {
     </SafeAreaProvider>
   );
 }
-
-const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: "#f4efe3",
-  },
-  safeTop: {
-    backgroundColor: "#f4efe3",
-  },
-  safeBottom: {
-    backgroundColor: "#f4efe3",
-  },
-  header: {
-    paddingHorizontal: 20,
-    paddingTop: 14,
-    paddingBottom: 12,
-  },
-  headerTopRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
-    gap: 12,
-  },
-  headerTextWrap: {
-    flex: 1,
-  },
-  kicker: {
-    color: "#786247",
-    fontSize: 12,
-    fontWeight: "700",
-    letterSpacing: 1.1,
-    textTransform: "uppercase",
-  },
-  title: {
-    marginTop: 4,
-    color: "#1d3828",
-    fontSize: 28,
-    fontWeight: "800",
-  },
-  subtitle: {
-    marginTop: 8,
-    color: "#4f5d54",
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  logoutButton: {
-    marginTop: 6,
-    borderRadius: 14,
-    backgroundColor: "#e6dac3",
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-  },
-  logoutLabel: {
-    color: "#284132",
-    fontSize: 13,
-    fontWeight: "800",
-  },
-  content: {
-    flex: 1,
-  },
-  loadingState: {
-    flex: 1,
-    paddingHorizontal: 20,
-    justifyContent: "center",
-  },
-  loadingText: {
-    color: "#2e4336",
-    fontSize: 16,
-    fontWeight: "700",
-  },
-});
