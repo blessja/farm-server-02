@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Modal,
   Text,
@@ -21,6 +21,13 @@ export default function WorkerSuggestionInput({
   const [scannerOpen, setScannerOpen] = useState(false);
   const [permission, requestPermission] = useCameraPermissions();
   const [hasScanned, setHasScanned] = useState(false);
+
+  useEffect(() => {
+    if (workerID === "" || workerID == null) {
+      setQuery("");
+      setIsOpen(false);
+    }
+  }, [workerID]);
 
   const suggestions = query.trim()
     ? searchWorkers(query.trim()).slice(0, 8)

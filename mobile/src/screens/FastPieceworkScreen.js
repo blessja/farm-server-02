@@ -21,7 +21,10 @@ export default function FastPieceworkScreen({ sharedState, offlineQueue }) {
   const [form, setForm] = useState(initialForm);
   const [feedback, setFeedback] = useState({ type: "info", message: "" });
   const [submitting, setSubmitting] = useState(false);
-  const totalsState = useAsyncData(() => api.getFastTotals(), []);
+  const totalsState = useAsyncData(() => api.getFastTotals(), [], {
+    cacheKey: "fast-totals",
+    staleTime: 5 * 60 * 1000,
+  });
 
   async function handleSubmit() {
     setSubmitting(true);

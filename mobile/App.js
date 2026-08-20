@@ -12,6 +12,7 @@ import MoveWorkersScreen from "./src/screens/MoveWorkersScreen";
 import ClockScreen from "./src/screens/ClockScreen";
 import FastPieceworkScreen from "./src/screens/FastPieceworkScreen";
 import QueueScreen from "./src/screens/QueueScreen";
+import CheckedInScreen from "./src/screens/CheckedInScreen";
 import TabBar from "./src/components/TabBar";
 import AuthScreen from "./src/screens/AuthScreen";
 import { api } from "./src/api/client";
@@ -29,6 +30,7 @@ import { useOfflineQueue } from "./src/hooks/useOfflineQueue";
 const tabs = [
   { key: "dashboard", label: "Home" },
   { key: "daywork", label: "DayWork" },
+  { key: "working", label: "Working" },
   { key: "move", label: "Move" },
   { key: "clock", label: "Clock" },
   { key: "fast", label: "Fast" },
@@ -178,6 +180,8 @@ export default function App() {
             offlineQueue={offlineQueue}
           />
         );
+      case "working":
+        return <CheckedInScreen offlineQueue={offlineQueue} />;
       case "move":
         return (
           <MoveWorkersScreen

@@ -1,11 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { getCached, setCache, clearCache } from "../storage/cacheStorage";
+import { getCachedWithTimestamp, setCache, clearCache } from "../storage/cacheStorage";
 
-export function useAsyncData(loader, deps = [], { cacheKey } = {}) {
+const DEFAULT_STALE_TIME = 30 * 60 * 1000;
+
+export function useAsyncData(loader, deps = [], { cacheKey, staleTime } = {}) {
+  const ttl = staleTime ?? DEFAULT_STALE_TIME;
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const didMount = useRef(false);
+  const bgRefreshTimer = useRef(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -14,12 +18,21 @@ export function useAsyncData(loader, deps = [], { cacheKey } = {}) {
       setLoading(true);
       setError("");
 
-      if (cacheKey && !didMount.current) {
-        const cached = await getCached(cacheKey);
+      if (cacheKey) {
+        const cached = await getCachedWithTimestamp(cacheKey);
         if (cancelled) return;
 
         if (cached) {
-          setData(cached);
+          const age = Date.now() - cached.ts;
+          setData(cached.data);
+
+          if (age < ttl) {
+            setLoading(false);
+            didMount.current = true;
+            scheduleBackgroundRefresh(cached.ts);
+            return;
+          }
+
           setLoading(false);
           didMount.current = true;
 
@@ -51,9 +64,30 @@ export function useAsyncData(loader, deps = [], { cacheKey } = {}) {
       }
     }
 
+    function scheduleBackgroundRefresh(writtenAt) {
+      if (bgRefreshTimer.current) clearTimeout(bgRefreshTimer.current);
+      const elapsed = Date.now() - writtenAt;
+      const remaining = Math.max(ttl - elapsed, 5000);
+
+      bgRefreshTimer.current = setTimeout(async () => {
+        if (cancelled) return;
+        try {
+          const fresh = await loader();
+          if (!cancelled) {
+            setData(fresh);
+            setCache(cacheKey, fresh);
+          }
+        } catch {
+          // silent — stale data stays on screen
+        }
+      }, remaining);
+    }
+
     load();
+
     return () => {
       cancelled = true;
+      if (bgRefreshTimer.current) clearTimeout(bgRefreshTimer.current);
     };
   }, deps);
 

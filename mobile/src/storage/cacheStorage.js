@@ -10,7 +10,22 @@ export async function getCached(name) {
   try {
     const raw = await AsyncStorage.getItem(key(name));
     if (!raw) return null;
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    return parsed?.data ?? parsed;
+  } catch {
+    return null;
+  }
+}
+
+export async function getCachedWithTimestamp(name) {
+  try {
+    const raw = await AsyncStorage.getItem(key(name));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === "object" && "ts" in parsed) {
+      return { data: parsed.data, ts: parsed.ts };
+    }
+    return { data: parsed, ts: 0 };
   } catch {
     return null;
   }
@@ -18,7 +33,8 @@ export async function getCached(name) {
 
 export async function setCache(name, data) {
   try {
-    await AsyncStorage.setItem(key(name), JSON.stringify(data));
+    const envelope = { data, ts: Date.now() };
+    await AsyncStorage.setItem(key(name), JSON.stringify(envelope));
   } catch {
     // silently ignore write failures
   }

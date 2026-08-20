@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { ActivityIndicator, Text, View } from "react-native";
+import { ActivityIndicator, Modal, Text, TouchableOpacity, View } from "react-native";
 import { api } from "../api/client";
 import ScreenScroll from "../components/ScreenScroll";
 import SectionCard from "../components/SectionCard";
@@ -27,8 +27,15 @@ export default function DayWorkScreen({ sharedState, offlineQueue }) {
   const [feedback, setFeedback] = useState({ type: "info", message: "" });
   const [submitting, setSubmitting] = useState(false);
 
+  const [conflictModalVisible, setConflictModalVisible] = useState(false);
+  const [conflictOccupants, setConflictOccupants] = useState([]);
+  const [conflictPayload, setConflictPayload] = useState(null);
+  const [conflictFeedback, setConflictFeedback] = useState({ type: "info", message: "" });
+  const [conflictSubmitting, setConflictSubmitting] = useState(false);
+
   const blocksState = useAsyncData(() => api.getBlocks(), [], {
     cacheKey: "blocks",
+    staleTime: 30 * 60 * 1000,
   });
   const rowsState = useAsyncData(
     () =>
@@ -36,9 +43,15 @@ export default function DayWorkScreen({ sharedState, offlineQueue }) {
         ? api.getBlockRows(sharedState.selectedBlock)
         : Promise.resolve([]),
     [sharedState.selectedBlock],
-    { cacheKey: sharedState.selectedBlock ? `rows-${sharedState.selectedBlock}` : undefined }
+    {
+      cacheKey: sharedState.selectedBlock ? `rows-${sharedState.selectedBlock}` : undefined,
+      staleTime: 15 * 60 * 1000,
+    }
   );
-  const checkinsState = useAsyncData(() => api.getCurrentCheckins(), []);
+  const checkinsState = useAsyncData(() => api.getCurrentCheckins(), [], {
+    cacheKey: "checkins",
+    staleTime: 5 * 60 * 1000,
+  });
 
   const blocks = Array.isArray(blocksState.data)
     ? blocksState.data.filter((item) => item !== null && typeof item !== "undefined" && String(item).trim() !== "")
@@ -48,51 +61,92 @@ export default function DayWorkScreen({ sharedState, offlineQueue }) {
     : [];
   const activeCheckins = Array.isArray(checkinsState.data) ? checkinsState.data : [];
 
-  const occupiedRows = useMemo(() => {
-    const jt = sharedState.jobType?.trim().toUpperCase();
-    return new Set(
-      activeCheckins
-        .filter((item) => {
-          if (item.blockName !== sharedState.selectedBlock) return false;
-          if (jt && item.job_type) {
-            return item.job_type.toUpperCase() === jt;
-          }
-          return true;
-        })
-        .map((item) => String(item.rowNumber))
+  const allRowOptions = [...new Set(rows.map((rowNumber) => String(rowNumber)))].map((rowNumber) => ({
+    label: rowNumber,
+    value: rowNumber,
+  }));
+
+  const blockOptions = [...new Set(blocks.map((blockName) => String(blockName)))].map((blockName) => ({
+    label: blockName,
+    value: blockName,
+  }));
+
+  function getRowOccupants(blockName, rowNumber, jobType) {
+    return activeCheckins.filter(
+      (item) =>
+        item.blockName === blockName &&
+        item.rowNumber === rowNumber &&
+        (!jobType || (item.job_type || "").toUpperCase() === jobType.toUpperCase())
     );
-  }, [activeCheckins, sharedState.selectedBlock, sharedState.jobType]);
-
-  const availableRowOptions = [...new Set(rows.map((rowNumber) => String(rowNumber)))]
-    .filter((rowNumber) => !occupiedRows.has(rowNumber))
-    .map((rowNumber) => ({
-      label: rowNumber,
-      value: rowNumber,
-    }));
-
-  const blockOptions = [...new Set(blocks.map((blockName) => String(blockName)))]
-    .map((blockName) => ({
-      label: blockName,
-      value: blockName,
-    }));
+  }
 
   async function handleCheckin() {
+    const normalizedJobType = (sharedState.jobType || "").trim().toUpperCase();
     const payload = {
       workerID: checkinForm.workerID,
       workerName: checkinForm.workerName,
-      jobType: sharedState.jobType,
+      jobType: normalizedJobType,
       blockName: sharedState.selectedBlock,
       rowNumber: sharedState.selectedRow,
     };
 
-    setCheckinForm(defaultCheckin);
-    sharedState.setSelectedRow("");
-    setFeedback({ type: "success", message: "Check-in sent" });
+    setSubmitting(true);
+    setFeedback({ type: "info", message: "" });
 
-    api.regularCheckin(payload).then(() => {
+    try {
+      const result = await api.regularCheckin(payload);
+      setFeedback({ type: "success", message: result.message });
+      setCheckinForm(defaultCheckin);
+      sharedState.setSelectedRow("");
       offlineQueue.refreshQueueCount();
       checkinsState.refresh();
-    }).catch(() => {});
+    } catch (error) {
+      if (error?.payload?.canOverride) {
+        const occupants = getRowOccupants(
+          sharedState.selectedBlock,
+          sharedState.selectedRow,
+          sharedState.jobType
+        );
+        setConflictPayload(payload);
+        setConflictOccupants(occupants);
+        setConflictFeedback({ type: "info", message: "" });
+        setConflictModalVisible(true);
+      } else {
+        setFeedback({ type: "error", message: error.message });
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handleAllowConflict() {
+    if (!conflictPayload) return;
+    setConflictSubmitting(true);
+    setConflictFeedback({ type: "info", message: "" });
+
+    try {
+      const result = await api.regularCheckin({ ...conflictPayload, allowMultipleWorkers: true });
+      setConflictFeedback({ type: "success", message: result.message });
+      setConflictModalVisible(false);
+      setConflictPayload(null);
+      setConflictOccupants([]);
+      setCheckinForm(defaultCheckin);
+      sharedState.setSelectedRow("");
+      setFeedback({ type: "success", message: result.message });
+      offlineQueue.refreshQueueCount();
+      checkinsState.refresh();
+    } catch (error) {
+      setConflictFeedback({ type: "error", message: error.message });
+    } finally {
+      setConflictSubmitting(false);
+    }
+  }
+
+  function handleRejectConflict() {
+    setConflictModalVisible(false);
+    setConflictPayload(null);
+    setConflictOccupants([]);
+    setConflictFeedback({ type: "info", message: "" });
   }
 
   async function handleCheckout() {
@@ -101,7 +155,7 @@ export default function DayWorkScreen({ sharedState, offlineQueue }) {
     try {
       const payload = {
         ...checkoutForm,
-        jobType: sharedState.jobType,
+        jobType: (sharedState.jobType || "").trim().toUpperCase(),
         blockName: sharedState.selectedBlock,
         rowNumber: sharedState.selectedRow,
         stockCount:
@@ -139,7 +193,7 @@ export default function DayWorkScreen({ sharedState, offlineQueue }) {
 
       <SectionCard
         title="Day selection"
-        subtitle="Rows with active workers on the same job type are hidden."
+        subtitle="Select block and row. Rows with same-job workers will prompt for confirmation."
       >
         {blocksState.loading && !blocks.length ? (
           <ActivityIndicator color="#16a34a" />
@@ -158,12 +212,12 @@ export default function DayWorkScreen({ sharedState, offlineQueue }) {
         <SelectField
           label="Row"
           value={sharedState.selectedRow}
-          placeholder="Select available row"
-          options={availableRowOptions}
+          placeholder="Select row"
+          options={allRowOptions}
           onSelect={(value) => sharedState.setSelectedRow(value)}
           emptyMessage={
             sharedState.selectedBlock
-              ? "No free rows available in this block"
+              ? "No rows available in this block"
               : "Select a block first"
           }
         />
@@ -175,7 +229,7 @@ export default function DayWorkScreen({ sharedState, offlineQueue }) {
         subtitle="Uses the selected block and row from above."
       >
         <WorkerSuggestionInput
-          label="Worker ID"
+          label="Worker ID / Worker Name"
           workerID={checkinForm.workerID}
           workerName={checkinForm.workerName}
           onSelect={({ workerID, workerName }) =>
@@ -190,8 +244,9 @@ export default function DayWorkScreen({ sharedState, offlineQueue }) {
           label="Worker name"
           value={checkinForm.workerName}
           onChangeText={(value) => setCheckinForm((current) => ({ ...current, workerName: value }))}
-          placeholder="Worker full name"
+          placeholder="Auto-filled from scan or selection"
           autoCapitalize="words"
+          readOnly
         />
         <LabeledInput
           label="Job type"
@@ -201,10 +256,10 @@ export default function DayWorkScreen({ sharedState, offlineQueue }) {
           autoCapitalize="characters"
         />
         <ActionButton
-          label="Submit check-in"
+          label={submitting ? "Working..." : "Submit check-in"}
           onPress={handleCheckin}
           disabled={
-            !sharedState.selectedBlock || !sharedState.selectedRow || !checkinForm.workerID
+            submitting || !sharedState.selectedBlock || !sharedState.selectedRow || !checkinForm.workerID
           }
         />
         <FeedbackBanner
@@ -218,7 +273,7 @@ export default function DayWorkScreen({ sharedState, offlineQueue }) {
         subtitle="Uses the selected block and row from above."
       >
         <WorkerSuggestionInput
-          label="Worker ID"
+          label="Worker ID / Worker Name"
           workerID={checkoutForm.workerID}
           workerName={checkoutForm.workerName}
           onSelect={({ workerID, workerName }) =>
@@ -233,8 +288,9 @@ export default function DayWorkScreen({ sharedState, offlineQueue }) {
           label="Worker name"
           value={checkoutForm.workerName}
           onChangeText={(value) => setCheckoutForm((current) => ({ ...current, workerName: value }))}
-          placeholder="Worker full name"
+          placeholder="Auto-filled from scan or selection"
           autoCapitalize="words"
+          readOnly
         />
         <LabeledInput
           label="Job type"
@@ -263,6 +319,81 @@ export default function DayWorkScreen({ sharedState, offlineQueue }) {
           message={feedback.message}
         />
       </SectionCard>
+
+      {/* ─── Same-Job Conflict Modal ─── */}
+      <Modal visible={conflictModalVisible} transparent animationType="fade">
+        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "center", padding: 24 }}>
+          <View style={{ borderRadius: 24, backgroundColor: "#fff", padding: 24, gap: 16 }}>
+            <Text style={{ fontSize: 18, fontWeight: "800", color: "#111827" }}>
+              Row already occupied
+            </Text>
+
+            <Text style={{ fontSize: 14, color: "#4b5563", lineHeight: 20 }}>
+              Row {sharedState.selectedRow} in {sharedState.selectedBlock} already has workers doing{" "}
+              <Text style={{ fontWeight: "800" }}>{sharedState.jobType}</Text>:
+            </Text>
+
+            <View style={{ gap: 6 }}>
+              {conflictOccupants.map((o) => (
+                <View
+                  key={o.workerID}
+                  style={{ borderRadius: 12, padding: 10, backgroundColor: "#f9fafb", borderWidth: 1, borderColor: "#f3f4f6", gap: 2 }}
+                >
+                  <Text style={{ fontSize: 14, fontWeight: "800", color: "#111827" }}>
+                    {o.workerName} ({o.workerID})
+                  </Text>
+                  <Text style={{ fontSize: 12, color: "#9ca3af" }}>
+                    {o.job_type || "No job"} · Row {o.rowNumber}
+                  </Text>
+                </View>
+              ))}
+            </View>
+
+            <Text style={{ fontSize: 14, color: "#4b5563", lineHeight: 20 }}>
+              Allow <Text style={{ fontWeight: "800" }}>{checkinForm.workerName || "this worker"}</Text> to check in on the same row for the same job?
+            </Text>
+
+            <FeedbackBanner
+              type={conflictFeedback.type === "error" ? "error" : "success"}
+              message={conflictFeedback.message}
+            />
+
+            <View style={{ gap: 10 }}>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                style={{
+                  borderRadius: 16,
+                  paddingVertical: 14,
+                  alignItems: "center",
+                  backgroundColor: "#16a34a",
+                }}
+                onPress={handleAllowConflict}
+                disabled={conflictSubmitting}
+              >
+                <Text style={{ color: "#fff", fontSize: 15, fontWeight: "800" }}>
+                  {conflictSubmitting ? "Working..." : "Allow — check in here"}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                activeOpacity={0.7}
+                style={{
+                  borderRadius: 16,
+                  paddingVertical: 14,
+                  alignItems: "center",
+                  backgroundColor: "#fff",
+                  borderWidth: 1,
+                  borderColor: "#e5e7eb",
+                }}
+                onPress={handleRejectConflict}
+                disabled={conflictSubmitting}
+              >
+                <Text style={{ color: "#6b7280", fontSize: 15, fontWeight: "800" }}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScreenScroll>
   );
 }

@@ -63,7 +63,10 @@ export default function MoveWorkersScreen({ sharedState, offlineQueue }) {
   const [pendingMoveOverride, setPendingMoveOverride] = useState(null);
   const [submitting, setSubmitting] = useState(false);
 
-  const checkinsState = useAsyncData(() => api.getCurrentCheckins(), []);
+  const checkinsState = useAsyncData(() => api.getCurrentCheckins(), [], {
+    cacheKey: "checkins",
+    staleTime: 5 * 60 * 1000,
+  });
   const source = Array.isArray(checkinsState.data) ? checkinsState.data : [];
 
   const filteredAssignments = useMemo(() => {

@@ -19,7 +19,10 @@ export default function ClockScreen({ offlineQueue }) {
   const [form, setForm] = useState(initialForm);
   const [feedback, setFeedback] = useState({ type: "info", message: "" });
   const [submitting, setSubmitting] = useState(false);
-  const clockState = useAsyncData(() => api.getClockData(), []);
+  const clockState = useAsyncData(() => api.getClockData(), [], {
+    cacheKey: "clocks",
+    staleTime: 5 * 60 * 1000,
+  });
 
   async function submit(kind) {
     setSubmitting(true);

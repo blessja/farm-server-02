@@ -122,7 +122,7 @@ export const api = {
       )}`
     ),
   getCurrentCheckins: () => request("/api/workers/current-checkins"),
-  regularCheckin: (body) => queueAndPush("/api/checkin", body, "Regular check-in"),
+  regularCheckin: (body) => queuedMutation("/api/checkin", body, "Regular check-in"),
   moveRegularWorker: (body) =>
     queuedMutation("/api/move-worker", body, "Move worker to correct row"),
   swapRegularWorkers: (body) =>

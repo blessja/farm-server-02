@@ -11,8 +11,12 @@ import { useAsyncData } from "../hooks/useAsyncData";
 export default function DashboardScreen({ sharedState, offlineQueue }) {
   const blocksState = useAsyncData(() => api.getBlocks(), [], {
     cacheKey: "blocks",
+    staleTime: 30 * 60 * 1000,
   });
-  const checkinsState = useAsyncData(() => api.getCurrentCheckins(), []);
+  const checkinsState = useAsyncData(() => api.getCurrentCheckins(), [], {
+    cacheKey: "checkins",
+    staleTime: 5 * 60 * 1000,
+  });
 
   const activeWorkers = Array.isArray(checkinsState.data)
     ? checkinsState.data.length

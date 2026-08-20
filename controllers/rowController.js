@@ -36,15 +36,12 @@ exports.checkInWorker = async (req, res) => {
   try {
     console.log("=== CHECK-IN REQUEST ===");
     console.log("Request Body:", req.body);
-    console.log(
-      "allowMultipleWorkers:",
-      allowMultipleWorkers,
-      typeof allowMultipleWorkers
-    );
 
     if (!workerID || !workerName || !rowNumber || !blockName || !jobType) {
       return res.status(400).json({ message: "Missing required fields" });
     }
+
+    const normalizedJobType = jobType.trim().toUpperCase();
 
     // Find block and row
     const block = await Block.findOne({ block_name: blockName });
@@ -74,33 +71,32 @@ exports.checkInWorker = async (req, res) => {
 
     // Check if THIS WORKER is already checked in to THIS ROW with THIS JOB
     const existingJob = row.active_jobs.find(
-      (job) => job.worker_id === workerID && job.job_type === jobType
+      (job) => job.worker_id === workerID && job.job_type.toUpperCase() === normalizedJobType
     );
 
     if (existingJob) {
       console.log("BLOCKED: Same worker already checked in");
       return res.status(409).json({
-        message: `You are already checked in to Row ${rowNumber} for ${jobType}.`,
+        message: `You are already checked in to Row ${rowNumber} for ${normalizedJobType}.`,
       });
     }
 
     // Check if ANOTHER worker is doing the SAME job type on this row
     const sameJobType = row.active_jobs.find(
-      (job) => job.job_type === jobType && job.worker_id !== workerID
+      (job) => job.job_type.toUpperCase() === normalizedJobType && job.worker_id !== workerID
     );
 
     console.log("=== CONFLICT CHECK ===");
     console.log("sameJobType found:", sameJobType ? "YES" : "NO");
     if (sameJobType) {
       console.log("Conflicting worker:", sameJobType.worker_name);
-      console.log("allowMultipleWorkers:", allowMultipleWorkers);
     }
 
     // Only block if override is NOT enabled
     if (sameJobType && !allowMultipleWorkers) {
       console.log("CONFLICT DETECTED - Sending override response");
       return res.status(409).json({
-        message: `Row ${rowNumber} is currently being worked on by ${sameJobType.worker_name} for ${jobType}.`,
+        message: `Row ${rowNumber} is currently being worked on by ${sameJobType.worker_name} for ${normalizedJobType}.`,
         conflict: true,
         existingWorker: sameJobType.worker_name,
         canOverride: true,
@@ -142,7 +138,7 @@ exports.checkInWorker = async (req, res) => {
     row.active_jobs.push({
       worker_name: workerName,
       worker_id: workerID,
-      job_type: jobType,
+      job_type: normalizedJobType,
       start_time: new Date(),
       remaining_stock: actualRemainingStock,
       time_spent: null,
@@ -152,7 +148,7 @@ exports.checkInWorker = async (req, res) => {
     row.worker_name = workerName;
     row.worker_id = workerID;
     row.start_time = new Date();
-    row.job_type = jobType;
+    row.job_type = normalizedJobType;
 
     console.log("=== ROW DATA AFTER CHECK-IN (before save) ===");
     console.log("active_jobs:", JSON.stringify(row.active_jobs, null, 2));
@@ -179,7 +175,7 @@ exports.checkInWorker = async (req, res) => {
         ? "Check-in successful (multiple workers on same row)"
         : "Check-in successful",
       rowNumber: row.row_number,
-      jobType: jobType,
+      jobType: normalizedJobType,
       remainingStock: actualRemainingStock,
       multipleWorkersAllowed: allowMultipleWorkers || false,
     });
@@ -273,7 +269,7 @@ exports.moveWorkerToRow = async (req, res) => {
 
     const sameJobTypeOnTarget = targetJobs.find(
       (job) =>
-        job.job_type === sourceJob.job_type && job.worker_id !== sourceJob.worker_id
+        job.job_type.toUpperCase() === sourceJob.job_type.toUpperCase() && job.worker_id !== sourceJob.worker_id
     );
 
     if (sameJobTypeOnTarget && !allowMultipleWorkers) {
@@ -516,17 +512,15 @@ exports.checkOutWorker = async (req, res) => {
     }
 
     let job, jobIndex, timeSpentInMinutes, currentRemaining;
-    let usedJobType = jobType || "UNKNOWN"; // Fallback if jobType not provided
+    let usedJobType = jobType ? jobType.trim().toUpperCase() : "UNKNOWN";
 
     // Try NEW FORMAT first (active_jobs)
     if (row.active_jobs && row.active_jobs.length > 0) {
-      // If jobType provided, find specific job
       if (jobType) {
         jobIndex = row.active_jobs.findIndex(
-          (job) => job.worker_id === workerID && job.job_type === jobType
+          (job) => job.worker_id === workerID && job.job_type.toUpperCase() === usedJobType
         );
       } else {
-        // If no jobType, find any job for this worker
         jobIndex = row.active_jobs.findIndex(
           (job) => job.worker_id === workerID
         );
@@ -740,7 +734,7 @@ exports.getCurrentCheckins = async (req, res) => {
           row.active_jobs.forEach((job) => {
             activeCheckins.push({
               blockName: block.block_name,
-              job_type: job.job_type,
+              job_type: (job.job_type || "").trim().toUpperCase(),
               rowNumber: row.row_number,
               workerID: job.worker_id,
               workerName: job.worker_name,
@@ -759,7 +753,7 @@ exports.getCurrentCheckins = async (req, res) => {
         ) {
           activeCheckins.push({
             blockName: block.block_name,
-            job_type: row.job_type,
+            job_type: (row.job_type || "").trim().toUpperCase(),
             rowNumber: row.row_number,
             workerID: row.worker_id,
             workerName: row.worker_name,
