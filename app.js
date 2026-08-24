@@ -35,10 +35,14 @@ const allowedOrigins = [
   "ionic://localhost",
   "http://localhost:5173",
   "http://localhost:8101",
-  "http://192.168.0.21:8135",
-  "http://192.168.0.103:8101",
+  "http://192.168.1.101:8135",
+  "http://192.168.1.101:8080",
   "https://6c469024e214.ngrok-free.app",
 ];
+
+// Allow any private-network origin so DHCP IP changes don't break CORS
+const privateOriginRegex =
+  /^https?:\/\/(localhost|127\.0\.0\.1|192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3})(:\d+)?$/;
 
 // Add this check for ngrok or other tunnels dynamically:
 const corsOptions = {
@@ -50,7 +54,7 @@ const corsOptions = {
       return callback(null, true);
     }
 
-    if (allowedOrigins.includes(origin)) {
+    if (allowedOrigins.includes(origin) || privateOriginRegex.test(origin)) {
       return callback(null, true);
     }
 
