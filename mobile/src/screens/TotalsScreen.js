@@ -7,6 +7,7 @@ import SelectField from "../components/SelectField";
 import { useAsyncData } from "../hooks/useAsyncData";
 
 const NAME_COL_WIDTH = 140;
+const ID_COL_WIDTH = 48;
 const DAY_COL_WIDTH = 72;
 const TOTAL_COL_WIDTH = 64;
 const ROW_HEIGHT = 42;
@@ -299,65 +300,115 @@ export default function TotalsScreen() {
             }}
           >
             <View style={{ flexDirection: "row" }}>
-              {/* ── FROZEN WORKER NAME COLUMN ── */}
+              {/* ── FROZEN WORKER COLUMNS (NAME + ID) ── */}
               <View
                 style={{
-                  width: NAME_COL_WIDTH,
+                  flexDirection: "row",
                   backgroundColor: "#fff",
                   borderRightWidth: 2,
                   borderRightColor: "#9ca3af",
                 }}
               >
-                <View
-                  style={{
-                    height: HEADER_HEIGHT,
-                    justifyContent: "center",
-                    paddingLeft: 14,
-                    backgroundColor: "#f9fafb",
-                    borderBottomWidth: 1,
-                    borderBottomColor: "#e5e7eb",
-                  }}
-                >
-                  <Text style={{ fontSize: 12, fontWeight: "800", color: "#374151", textTransform: "uppercase", letterSpacing: 0.5 }}>
-                    Worker
-                  </Text>
+                <View style={{ width: ID_COL_WIDTH }}>
+                  <View
+                    style={{
+                      height: HEADER_HEIGHT,
+                      justifyContent: "center",
+                      alignItems: "center",
+                      backgroundColor: "#f9fafb",
+                      borderBottomWidth: 1,
+                      borderBottomColor: "#e5e7eb",
+                    }}
+                  >
+                    <Text style={{ fontSize: 11, fontWeight: "800", color: "#374151", textTransform: "uppercase", letterSpacing: 0.5 }}>
+                      ID
+                    </Text>
+                  </View>
+
+                  {workerOrder.map((w, idx) => {
+                    const rowBg = idx % 2 === 0 ? "#fff" : "#f9fafb";
+
+                    return (
+                      <View
+                        key={w.workerID}
+                        style={{
+                          height: ROW_HEIGHT,
+                          justifyContent: "center",
+                          alignItems: "center",
+                          backgroundColor: rowBg,
+                          borderBottomWidth: 1,
+                          borderBottomColor: "#f3f4f6",
+                        }}
+                      >
+                        <Text numberOfLines={1} style={{ fontSize: 11, fontWeight: "600", color: "#6b7280" }}>
+                          {String(w.workerID)}
+                        </Text>
+                      </View>
+                    );
+                  })}
+
+                  <View
+                    style={{
+                      height: ROW_HEIGHT,
+                      backgroundColor: "#f0fdf4",
+                      borderTopWidth: 2,
+                      borderTopColor: "#16a34a",
+                    }}
+                  />
                 </View>
 
-                {workerOrder.map((w, idx) => {
-                  const rowBg = idx % 2 === 0 ? "#fff" : "#f9fafb";
+                <View style={{ width: NAME_COL_WIDTH, borderLeftWidth: 1, borderLeftColor: "#e5e7eb" }}>
+                  <View
+                    style={{
+                      height: HEADER_HEIGHT,
+                      justifyContent: "center",
+                      paddingLeft: 14,
+                      backgroundColor: "#f9fafb",
+                      borderBottomWidth: 1,
+                      borderBottomColor: "#e5e7eb",
+                    }}
+                  >
+                    <Text style={{ fontSize: 12, fontWeight: "800", color: "#374151", textTransform: "uppercase", letterSpacing: 0.5 }}>
+                      Worker
+                    </Text>
+                  </View>
 
-                  return (
-                    <View
-                      key={w.workerID}
-                      style={{
-                        height: ROW_HEIGHT,
-                        justifyContent: "center",
-                        paddingLeft: 14,
-                        backgroundColor: rowBg,
-                        borderBottomWidth: 1,
-                        borderBottomColor: "#f3f4f6",
-                      }}
-                    >
-                      <Text numberOfLines={1} style={{ fontSize: 13, fontWeight: "700", color: "#111827" }}>
-                        {w.workerName}
-                      </Text>
-                    </View>
-                  );
-                })}
+                  {workerOrder.map((w, idx) => {
+                    const rowBg = idx % 2 === 0 ? "#fff" : "#f9fafb";
 
-                <View
-                  style={{
-                    height: ROW_HEIGHT,
-                    justifyContent: "center",
-                    paddingLeft: 14,
-                    backgroundColor: "#f0fdf4",
-                    borderTopWidth: 2,
-                    borderTopColor: "#16a34a",
-                  }}
-                >
-                  <Text style={{ fontSize: 13, fontWeight: "800", color: "#16a34a", textTransform: "uppercase", letterSpacing: 0.3 }}>
-                    Total
-                  </Text>
+                    return (
+                      <View
+                        key={w.workerID}
+                        style={{
+                          height: ROW_HEIGHT,
+                          justifyContent: "center",
+                          paddingLeft: 14,
+                          backgroundColor: rowBg,
+                          borderBottomWidth: 1,
+                          borderBottomColor: "#f3f4f6",
+                        }}
+                      >
+                        <Text numberOfLines={1} style={{ fontSize: 13, fontWeight: "700", color: "#111827" }}>
+                          {w.workerName}
+                        </Text>
+                      </View>
+                    );
+                  })}
+
+                  <View
+                    style={{
+                      height: ROW_HEIGHT,
+                      justifyContent: "center",
+                      paddingLeft: 14,
+                      backgroundColor: "#f0fdf4",
+                      borderTopWidth: 2,
+                      borderTopColor: "#16a34a",
+                    }}
+                  >
+                    <Text style={{ fontSize: 13, fontWeight: "800", color: "#16a34a", textTransform: "uppercase", letterSpacing: 0.3 }}>
+                      Total
+                    </Text>
+                  </View>
                 </View>
               </View>
 
