@@ -26,6 +26,7 @@ import {
   setLastSupervisorName,
   setSupervisorSession,
 } from "./src/storage/authStorage";
+import { clearAllCache } from "./src/storage/cacheStorage";
 import { useOfflineQueue } from "./src/hooks/useOfflineQueue";
 
 const tabs = [
@@ -41,6 +42,7 @@ const tabs = [
 
 export default function App() {
   const [activeTab, setActiveTab] = useState("dashboard");
+  const [cacheEpoch, setCacheEpoch] = useState(0);
   const [selectedBlock, setSelectedBlock] = useState("");
   const [selectedRow, setSelectedRow] = useState("");
   const [jobType, setJobType] = useState("");
@@ -127,6 +129,11 @@ export default function App() {
 
     bootstrap();
   }, []);
+
+  async function handleClearCache() {
+    await clearAllCache();
+    setCacheEpoch((epoch) => epoch + 1);
+  }
 
   async function handleLogout() {
     await api.logout();
@@ -238,21 +245,34 @@ export default function App() {
               </View>
 
               {bootState.authenticated ? (
-                <TouchableOpacity
-                  activeOpacity={0.7}
-                  style={{ marginTop: 6, borderRadius: 12, backgroundColor: "#f3f4f6", borderWidth: 1, borderColor: "#e5e7eb", paddingHorizontal: 14, paddingVertical: 10 }}
-                  onPress={handleLogout}
-                >
-                  <Text style={{ color: "#374151", fontSize: 13, fontWeight: "800" }}>
-                    Logout
-                  </Text>
-                </TouchableOpacity>
+                <View style={{ gap: 8, alignItems: "flex-end", marginTop: 6 }}>
+                  <TouchableOpacity
+                    activeOpacity={0.7}
+                    style={{ borderRadius: 12, backgroundColor: "#f9fafb", borderWidth: 1, borderColor: "#e5e7eb", paddingHorizontal: 14, paddingVertical: 8 }}
+                    onPress={handleClearCache}
+                  >
+                    <Text style={{ color: "#6b7280", fontSize: 12, fontWeight: "700" }}>
+                      Clear Cache
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    activeOpacity={0.7}
+                    style={{ borderRadius: 12, backgroundColor: "#f3f4f6", borderWidth: 1, borderColor: "#e5e7eb", paddingHorizontal: 14, paddingVertical: 10 }}
+                    onPress={handleLogout}
+                  >
+                    <Text style={{ color: "#374151", fontSize: 13, fontWeight: "800" }}>
+                      Logout
+                    </Text>
+                  </TouchableOpacity>
+                </View>
               ) : null}
             </View>
           </View>
         </SafeAreaView>
 
-        <View className="flex-1">{renderContent()}</View>
+        <View className="flex-1" key={cacheEpoch}>
+          {renderContent()}
+        </View>
 
         {bootState.loading || !bootState.authenticated ? null : (
           <SafeAreaView className="bg-white" edges={["bottom"]}>
