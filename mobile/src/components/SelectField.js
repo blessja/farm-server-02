@@ -8,6 +8,7 @@ export default function SelectField({
   options = [],
   onSelect,
   emptyMessage = "No options available",
+  disabledValues = [],
 }) {
   const [open, setOpen] = useState(false);
 
@@ -44,6 +45,7 @@ export default function SelectField({
           ) : (
             options.map((option, index) => {
               const selected = value === option.value;
+              const isDisabled = disabledValues.includes(option.value);
               const optionKey =
                 option.value === null || typeof option.value === "undefined"
                   ? `option-${index}`
@@ -51,21 +53,23 @@ export default function SelectField({
               return (
                 <TouchableOpacity
                   key={optionKey}
-                  activeOpacity={0.7}
+                  activeOpacity={isDisabled ? 1 : 0.7}
                   style={{
                     paddingHorizontal: 14,
                     paddingVertical: 12,
                     borderTopWidth: 1,
                     borderTopColor: "#f3f4f6",
                     backgroundColor: selected ? "#16a34a" : "#fff",
+                    opacity: isDisabled ? 0.4 : 1,
                   }}
+                  disabled={isDisabled}
                   onPress={() => {
                     onSelect(option.value);
                     setOpen(false);
                   }}
                 >
                   <Text style={{ color: selected ? "#fff" : "#111827", fontSize: 14, fontWeight: "700" }}>
-                    {option.label}
+                    {option.label}{isDisabled ? " (checked in)" : ""}
                   </Text>
                 </TouchableOpacity>
               );

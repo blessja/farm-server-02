@@ -33,6 +33,8 @@ export default function DayWorkScreen({ sharedState, offlineQueue }) {
   const [conflictFeedback, setConflictFeedback] = useState({ type: "info", message: "" });
   const [conflictSubmitting, setConflictSubmitting] = useState(false);
 
+  const [allowMultipleWorkers, setAllowMultipleWorkers] = useState(false);
+
   const blocksState = useAsyncData(() => api.getBlocks(), [], {
     cacheKey: "blocks",
     staleTime: 30 * 60 * 1000,
@@ -61,6 +63,19 @@ export default function DayWorkScreen({ sharedState, offlineQueue }) {
     : [];
   const activeCheckins = Array.isArray(checkinsState.data) ? checkinsState.data : [];
 
+  const occupiedRowNumbers = useMemo(() => {
+    if (!sharedState.selectedBlock) return [];
+    return [
+      ...new Set(
+        activeCheckins
+          .filter((c) => c.blockName === sharedState.selectedBlock)
+          .map((c) => String(c.rowNumber))
+      ),
+    ];
+  }, [activeCheckins, sharedState.selectedBlock]);
+
+  const disabledRowValues = allowMultipleWorkers ? [] : occupiedRowNumbers;
+
   const allRowOptions = [...new Set(rows.map((rowNumber) => String(rowNumber)))].map((rowNumber) => ({
     label: rowNumber,
     value: rowNumber,
@@ -88,6 +103,7 @@ export default function DayWorkScreen({ sharedState, offlineQueue }) {
       jobType: normalizedJobType,
       blockName: sharedState.selectedBlock,
       rowNumber: sharedState.selectedRow,
+      ...(allowMultipleWorkers ? { allowMultipleWorkers: true } : {}),
     };
 
     setSubmitting(true);
@@ -98,6 +114,7 @@ export default function DayWorkScreen({ sharedState, offlineQueue }) {
       setFeedback({ type: "success", message: result.message });
       setCheckinForm(defaultCheckin);
       sharedState.setSelectedRow("");
+      setAllowMultipleWorkers(false);
       offlineQueue.refreshQueueCount();
       checkinsState.refresh();
     } catch (error) {
@@ -132,6 +149,7 @@ export default function DayWorkScreen({ sharedState, offlineQueue }) {
       setConflictOccupants([]);
       setCheckinForm(defaultCheckin);
       sharedState.setSelectedRow("");
+      setAllowMultipleWorkers(false);
       setFeedback({ type: "success", message: result.message });
       offlineQueue.refreshQueueCount();
       checkinsState.refresh();
@@ -206,6 +224,7 @@ export default function DayWorkScreen({ sharedState, offlineQueue }) {
           onSelect={(value) => {
             sharedState.setSelectedBlock(value);
             sharedState.setSelectedRow("");
+            setAllowMultipleWorkers(false);
           }}
           emptyMessage="No blocks found"
         />
@@ -220,7 +239,40 @@ export default function DayWorkScreen({ sharedState, offlineQueue }) {
               ? "No rows available in this block"
               : "Select a block first"
           }
+          disabledValues={disabledRowValues}
         />
+        {occupiedRowNumbers.length > 0 && (
+          <TouchableOpacity
+            activeOpacity={0.7}
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 10,
+              paddingVertical: 8,
+            }}
+            onPress={() => setAllowMultipleWorkers((prev) => !prev)}
+          >
+            <View
+              style={{
+                width: 22,
+                height: 22,
+                borderRadius: 6,
+                borderWidth: 2,
+                borderColor: allowMultipleWorkers ? "#16a34a" : "#d1d5db",
+                backgroundColor: allowMultipleWorkers ? "#16a34a" : "#fff",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              {allowMultipleWorkers && (
+                <Text style={{ color: "#fff", fontSize: 14, fontWeight: "800" }}>✓</Text>
+              )}
+            </View>
+            <Text className="text-gray-600 text-sm" style={{ flex: 1 }}>
+              Allow multiple workers on same row
+            </Text>
+          </TouchableOpacity>
+        )}
         <FeedbackBanner type="error" message={blocksState.error || rowsState.error} />
       </SectionCard>
 

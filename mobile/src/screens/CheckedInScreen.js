@@ -2,6 +2,7 @@ import React, { useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Modal,
+  SafeAreaView,
   Text,
   TextInput,
   TouchableOpacity,
@@ -69,6 +70,8 @@ export default function CheckedInScreen({ offlineQueue }) {
   const [checkoutStock, setCheckoutStock] = useState("");
   const [checkoutFeedback, setCheckoutFeedback] = useState({ type: "info", message: "" });
   const [checkoutSubmitting, setCheckoutSubmitting] = useState(false);
+
+  const [expandedWorker, setExpandedWorker] = useState(null);
 
   const moveRowsState = useAsyncData(
     () => (moveTargetBlock ? api.getBlockRows(moveTargetBlock) : Promise.resolve([])),
@@ -221,6 +224,50 @@ export default function CheckedInScreen({ offlineQueue }) {
     setOccupantsFeedback({ type: "info", message: "" });
   }
 
+  async function handleMove(overridePayload = null) {
+    if (!moveWorker) return;
+    setMoveSubmitting(true);
+    setMoveFeedback({ type: "info", message: "" });
+
+    try {
+      const payload = overridePayload || {
+        workerID: moveWorker.workerID,
+        workerName: moveWorker.workerName,
+        blockName: moveTargetBlock,
+        fromRowNumber: moveWorker.rowNumber,
+        toRowNumber: moveTargetRow,
+        jobType: moveWorker.job_type || "",
+      };
+
+      const result = await api.moveRegularWorker(payload);
+      setMoveFeedback({ type: "success", message: result.message });
+      setMoveWorker(null);
+      setMoveTargetBlock("");
+      setMoveTargetRow("");
+      setPendingMoveOverride(null);
+      offlineQueue?.refreshQueueCount?.();
+      checkinsState.refresh();
+      setTimeout(() => setMoveOpen(false), 800);
+    } catch (error) {
+      if (error?.payload?.canOverride) {
+        setPendingMoveOverride({
+          workerID: moveWorker.workerID,
+          workerName: moveWorker.workerName,
+          blockName: moveTargetBlock,
+          fromRowNumber: moveWorker.rowNumber,
+          toRowNumber: moveTargetRow,
+          jobType: moveWorker.job_type || "",
+          allowMultipleWorkers: true,
+        });
+      } else {
+        setPendingMoveOverride(null);
+      }
+      setMoveFeedback({ type: "error", message: error.message });
+    } finally {
+      setMoveSubmitting(false);
+    }
+  }
+
   async function handleCheckout() {
     if (!checkoutWorker) return;
     setCheckoutSubmitting(true);
@@ -320,39 +367,98 @@ export default function CheckedInScreen({ offlineQueue }) {
               {blockName}
             </Text>
             <View className="gap-2">
-              {groupedByBlock[blockName].map((item, index) => (
-                <View
-                  key={`${item.workerID}-${item.rowNumber}-${index}`}
-                  className="rounded-xl bg-gray-50 border border-gray-100 p-3.5"
-                >
-                  <View className="flex-row items-center justify-between">
-                    <View className="flex-1">
-                      <Text className="text-gray-900 text-[15px] font-extrabold">
-                        {item.workerName}
-                      </Text>
-                      <Text className="mt-0.5 text-gray-400 text-[13px]">
-                        ID {item.workerID}
-                      </Text>
-                    </View>
-                    <View className="items-end">
-                      <Text className="text-farm-600 text-sm font-bold">
-                        {item.job_type}
-                      </Text>
-                      <Text className="text-gray-400 text-xs mt-0.5">
-                        Row {item.rowNumber}
-                      </Text>
-                    </View>
+              {groupedByBlock[blockName].map((item, index) => {
+                const isExpanded = expandedWorker === `${item.workerID}-${item.rowNumber}`;
+                return (
+                  <View
+                    key={`${item.workerID}-${item.rowNumber}-${index}`}
+                    className="rounded-xl bg-gray-50 border border-gray-100 p-3.5"
+                  >
+                    <TouchableOpacity
+                      activeOpacity={0.7}
+                      onPress={() =>
+                        setExpandedWorker(
+                          isExpanded ? null : `${item.workerID}-${item.rowNumber}`
+                        )
+                      }
+                    >
+                      <View className="flex-row items-center justify-between">
+                        <View className="flex-1">
+                          <Text className="text-gray-900 text-[15px] font-extrabold">
+                            {item.workerName}
+                          </Text>
+                          <Text className="mt-0.5 text-gray-400 text-[13px]">
+                            ID {item.workerID}
+                          </Text>
+                        </View>
+                        <View className="items-end">
+                          <Text className="text-farm-600 text-sm font-bold">
+                            {item.job_type}
+                          </Text>
+                          <Text className="text-gray-400 text-xs mt-0.5">
+                            Row {item.rowNumber}
+                          </Text>
+                        </View>
+                      </View>
+                      <View className="flex-row items-center justify-between mt-2 pt-2 border-t border-gray-100">
+                        <Text className="text-gray-400 text-xs">
+                          In at {formatTime(item.startTime)}
+                        </Text>
+                        <Text className="text-gray-500 text-xs font-bold">
+                          {elapsedSince(item.startTime)}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+
+                    {isExpanded && (
+                      <View className="flex-row gap-2 mt-2 pt-2 border-t border-gray-100">
+                        <TouchableOpacity
+                          activeOpacity={0.7}
+                          style={{
+                            flex: 1,
+                            borderRadius: 12,
+                            paddingVertical: 10,
+                            alignItems: "center",
+                            backgroundColor: "#16a34a",
+                          }}
+                          onPress={() => {
+                            setCheckoutWorker(item);
+                            setCheckoutStock("");
+                            setCheckoutFeedback({ type: "info", message: "" });
+                            setCheckoutOpen(true);
+                            setExpandedWorker(null);
+                          }}
+                        >
+                          <Text style={{ color: "#fff", fontSize: 13, fontWeight: "800" }}>Checkout</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          activeOpacity={0.7}
+                          style={{
+                            flex: 1,
+                            borderRadius: 12,
+                            paddingVertical: 10,
+                            alignItems: "center",
+                            backgroundColor: "#f3f4f6",
+                            borderWidth: 1,
+                            borderColor: "#e5e7eb",
+                          }}
+                          onPress={() => {
+                            setMoveWorker(item);
+                            setMoveTargetBlock(item.blockName);
+                            setMoveTargetRow("");
+                            setMoveFeedback({ type: "info", message: "" });
+                            setPendingMoveOverride(null);
+                            setMoveOpen(true);
+                            setExpandedWorker(null);
+                          }}
+                        >
+                          <Text style={{ color: "#374151", fontSize: 13, fontWeight: "800" }}>Move</Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
                   </View>
-                  <View className="flex-row items-center justify-between mt-2 pt-2 border-t border-gray-100">
-                    <Text className="text-gray-400 text-xs">
-                      In at {formatTime(item.startTime)}
-                    </Text>
-                    <Text className="text-gray-500 text-xs font-bold">
-                      {elapsedSince(item.startTime)}
-                    </Text>
-                  </View>
-                </View>
-              ))}
+                );
+              })}
             </View>
           </View>
         ))}
@@ -362,22 +468,23 @@ export default function CheckedInScreen({ offlineQueue }) {
 
       {/* ─── Move Worker Modal ─── */}
       <Modal visible={moveOpen} animationType="slide">
-        <ScreenScroll refreshing={false}>
-          <View className="flex-row items-center justify-between mb-1">
-            <View className="flex-1">
-              <Text className="text-gray-900 text-lg font-extrabold">Move Worker</Text>
-              <Text className="text-gray-400 text-[13px] leading-5 mt-0.5">
-                Pick a worker, then choose target block and row.
-              </Text>
+        <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
+          <ScreenScroll refreshing={false}>
+            <View className="flex-row items-center justify-between mb-1">
+              <View className="flex-1">
+                <Text className="text-gray-900 text-lg font-extrabold">Move Worker</Text>
+                <Text className="text-gray-400 text-[13px] leading-5 mt-0.5">
+                  Pick a worker, then choose target block and row.
+                </Text>
+              </View>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                style={{ borderRadius: 12, backgroundColor: "#f3f4f6", borderWidth: 1, borderColor: "#e5e7eb", paddingHorizontal: 14, paddingVertical: 10 }}
+                onPress={() => setMoveOpen(false)}
+              >
+                <Text style={{ color: "#374151", fontSize: 13, fontWeight: "800" }}>Close</Text>
+              </TouchableOpacity>
             </View>
-            <TouchableOpacity
-              activeOpacity={0.7}
-              style={{ borderRadius: 12, backgroundColor: "#f3f4f6", borderWidth: 1, borderColor: "#e5e7eb", paddingHorizontal: 14, paddingVertical: 10 }}
-              onPress={() => setMoveOpen(false)}
-            >
-              <Text style={{ color: "#374151", fontSize: 13, fontWeight: "800" }}>Close</Text>
-            </TouchableOpacity>
-          </View>
 
           <SectionCard title="Select worker" subtitle="Tap a worker to expand move options.">
             {records.length === 0 ? (
@@ -509,6 +616,7 @@ export default function CheckedInScreen({ offlineQueue }) {
             })}
           </SectionCard>
         </ScreenScroll>
+        </SafeAreaView>
       </Modal>
 
       {/* ─── Row Occupants Modal ─── */}
@@ -606,22 +714,23 @@ export default function CheckedInScreen({ offlineQueue }) {
 
       {/* ─── Checkout Modal ─── */}
       <Modal visible={checkoutOpen} animationType="slide">
-        <ScreenScroll refreshing={false}>
-          <View className="flex-row items-center justify-between mb-1">
-            <View className="flex-1">
-              <Text className="text-gray-900 text-lg font-extrabold">Checkout</Text>
-              <Text className="text-gray-400 text-[13px] leading-5 mt-0.5">
-                Tap a worker to expand the checkout form inline.
-              </Text>
+        <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
+          <ScreenScroll refreshing={false}>
+            <View className="flex-row items-center justify-between mb-1">
+              <View className="flex-1">
+                <Text className="text-gray-900 text-lg font-extrabold">Checkout</Text>
+                <Text className="text-gray-400 text-[13px] leading-5 mt-0.5">
+                  Tap a worker to expand the checkout form inline.
+                </Text>
+              </View>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                style={{ borderRadius: 12, backgroundColor: "#f3f4f6", borderWidth: 1, borderColor: "#e5e7eb", paddingHorizontal: 14, paddingVertical: 10 }}
+                onPress={() => setCheckoutOpen(false)}
+              >
+                <Text style={{ color: "#374151", fontSize: 13, fontWeight: "800" }}>Close</Text>
+              </TouchableOpacity>
             </View>
-            <TouchableOpacity
-              activeOpacity={0.7}
-              style={{ borderRadius: 12, backgroundColor: "#f3f4f6", borderWidth: 1, borderColor: "#e5e7eb", paddingHorizontal: 14, paddingVertical: 10 }}
-              onPress={() => setCheckoutOpen(false)}
-            >
-              <Text style={{ color: "#374151", fontSize: 13, fontWeight: "800" }}>Close</Text>
-            </TouchableOpacity>
-          </View>
 
           <SectionCard title="Select worker" subtitle="Tap a worker below to check them out.">
             {records.length === 0 ? (
@@ -711,6 +820,7 @@ export default function CheckedInScreen({ offlineQueue }) {
             })}
           </SectionCard>
         </ScreenScroll>
+        </SafeAreaView>
       </Modal>
     </ScreenScroll>
   );
