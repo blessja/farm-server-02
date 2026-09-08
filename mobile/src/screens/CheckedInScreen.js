@@ -15,6 +15,7 @@ import SelectField from "../components/SelectField";
 import ActionButton from "../components/ActionButton";
 import FeedbackBanner from "../components/FeedbackBanner";
 import { useAsyncData } from "../hooks/useAsyncData";
+import { sortNamesNumerically } from "../utils/sortNames";
 
 function formatTime(isoString) {
   if (!isoString) return "--:--";
@@ -46,9 +47,11 @@ export default function CheckedInScreen({ offlineQueue }) {
     cacheKey: "blocks",
     staleTime: 30 * 60 * 1000,
   });
-  const allBlocks = Array.isArray(blocksState.data)
-    ? blocksState.data.filter(Boolean).map(String)
-    : [];
+  const allBlocks = sortNamesNumerically(
+    Array.isArray(blocksState.data)
+      ? blocksState.data.filter(Boolean).map(String)
+      : []
+  );
   const blockOptions = allBlocks.map((b) => ({ label: b, value: b }));
 
   const [moveOpen, setMoveOpen] = useState(false);
@@ -72,6 +75,21 @@ export default function CheckedInScreen({ offlineQueue }) {
   const [checkoutSubmitting, setCheckoutSubmitting] = useState(false);
 
   const [expandedWorker, setExpandedWorker] = useState(null);
+  const [activeOperation, setActiveOperation] = useState(null);
+
+  const [inlineCheckoutStock, setInlineCheckoutStock] = useState("");
+  const [inlineCheckoutFeedback, setInlineCheckoutFeedback] = useState({
+    type: "info",
+    message: "",
+  });
+  const [inlineCheckoutSubmitting, setInlineCheckoutSubmitting] = useState(false);
+
+  const [inlineMoveTargetBlock, setInlineMoveTargetBlock] = useState("");
+  const [inlineMoveTargetRow, setInlineMoveTargetRow] = useState("");
+  const [inlineMoveFeedback, setInlineMoveFeedback] = useState({ type: "info", message: "" });
+  const [inlineMoveSubmitting, setInlineMoveSubmitting] = useState(false);
+  const [inlinePendingOverride, setInlinePendingOverride] = useState(null);
+  const [inlineOccupantsSubmitting, setInlineOccupantsSubmitting] = useState(false);
 
   const moveRowsState = useAsyncData(
     () => (moveTargetBlock ? api.getBlockRows(moveTargetBlock) : Promise.resolve([])),
@@ -81,9 +99,11 @@ export default function CheckedInScreen({ offlineQueue }) {
       staleTime: 15 * 60 * 1000,
     }
   );
-  const moveRows = Array.isArray(moveRowsState.data)
-    ? moveRowsState.data.filter(Boolean).map(String)
-    : [];
+  const moveRows = sortNamesNumerically(
+    Array.isArray(moveRowsState.data)
+      ? moveRowsState.data.filter(Boolean).map(String)
+      : []
+  );
 
   const moveRowOptions = moveRows
     .filter((r) => !(moveTargetBlock === moveWorker?.blockName && r === moveWorker?.rowNumber))
@@ -105,6 +125,65 @@ export default function CheckedInScreen({ offlineQueue }) {
       (o) => (o.job_type || "").toUpperCase() === (moveWorker.job_type || "").toUpperCase()
     );
   }, [moveRowOccupants, moveWorker]);
+
+  const expandedRecord =
+    records.find((r) => `${r.workerID}-${r.rowNumber}` === expandedWorker) || null;
+
+  const inlineRowsState = useAsyncData(
+    () =>
+      inlineMoveTargetBlock
+        ? api.getBlockRows(inlineMoveTargetBlock)
+        : Promise.resolve([]),
+    [inlineMoveTargetBlock],
+    {
+      cacheKey: inlineMoveTargetBlock
+        ? `inline-rows-${inlineMoveTargetBlock}`
+        : undefined,
+      staleTime: 15 * 60 * 1000,
+    }
+  );
+  const inlineMoveRows = sortNamesNumerically(
+    Array.isArray(inlineRowsState.data)
+      ? inlineRowsState.data.filter(Boolean).map(String)
+      : []
+  );
+
+  const inlineRowOptions = inlineMoveRows
+    .filter(
+      (r) =>
+        !(inlineMoveTargetBlock === expandedRecord?.blockName && r === expandedRecord?.rowNumber)
+    )
+    .map((r) => ({ label: r, value: r }));
+
+  const inlineMoveRowOccupants = useMemo(() => {
+    if (!expandedRecord || !inlineMoveTargetBlock || !inlineMoveTargetRow) return [];
+    return records.filter(
+      (r) =>
+        r.workerID !== expandedRecord.workerID &&
+        r.blockName === inlineMoveTargetBlock &&
+        r.rowNumber === inlineMoveTargetRow
+    );
+  }, [records, expandedRecord, inlineMoveTargetBlock, inlineMoveTargetRow]);
+
+  const inlineSameJobOccupied = useMemo(() => {
+    if (!expandedRecord || inlineMoveRowOccupants.length === 0) return false;
+    return inlineMoveRowOccupants.some(
+      (o) =>
+        (o.job_type || "").toUpperCase() === (expandedRecord.job_type || "").toUpperCase()
+    );
+  }, [inlineMoveRowOccupants, expandedRecord]);
+
+  function toggleExpanded(item) {
+    const key = `${item.workerID}-${item.rowNumber}`;
+    setExpandedWorker(expandedWorker === key ? null : key);
+    setActiveOperation(null);
+    setInlineCheckoutStock("");
+    setInlineCheckoutFeedback({ type: "info", message: "" });
+    setInlineMoveTargetBlock("");
+    setInlineMoveTargetRow("");
+    setInlineMoveFeedback({ type: "info", message: "" });
+    setInlinePendingOverride(null);
+  }
 
   function openMoveModal() {
     setMoveWorker(null);
@@ -297,6 +376,153 @@ export default function CheckedInScreen({ offlineQueue }) {
     }
   }
 
+  const resetInlineMove = () => {
+    setInlineMoveTargetBlock("");
+    setInlineMoveTargetRow("");
+    setInlineMoveFeedback({ type: "info", message: "" });
+    setInlinePendingOverride(null);
+  };
+
+  async function handleInlineCheckout() {
+    if (!expandedRecord) return;
+    setInlineCheckoutSubmitting(true);
+    setInlineCheckoutFeedback({ type: "info", message: "" });
+
+    try {
+      const payload = {
+        workerID: expandedRecord.workerID,
+        workerName: expandedRecord.workerName,
+        blockName: expandedRecord.blockName,
+        rowNumber: expandedRecord.rowNumber,
+        jobType: expandedRecord.job_type || "",
+        stockCount: inlineCheckoutStock === "" ? undefined : Number(inlineCheckoutStock),
+      };
+
+      const result = await api.regularCheckout(payload);
+      setInlineCheckoutFeedback({ type: "success", message: result.message });
+      setInlineCheckoutStock("");
+      setTimeout(() => setExpandedWorker(null), 800);
+    } catch (error) {
+      setInlineCheckoutFeedback({ type: "error", message: error.message });
+    } finally {
+      setInlineCheckoutSubmitting(false);
+    }
+  }
+
+  function handleInlineBlockSelect(value) {
+    setInlineMoveTargetBlock(value);
+    setInlineMoveTargetRow("");
+    setInlineMoveFeedback({ type: "info", message: "" });
+    setInlinePendingOverride(null);
+  }
+
+  function handleInlineRowSelect(rowValue) {
+    setInlineMoveTargetRow(rowValue);
+    setInlineMoveFeedback({ type: "info", message: "" });
+    setInlinePendingOverride(null);
+  }
+
+  async function handleInlineMove(overridePayload = null) {
+    if (!expandedRecord) return;
+    setInlineMoveSubmitting(true);
+    setInlineMoveFeedback({ type: "info", message: "" });
+
+    try {
+      const payload = overridePayload || {
+        workerID: expandedRecord.workerID,
+        workerName: expandedRecord.workerName,
+        blockName: inlineMoveTargetBlock,
+        fromRowNumber: expandedRecord.rowNumber,
+        toRowNumber: inlineMoveTargetRow,
+        jobType: expandedRecord.job_type || "",
+      };
+
+      const result = await api.moveRegularWorker(payload);
+      setInlineMoveFeedback({ type: "success", message: result.message });
+      resetInlineMove();
+      setTimeout(() => setExpandedWorker(null), 800);
+    } catch (error) {
+      if (error?.payload?.canOverride) {
+        setInlinePendingOverride({
+          workerID: expandedRecord.workerID,
+          workerName: expandedRecord.workerName,
+          blockName: inlineMoveTargetBlock,
+          fromRowNumber: expandedRecord.rowNumber,
+          toRowNumber: inlineMoveTargetRow,
+          jobType: expandedRecord.job_type || "",
+          allowMultipleWorkers: true,
+        });
+      } else {
+        setInlinePendingOverride(null);
+      }
+      setInlineMoveFeedback({ type: "error", message: error.message });
+    } finally {
+      setInlineMoveSubmitting(false);
+    }
+  }
+
+  async function handleInlineAllowMultiple() {
+    if (!expandedRecord) return;
+    setInlineOccupantsSubmitting(true);
+    setInlineMoveFeedback({ type: "info", message: "" });
+
+    try {
+      const payload = {
+        workerID: expandedRecord.workerID,
+        workerName: expandedRecord.workerName,
+        blockName: inlineMoveTargetBlock,
+        fromRowNumber: expandedRecord.rowNumber,
+        toRowNumber: inlineMoveTargetRow,
+        jobType: expandedRecord.job_type || "",
+        allowMultipleWorkers: true,
+      };
+
+      const result = await api.moveRegularWorker(payload);
+      setInlineMoveFeedback({ type: "success", message: result.message });
+      resetInlineMove();
+      setTimeout(() => setExpandedWorker(null), 800);
+    } catch (error) {
+      setInlineMoveFeedback({ type: "error", message: error.message });
+    } finally {
+      setInlineOccupantsSubmitting(false);
+    }
+  }
+
+  async function handleInlineSwapFromOccupants() {
+    if (!expandedRecord || inlineMoveRowOccupants.length === 0) return;
+    const swapWith =
+      inlineMoveRowOccupants.find(
+        (o) =>
+          (o.job_type || "").toUpperCase() === (expandedRecord.job_type || "").toUpperCase()
+      ) || inlineMoveRowOccupants[0];
+
+    setInlineOccupantsSubmitting(true);
+    setInlineMoveFeedback({ type: "info", message: "" });
+
+    try {
+      const result = await api.swapRegularWorkers({
+        firstWorkerID: expandedRecord.workerID,
+        secondWorkerID: swapWith.workerID,
+        blockName: inlineMoveTargetBlock,
+        firstJobType: expandedRecord.job_type || "",
+        secondJobType: swapWith.job_type || "",
+      });
+      setInlineMoveFeedback({ type: "success", message: result.message });
+      resetInlineMove();
+      setTimeout(() => setExpandedWorker(null), 800);
+    } catch (error) {
+      setInlineMoveFeedback({ type: "error", message: error.message });
+    } finally {
+      setInlineOccupantsSubmitting(false);
+    }
+  }
+
+  function handleInlineRejectOccupants() {
+    setInlineMoveTargetRow("");
+    setInlineMoveFeedback({ type: "info", message: "" });
+    setInlinePendingOverride(null);
+  }
+
   const groupedByBlock = records.reduce((acc, item) => {
     const block = item.blockName || "Unknown";
     if (!acc[block]) acc[block] = [];
@@ -304,7 +530,7 @@ export default function CheckedInScreen({ offlineQueue }) {
     return acc;
   }, {});
 
-  const blockNames = Object.keys(groupedByBlock).sort();
+  const blockNames = sortNamesNumerically(Object.keys(groupedByBlock));
 
   return (
     <ScreenScroll
@@ -376,11 +602,7 @@ export default function CheckedInScreen({ offlineQueue }) {
                   >
                     <TouchableOpacity
                       activeOpacity={0.7}
-                      onPress={() =>
-                        setExpandedWorker(
-                          isExpanded ? null : `${item.workerID}-${item.rowNumber}`
-                        )
-                      }
+                      onPress={() => toggleExpanded(item)}
                     >
                       <View className="flex-row items-center justify-between">
                         <View className="flex-1">
@@ -411,50 +633,294 @@ export default function CheckedInScreen({ offlineQueue }) {
                     </TouchableOpacity>
 
                     {isExpanded && (
-                      <View className="flex-row gap-2 mt-2 pt-2 border-t border-gray-100">
-                        <TouchableOpacity
-                          activeOpacity={0.7}
-                          style={{
-                            flex: 1,
-                            borderRadius: 12,
-                            paddingVertical: 10,
-                            alignItems: "center",
-                            backgroundColor: "#16a34a",
-                          }}
-                          onPress={() => {
-                            setCheckoutWorker(item);
-                            setCheckoutStock("");
-                            setCheckoutFeedback({ type: "info", message: "" });
-                            setCheckoutOpen(true);
-                            setExpandedWorker(null);
-                          }}
-                        >
-                          <Text style={{ color: "#fff", fontSize: 13, fontWeight: "800" }}>Checkout</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          activeOpacity={0.7}
-                          style={{
-                            flex: 1,
-                            borderRadius: 12,
-                            paddingVertical: 10,
-                            alignItems: "center",
-                            backgroundColor: "#f3f4f6",
-                            borderWidth: 1,
-                            borderColor: "#e5e7eb",
-                          }}
-                          onPress={() => {
-                            setMoveWorker(item);
-                            setMoveTargetBlock(item.blockName);
-                            setMoveTargetRow("");
-                            setMoveFeedback({ type: "info", message: "" });
-                            setPendingMoveOverride(null);
-                            setMoveOpen(true);
-                            setExpandedWorker(null);
-                          }}
-                        >
-                          <Text style={{ color: "#374151", fontSize: 13, fontWeight: "800" }}>Move</Text>
-                        </TouchableOpacity>
-                      </View>
+                      <>
+                        <View className="flex-row gap-2 mt-2 pt-2 border-t border-gray-100">
+                          <TouchableOpacity
+                            activeOpacity={0.7}
+                            style={{
+                              flex: 1,
+                              borderRadius: 12,
+                              paddingVertical: 10,
+                              alignItems: "center",
+                              backgroundColor: activeOperation === "checkout" ? "#16a34a" : "#f3f4f6",
+                              borderWidth: activeOperation === "checkout" ? 0 : 1,
+                              borderColor: "#e5e7eb",
+                              opacity:
+                                activeOperation === "checkout" && inlineCheckoutSubmitting ? 0.5 : 1,
+                            }}
+                            disabled={activeOperation === "checkout" && inlineCheckoutSubmitting}
+                            onPress={() => {
+                              if (activeOperation === "checkout") {
+                                handleInlineCheckout();
+                              } else {
+                                setActiveOperation("checkout");
+                                setInlineCheckoutStock("");
+                                setInlineCheckoutFeedback({ type: "info", message: "" });
+                                resetInlineMove();
+                              }
+                            }}
+                          >
+                            <Text
+                              style={{
+                                color: activeOperation === "checkout" ? "#fff" : "#374151",
+                                fontSize: 13,
+                                fontWeight: "800",
+                              }}
+                            >
+                              {activeOperation === "checkout"
+                                ? inlineCheckoutSubmitting
+                                  ? "Submitting..."
+                                  : "Submit"
+                                : "Checkout"}
+                            </Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            activeOpacity={0.7}
+                            style={{
+                              flex: 1,
+                              borderRadius: 12,
+                              paddingVertical: 10,
+                              alignItems: "center",
+                              backgroundColor: activeOperation === "move" ? "#16a34a" : "#f3f4f6",
+                              borderWidth: activeOperation === "move" ? 0 : 1,
+                              borderColor: "#e5e7eb",
+                              opacity:
+                                activeOperation === "move" &&
+                                (inlineMoveSubmitting ||
+                                  !inlineMoveTargetRow ||
+                                  (inlineSameJobOccupied && !inlinePendingOverride))
+                                  ? 0.5
+                                  : 1,
+                            }}
+                            disabled={
+                              activeOperation === "move" &&
+                              (inlineMoveSubmitting ||
+                                !inlineMoveTargetRow ||
+                                (inlineSameJobOccupied && !inlinePendingOverride))
+                            }
+                            onPress={() => {
+                              if (activeOperation === "move") {
+                                if (inlineMoveTargetRow && (!inlineSameJobOccupied || inlinePendingOverride)) {
+                                  handleInlineMove();
+                                }
+                              } else {
+                                setActiveOperation("move");
+                                setInlineMoveTargetBlock(item.blockName);
+                                setInlineMoveTargetRow("");
+                                setInlineMoveFeedback({ type: "info", message: "" });
+                                setInlinePendingOverride(null);
+                                setInlineCheckoutStock("");
+                                setInlineCheckoutFeedback({ type: "info", message: "" });
+                              }
+                            }}
+                          >
+                            <Text
+                              style={{
+                                color: activeOperation === "move" ? "#fff" : "#374151",
+                                fontSize: 13,
+                                fontWeight: "800",
+                              }}
+                            >
+                              {activeOperation === "move"
+                                ? inlineMoveSubmitting
+                                  ? "Submitting..."
+                                  : "Submit"
+                                : "Move"}
+                            </Text>
+                          </TouchableOpacity>
+                        </View>
+
+                        {activeOperation === "checkout" ? (
+                          <View className="mt-2 pt-2 border-t border-gray-100 gap-2.5">
+                            <View className="gap-1.5">
+                              <Text className="text-gray-600 text-xs font-bold">Stocks completed</Text>
+                              <TextInput
+                                className="rounded-xl border border-gray-200 bg-white px-3.5 py-3 text-gray-900 text-[15px]"
+                                value={inlineCheckoutStock}
+                                onChangeText={setInlineCheckoutStock}
+                                placeholder="Leave blank to complete remaining"
+                                placeholderTextColor="#9ca3af"
+                                keyboardType="numeric"
+                              />
+                            </View>
+                            <FeedbackBanner
+                              type={inlineCheckoutFeedback.type === "error" ? "error" : "success"}
+                              message={inlineCheckoutFeedback.message}
+                            />
+                          </View>
+                        ) : null}
+
+                        {activeOperation === "move" ? (
+                          <View className="mt-2 pt-2 border-t border-gray-100 gap-2.5">
+                            <SelectField
+                              label="Target block"
+                              value={inlineMoveTargetBlock}
+                              placeholder="Select block"
+                              options={blockOptions}
+                              onSelect={handleInlineBlockSelect}
+                              emptyMessage="No blocks found"
+                            />
+
+                            {inlineMoveTargetBlock ? (
+                              <SelectField
+                                label="Target row"
+                                value={inlineMoveTargetRow}
+                                placeholder="Select target row"
+                                options={inlineRowOptions}
+                                onSelect={handleInlineRowSelect}
+                                emptyMessage={
+                                  inlineRowsState.loading ? "Loading rows..." : "No rows available"
+                                }
+                              />
+                            ) : null}
+
+                            {inlineMoveTargetRow &&
+                            !inlineSameJobOccupied &&
+                            inlineMoveRowOccupants.length === 0 ? (
+                              <View className="rounded-2xl bg-farm-50 border border-farm-200 p-3.5 gap-1.5">
+                                <Text className="text-farm-800 text-xs font-extrabold uppercase">Preview</Text>
+                                <Text className="text-farm-700 text-sm leading-5">
+                                  {item.workerName} will move from Row {item.rowNumber} to Row{" "}
+                                  {inlineMoveTargetRow} in {inlineMoveTargetBlock}.
+                                </Text>
+                              </View>
+                            ) : null}
+
+                            {inlineMoveTargetRow &&
+                            !inlineSameJobOccupied &&
+                            inlineMoveRowOccupants.length > 0 ? (
+                              <View className="rounded-2xl bg-amber-50 border border-amber-200 p-3.5 gap-1.5">
+                                <Text className="text-amber-800 text-xs font-extrabold uppercase">
+                                  Different job on row
+                                </Text>
+                                <Text className="text-amber-700 text-sm leading-5">
+                                  Row {inlineMoveTargetRow} has{" "}
+                                  {inlineMoveRowOccupants.map((o) => o.workerName).join(", ")} doing
+                                  different jobs. Multiple jobs allowed.
+                                </Text>
+                              </View>
+                            ) : null}
+
+                            {inlineMoveTargetRow && inlineSameJobOccupied ? (
+                              <View className="rounded-2xl bg-white border border-gray-200 p-3.5 gap-3">
+                                <View className="gap-1.5">
+                                  <Text className="text-gray-900 text-sm font-extrabold">Row occupied</Text>
+                                  <Text className="text-gray-600 text-[13px] leading-5">
+                                    {item.workerName} ({item.job_type || "N/A"}) wants to move to Row{" "}
+                                    {inlineMoveTargetRow} in {inlineMoveTargetBlock}.
+                                  </Text>
+                                </View>
+
+                                <View className="gap-1.5">
+                                  <Text className="text-gray-400 text-xs font-bold uppercase tracking-wider">
+                                    Currently on this row
+                                  </Text>
+                                  {inlineMoveRowOccupants.map((o) => (
+                                    <View
+                                      key={o.workerID}
+                                      className="rounded-xl bg-gray-50 border border-gray-100 p-2.5 gap-0.5"
+                                    >
+                                      <Text className="text-gray-900 text-[13px] font-extrabold">
+                                        {o.workerName} ({o.workerID})
+                                      </Text>
+                                      <Text className="text-gray-400 text-xs">
+                                        {o.job_type || "No job"} · {elapsedSince(o.startTime)} on row
+                                      </Text>
+                                    </View>
+                                  ))}
+                                </View>
+
+                                <View className="gap-2">
+                                  <TouchableOpacity
+                                    activeOpacity={0.7}
+                                    style={{
+                                      borderRadius: 12,
+                                      paddingVertical: 11,
+                                      alignItems: "center",
+                                      backgroundColor: "#16a34a",
+                                      opacity: inlineOccupantsSubmitting ? 0.5 : 1,
+                                    }}
+                                    disabled={inlineOccupantsSubmitting}
+                                    onPress={handleInlineAllowMultiple}
+                                  >
+                                    <Text style={{ color: "#fff", fontSize: 13, fontWeight: "800" }}>
+                                      {inlineOccupantsSubmitting ? "Working..." : "Allow — move here too"}
+                                    </Text>
+                                  </TouchableOpacity>
+
+                                  <TouchableOpacity
+                                    activeOpacity={0.7}
+                                    style={{
+                                      borderRadius: 12,
+                                      paddingVertical: 11,
+                                      alignItems: "center",
+                                      backgroundColor: "#f3f4f6",
+                                      borderWidth: 1,
+                                      borderColor: "#e5e7eb",
+                                    }}
+                                    disabled={inlineOccupantsSubmitting}
+                                    onPress={handleInlineSwapFromOccupants}
+                                  >
+                                    <Text style={{ color: "#374151", fontSize: 13, fontWeight: "800" }}>
+                                      {inlineOccupantsSubmitting
+                                        ? "Working..."
+                                        : "Swap — exchange rows"}
+                                    </Text>
+                                  </TouchableOpacity>
+
+                                  <TouchableOpacity
+                                    activeOpacity={0.7}
+                                    style={{
+                                      borderRadius: 12,
+                                      paddingVertical: 11,
+                                      alignItems: "center",
+                                      backgroundColor: "#fff",
+                                      borderWidth: 1,
+                                      borderColor: "#e5e7eb",
+                                    }}
+                                    disabled={inlineOccupantsSubmitting}
+                                    onPress={handleInlineRejectOccupants}
+                                  >
+                                    <Text style={{ color: "#6b7280", fontSize: 13, fontWeight: "800" }}>
+                                      Cancel
+                                    </Text>
+                                  </TouchableOpacity>
+                                </View>
+                              </View>
+                            ) : null}
+
+                            {inlinePendingOverride ? (
+                              <TouchableOpacity
+                                activeOpacity={0.7}
+                                style={{
+                                  borderRadius: 16,
+                                  paddingHorizontal: 16,
+                                  paddingVertical: 14,
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  backgroundColor: "#f3f4f6",
+                                  borderWidth: 1,
+                                  borderColor: "#e5e7eb",
+                                  opacity: inlineMoveSubmitting ? 0.5 : 1,
+                                }}
+                                disabled={inlineMoveSubmitting}
+                                onPress={() => handleInlineMove(inlinePendingOverride)}
+                              >
+                                <Text style={{ fontSize: 15, fontWeight: "800", color: "#374151" }}>
+                                  {inlineMoveSubmitting
+                                    ? "Applying..."
+                                    : "Move with same-job override"}
+                                </Text>
+                              </TouchableOpacity>
+                            ) : null}
+
+                            <FeedbackBanner
+                              type={inlineMoveFeedback.type === "error" ? "error" : "success"}
+                              message={inlineMoveFeedback.message}
+                            />
+                          </View>
+                        ) : null}
+                      </>
                     )}
                   </View>
                 );

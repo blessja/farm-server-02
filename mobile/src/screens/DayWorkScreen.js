@@ -9,6 +9,7 @@ import WorkerSuggestionInput from "../components/WorkerSuggestionInput";
 import SelectField from "../components/SelectField";
 import LabeledInput from "../components/LabeledInput";
 import { useAsyncData } from "../hooks/useAsyncData";
+import { sortNamesNumerically } from "../utils/sortNames";
 
 const defaultCheckin = {
   workerID: "",
@@ -34,6 +35,7 @@ export default function DayWorkScreen({ sharedState, offlineQueue }) {
   const [conflictSubmitting, setConflictSubmitting] = useState(false);
 
   const [allowMultipleWorkers, setAllowMultipleWorkers] = useState(false);
+  const [rowDirection, setRowDirection] = useState(1);
 
   const blocksState = useAsyncData(() => api.getBlocks(), [], {
     cacheKey: "blocks",
@@ -76,12 +78,30 @@ export default function DayWorkScreen({ sharedState, offlineQueue }) {
 
   const disabledRowValues = allowMultipleWorkers ? [] : occupiedRowNumbers;
 
-  const allRowOptions = [...new Set(rows.map((rowNumber) => String(rowNumber)))].map((rowNumber) => ({
-    label: rowNumber,
-    value: rowNumber,
-  }));
+  const rowOccupantNames = useMemo(() => {
+    const map = {};
+    activeCheckins.forEach((checkin) => {
+      if (checkin.blockName !== sharedState.selectedBlock) return;
+      const key = String(checkin.rowNumber);
+      if (!map[key]) map[key] = [];
+      map[key].push(checkin.workerName || checkin.workerID);
+    });
+    return map;
+  }, [activeCheckins, sharedState.selectedBlock]);
 
-  const blockOptions = [...new Set(blocks.map((blockName) => String(blockName)))].map((blockName) => ({
+  const allRowOptions = sortNamesNumerically([
+    ...new Set(rows.map((rowNumber) => String(rowNumber))),
+  ]).map((rowNumber) => {
+      const names = rowOccupantNames[rowNumber];
+      return {
+        label: names && names.length ? `${rowNumber} — ${names.join(", ")}` : rowNumber,
+        value: rowNumber,
+      };
+    });
+
+  const blockOptions = sortNamesNumerically(
+    [...new Set(blocks.map((blockName) => String(blockName)))]
+  ).map((blockName) => ({
     label: blockName,
     value: blockName,
   }));
@@ -93,6 +113,40 @@ export default function DayWorkScreen({ sharedState, offlineQueue }) {
         item.rowNumber === rowNumber &&
         (!jobType || (item.job_type || "").toUpperCase() === jobType.toUpperCase())
     );
+  }
+
+  function selectedRowNumber() {
+    return Number(sharedState.selectedRow);
+  }
+
+  function availableRowNumbers() {
+    return sortNamesNumerically([
+      ...new Set(rows.map((rowNumber) => String(rowNumber))),
+    ]);
+  }
+
+  function handleRowSelect(value) {
+    const prevNum = selectedRowNumber();
+    const nextNum = Number(value);
+    if (Number.isFinite(prevNum) && Number.isFinite(nextNum)) {
+      if (nextNum > prevNum) setRowDirection(1);
+      else if (nextNum < prevNum) setRowDirection(-1);
+    }
+    sharedState.setSelectedRow(value);
+    setAllowMultipleWorkers(false);
+  }
+
+  function advanceToNextRow() {
+    const availableRows = availableRowNumbers();
+    const currentNum = selectedRowNumber();
+    if (!Number.isFinite(currentNum) || availableRows.length === 0) {
+      sharedState.setSelectedRow("");
+      return;
+    }
+    const nextRow = String(currentNum + rowDirection);
+    if (availableRows.includes(nextRow)) {
+      sharedState.setSelectedRow(nextRow);
+    }
   }
 
   async function handleCheckin() {
@@ -113,7 +167,7 @@ export default function DayWorkScreen({ sharedState, offlineQueue }) {
       const result = await api.regularCheckin(payload);
       setFeedback({ type: "success", message: result.message });
       setCheckinForm(defaultCheckin);
-      sharedState.setSelectedRow("");
+      advanceToNextRow();
       setAllowMultipleWorkers(false);
       offlineQueue.refreshQueueCount();
       checkinsState.refresh();
@@ -211,8 +265,15 @@ export default function DayWorkScreen({ sharedState, offlineQueue }) {
 
       <SectionCard
         title="Day selection"
-        subtitle="Select block and row. Rows with same-job workers will prompt for confirmation."
+        subtitle="Fill in job type first, then select block and row. Rows with same-job workers will prompt for confirmation."
       >
+        <LabeledInput
+          label="Job type"
+          value={sharedState.jobType}
+          onChangeText={(value) => sharedState.setJobType(value)}
+          placeholder="e.g. PRUNING"
+          autoCapitalize="characters"
+        />
         {blocksState.loading && !blocks.length ? (
           <ActivityIndicator color="#16a34a" />
         ) : null}
@@ -233,7 +294,7 @@ export default function DayWorkScreen({ sharedState, offlineQueue }) {
           value={sharedState.selectedRow}
           placeholder="Select row"
           options={allRowOptions}
-          onSelect={(value) => sharedState.setSelectedRow(value)}
+          onSelect={handleRowSelect}
           emptyMessage={
             sharedState.selectedBlock
               ? "No rows available in this block"
@@ -300,13 +361,6 @@ export default function DayWorkScreen({ sharedState, offlineQueue }) {
           autoCapitalize="words"
           readOnly
         />
-        <LabeledInput
-          label="Job type"
-          value={sharedState.jobType}
-          onChangeText={(value) => sharedState.setJobType(value)}
-          placeholder="e.g. PRUNING"
-          autoCapitalize="characters"
-        />
         <ActionButton
           label={submitting ? "Working..." : "Submit check-in"}
           onPress={handleCheckin}
@@ -343,13 +397,6 @@ export default function DayWorkScreen({ sharedState, offlineQueue }) {
           placeholder="Auto-filled from scan or selection"
           autoCapitalize="words"
           readOnly
-        />
-        <LabeledInput
-          label="Job type"
-          value={sharedState.jobType}
-          onChangeText={(value) => sharedState.setJobType(value)}
-          placeholder="e.g. PRUNING"
-          autoCapitalize="characters"
         />
         <LabeledInput
           label="Stock completed"
