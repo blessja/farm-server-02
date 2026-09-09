@@ -17,16 +17,16 @@ export default function TabBar({ tabs, activeTab, onChange }) {
 
   if (compact) {
     return (
-      <View style={{ paddingHorizontal: 12, paddingTop: 8, paddingBottom: 16, backgroundColor: "#fff", borderTopWidth: 1, borderTopColor: "#f3f4f6" }}>
+      <View style={{ paddingHorizontal: 12, paddingTop: 8, paddingBottom: 16, backgroundColor: "#F4F7F3", borderTopWidth: 1, borderTopColor: "#D4DFD3" }}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
           <TouchableOpacity
             activeOpacity={0.7}
             onPress={() => setMenuOpen(true)}
             style={{
               borderRadius: 12,
-              backgroundColor: "#f3f4f6",
+              backgroundColor: "#E5ECE4",
               borderWidth: 1,
-              borderColor: "#e5e7eb",
+              borderColor: "#D4DFD3",
               paddingHorizontal: 14,
               paddingVertical: 9,
             }}
@@ -94,8 +94,8 @@ export default function TabBar({ tabs, activeTab, onChange }) {
   }
 
   return (
-    <View style={{ paddingHorizontal: 12, paddingTop: 8, paddingBottom: 16, backgroundColor: "#fff", borderTopWidth: 1, borderTopColor: "#f3f4f6" }}>
-      <View style={{ flexDirection: "row", borderRadius: 16, backgroundColor: "#f3f4f6", padding: 6 }}>
+    <View style={{ paddingHorizontal: 12, paddingTop: 8, paddingBottom: 16, backgroundColor: "#F4F7F3", borderTopWidth: 1, borderTopColor: "#D4DFD3" }}>
+      <View style={{ flexDirection: "row", borderRadius: 16, backgroundColor: "#E5ECE4", padding: 6 }}>
         {tabs.map((tab) => {
           const active = tab.key === activeTab;
           return (
@@ -108,13 +108,13 @@ export default function TabBar({ tabs, activeTab, onChange }) {
                 borderRadius: 12,
                 paddingVertical: 12,
                 alignItems: "center",
-                backgroundColor: active ? "#16a34a" : "transparent",
+                backgroundColor: active ? "#2D7A55" : "transparent",
               }}
             >
               <Text style={{
                 fontSize: 12,
                 fontWeight: "800",
-                color: active ? "#fff" : "#6b7280",
+                color: active ? "#fff" : "#627060",
               }}>
                 {tab.label}
               </Text>

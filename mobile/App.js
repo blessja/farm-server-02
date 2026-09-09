@@ -226,8 +226,8 @@ export default function App() {
     <SafeAreaProvider>
       <ExpoStatusBar style="dark" />
       <StatusBar barStyle="dark-content" />
-      <View className="flex-1 bg-white">
-        <SafeAreaView className="bg-white" edges={["top"]}>
+      <View className="flex-1 bg-gray-50">
+        <SafeAreaView className="bg-gray-50" edges={["top"]}>
           <View className="px-5 pt-3.5 pb-3">
             <View className="flex-row items-start justify-between gap-3">
               <View className="flex-1">
@@ -248,19 +248,19 @@ export default function App() {
                 <View style={{ gap: 8, alignItems: "flex-end", marginTop: 6 }}>
                   <TouchableOpacity
                     activeOpacity={0.7}
-                    style={{ borderRadius: 12, backgroundColor: "#f9fafb", borderWidth: 1, borderColor: "#e5e7eb", paddingHorizontal: 14, paddingVertical: 8 }}
+                    style={{ borderRadius: 12, backgroundColor: "#F4F7F3", borderWidth: 1, borderColor: "#D4DFD3", paddingHorizontal: 14, paddingVertical: 8 }}
                     onPress={handleClearCache}
                   >
-                    <Text style={{ color: "#6b7280", fontSize: 12, fontWeight: "700" }}>
+                    <Text style={{ color: "#627060", fontSize: 12, fontWeight: "700" }}>
                       Clear Cache
                     </Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     activeOpacity={0.7}
-                    style={{ borderRadius: 12, backgroundColor: "#f3f4f6", borderWidth: 1, borderColor: "#e5e7eb", paddingHorizontal: 14, paddingVertical: 10 }}
+                    style={{ borderRadius: 12, backgroundColor: "#E5ECE4", borderWidth: 1, borderColor: "#D4DFD3", paddingHorizontal: 14, paddingVertical: 10 }}
                     onPress={handleLogout}
                   >
-                    <Text style={{ color: "#374151", fontSize: 13, fontWeight: "800" }}>
+                    <Text style={{ color: "#374236", fontSize: 13, fontWeight: "800" }}>
                       Logout
                     </Text>
                   </TouchableOpacity>
@@ -275,7 +275,7 @@ export default function App() {
         </View>
 
         {bootState.loading || !bootState.authenticated ? null : (
-          <SafeAreaView className="bg-white" edges={["bottom"]}>
+          <SafeAreaView className="bg-gray-50" edges={["bottom"]}>
             <TabBar tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
           </SafeAreaView>
         )}

@@ -16,9 +16,9 @@ export default function ActionButton({
         paddingVertical: 14,
         alignItems: "center",
         justifyContent: "center",
-        backgroundColor: tone === "secondary" ? "#f3f4f6" : "#16a34a",
+        backgroundColor: tone === "secondary" ? "#E5ECE4" : "#2D7A55",
         borderWidth: tone === "secondary" ? 1 : 0,
-        borderColor: tone === "secondary" ? "#e5e7eb" : "transparent",
+        borderColor: tone === "secondary" ? "#D4DFD3" : "transparent",
         opacity: disabled ? 0.5 : 1,
       }}
       onPress={onPress}
@@ -28,7 +28,7 @@ export default function ActionButton({
         style={{
           fontSize: 15,
           fontWeight: "800",
-          color: tone === "secondary" ? "#374151" : "#fff",
+          color: tone === "secondary" ? "#374236" : "#fff",
         }}
       >
         {label}

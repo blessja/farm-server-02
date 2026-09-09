@@ -216,9 +216,9 @@ export default function MoveWorkersScreen({ sharedState, offlineQueue }) {
                   borderRadius: 16,
                   paddingVertical: 12,
                   alignItems: "center",
-                  backgroundColor: active ? "#16a34a" : "#f3f4f6",
+                  backgroundColor: active ? "#2D7A55" : "#E5ECE4",
                   borderWidth: active ? 0 : 1,
-                  borderColor: "#e5e7eb",
+                  borderColor: "#D4DFD3",
                 }}
                 onPress={() => setMode(option.key)}
               >
@@ -252,9 +252,9 @@ export default function MoveWorkersScreen({ sharedState, offlineQueue }) {
                       borderRadius: 999,
                       paddingHorizontal: 12,
                       paddingVertical: 8,
-                      backgroundColor: active ? "#16a34a" : "#f3f4f6",
+                      backgroundColor: active ? "#2D7A55" : "#E5ECE4",
                       borderWidth: active ? 0 : 1,
-                      borderColor: "#e5e7eb",
+                      borderColor: "#D4DFD3",
                     }}
                     onPress={() => setFilterMode(mode.key)}
                   >
@@ -297,8 +297,8 @@ export default function MoveWorkersScreen({ sharedState, offlineQueue }) {
                   borderRadius: 16,
                   padding: 14,
                   borderWidth: 1,
-                  backgroundColor: active ? "#16a34a" : "#f9fafb",
-                  borderColor: active ? "#16a34a" : "#f3f4f6",
+                  backgroundColor: active ? "#2D7A55" : "#F4F7F3",
+                  borderColor: active ? "#2D7A55" : "#E5ECE4",
                 }}
                 onPress={() => {
                   if (mode === "move") {
@@ -320,7 +320,7 @@ export default function MoveWorkersScreen({ sharedState, offlineQueue }) {
                 <Text style={{ fontSize: 15, fontWeight: "800", color: active ? "#fff" : "#111827" }}>
                   {assignment.workerName} ({assignment.workerID})
                 </Text>
-                <Text style={{ marginTop: 4, fontSize: 13, lineHeight: 18, color: active ? "#dcfce7" : "#9ca3af" }}>
+                <Text style={{ marginTop: 4, fontSize: 13, lineHeight: 18, color: active ? "#DCEFE1" : "#819080" }}>
                   Block {assignment.blockName} • Row {assignment.rowNumber} •{" "}
                   {assignment.job_type || "No job type"}
                 </Text>

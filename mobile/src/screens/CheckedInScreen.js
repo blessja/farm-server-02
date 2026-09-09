@@ -549,7 +549,7 @@ export default function CheckedInScreen({ offlineQueue }) {
               borderRadius: 16,
               paddingVertical: 14,
               alignItems: "center",
-              backgroundColor: "#16a34a",
+              backgroundColor: "#2D7A55",
             }}
             onPress={openMoveModal}
           >
@@ -562,9 +562,9 @@ export default function CheckedInScreen({ offlineQueue }) {
               borderRadius: 16,
               paddingVertical: 14,
               alignItems: "center",
-              backgroundColor: "#f3f4f6",
+              backgroundColor: "#E5ECE4",
               borderWidth: 1,
-              borderColor: "#e5e7eb",
+              borderColor: "#D4DFD3",
             }}
             onPress={openCheckoutModal}
           >
@@ -642,9 +642,9 @@ export default function CheckedInScreen({ offlineQueue }) {
                               borderRadius: 12,
                               paddingVertical: 10,
                               alignItems: "center",
-                              backgroundColor: activeOperation === "checkout" ? "#16a34a" : "#f3f4f6",
+                              backgroundColor: activeOperation === "checkout" ? "#2D7A55" : "#E5ECE4",
                               borderWidth: activeOperation === "checkout" ? 0 : 1,
-                              borderColor: "#e5e7eb",
+                              borderColor: "#D4DFD3",
                               opacity:
                                 activeOperation === "checkout" && inlineCheckoutSubmitting ? 0.5 : 1,
                             }}
@@ -681,9 +681,9 @@ export default function CheckedInScreen({ offlineQueue }) {
                               borderRadius: 12,
                               paddingVertical: 10,
                               alignItems: "center",
-                              backgroundColor: activeOperation === "move" ? "#16a34a" : "#f3f4f6",
+                              backgroundColor: activeOperation === "move" ? "#2D7A55" : "#E5ECE4",
                               borderWidth: activeOperation === "move" ? 0 : 1,
-                              borderColor: "#e5e7eb",
+                              borderColor: "#D4DFD3",
                               opacity:
                                 activeOperation === "move" &&
                                 (inlineMoveSubmitting ||

@@ -86,7 +86,7 @@ export default function ScannerInput({
           />
           <TouchableOpacity
             activeOpacity={0.7}
-            style={{ borderRadius: 12, backgroundColor: "#16a34a", paddingHorizontal: 14, paddingVertical: 12 }}
+            style={{ borderRadius: 12, backgroundColor: "#2D7A55", paddingHorizontal: 14, paddingVertical: 12 }}
             onPress={openScanner}
           >
             <Text style={{ color: "#fff", fontWeight: "800", fontSize: 13 }}>Scan</Text>
