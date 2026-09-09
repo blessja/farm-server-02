@@ -313,3 +313,48 @@ exports.getRegularPieceworkTotals = async (req, res) => {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
+
+exports.listWorkers = async (req, res) => {
+  try {
+    const workers = await Worker.find({}, { workerID: 1, name: 1 }).lean();
+    res.json(
+      workers
+        .map((worker) => ({
+          workerID: worker.workerID,
+          name: worker.name,
+        }))
+        .filter((worker) => worker.workerID && worker.name)
+    );
+  } catch (error) {
+    console.error("Error fetching workers:", error);
+    res.status(500).json({ message: "Failed to fetch workers", error: error.message });
+  }
+};
+
+exports.addWorker = async (req, res) => {
+  const { workerID, workerName } = req.body || {};
+  const id = typeof workerID === "string" ? workerID.trim() : "";
+  const name = typeof workerName === "string" ? workerName.trim() : "";
+
+  if (!id || !name) {
+    return res
+      .status(400)
+      .json({ message: "Both worker ID and worker name are required." });
+  }
+
+  try {
+    const worker = await Worker.findOneAndUpdate(
+      { workerID: id },
+      { $set: { workerID: id, name } },
+      { new: true, upsert: true, setDefaultsOnInsert: true }
+    );
+
+    res.json({
+      message: `Worker ${name} (${id}) added.`,
+      worker: { workerID: worker.workerID, name: worker.name },
+    });
+  } catch (error) {
+    console.error("Error adding worker:", error);
+    res.status(500).json({ message: "Failed to add worker", error: error.message });
+  }
+};

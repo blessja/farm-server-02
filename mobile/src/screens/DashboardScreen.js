@@ -1,12 +1,21 @@
-import React from "react";
-import { ActivityIndicator, Text, View } from "react-native";
+import React, { useState } from "react";
+import {
+  ActivityIndicator,
+  Modal,
+  SafeAreaView,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { api } from "../api/client";
 import ScreenScroll from "../components/ScreenScroll";
 import SectionCard from "../components/SectionCard";
 import InfoPill from "../components/InfoPill";
 import FeedbackBanner from "../components/FeedbackBanner";
 import ActionButton from "../components/ActionButton";
+import LabeledInput from "../components/LabeledInput";
 import { useAsyncData } from "../hooks/useAsyncData";
+import { addServerWorker } from "../workers/workerRegistry";
 
 export default function DashboardScreen({ sharedState, offlineQueue }) {
   const blocksState = useAsyncData(() => api.getBlocks(), [], {
@@ -18,10 +27,53 @@ export default function DashboardScreen({ sharedState, offlineQueue }) {
     staleTime: 5 * 60 * 1000,
   });
 
+  const [adminForm, setAdminForm] = useState({ workerID: "", workerName: "" });
+  const [adminFeedback, setAdminFeedback] = useState({ type: "info", message: "" });
+  const [adminSubmitting, setAdminSubmitting] = useState(false);
+  const [adminModalVisible, setAdminModalVisible] = useState(false);
+
+  function openAdminModal() {
+    setAdminForm({ workerID: "", workerName: "" });
+    setAdminFeedback({ type: "info", message: "" });
+    setAdminModalVisible(true);
+  }
+
+  function closeAdminModal() {
+    setAdminModalVisible(false);
+    setAdminFeedback({ type: "info", message: "" });
+  }
+
   const activeWorkers = Array.isArray(checkinsState.data)
     ? checkinsState.data.length
     : 0;
   const blockCount = Array.isArray(blocksState.data) ? blocksState.data.length : 0;
+
+  async function handleAddWorker() {
+    const workerID = adminForm.workerID.trim();
+    const workerName = adminForm.workerName.trim();
+    if (!workerID || !workerName) {
+      setAdminFeedback({
+        type: "error",
+        message: "Both worker ID and worker name are required.",
+      });
+      return;
+    }
+
+    setAdminSubmitting(true);
+    setAdminFeedback({ type: "info", message: "" });
+
+    try {
+      const result = await api.addWorker({ workerID, workerName });
+      addServerWorker({ workerID, workerName });
+      setAdminFeedback({ type: "success", message: result.message });
+      setAdminForm({ workerID: "", workerName: "" });
+      offlineQueue?.refreshQueueCount?.();
+    } catch (error) {
+      setAdminFeedback({ type: "error", message: error.message });
+    } finally {
+      setAdminSubmitting(false);
+    }
+  }
 
   return (
     <ScreenScroll
@@ -77,6 +129,65 @@ export default function DashboardScreen({ sharedState, offlineQueue }) {
           3. Use Clock for daily attendance and Fast for single-scan jobs.
         </Text>
       </SectionCard>
+
+      <SectionCard
+        title="Admin"
+        subtitle="Add a new worker so they appear in the worker search and scanner suggestions."
+      >
+        <ActionButton label="Add worker" onPress={openAdminModal} />
+      </SectionCard>
+
+      <Modal visible={adminModalVisible} animationType="slide">
+        <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
+          <ScreenScroll refreshing={false}>
+            <View className="flex-row items-center justify-between mb-1">
+              <View className="flex-1">
+                <Text className="text-gray-900 text-lg font-extrabold">Add worker</Text>
+                <Text className="text-gray-400 text-[13px] leading-5 mt-0.5">
+                  The worker will appear in the search and scanner suggestions.
+                </Text>
+              </View>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                style={{ borderRadius: 12, backgroundColor: "#f3f4f6", borderWidth: 1, borderColor: "#e5e7eb", paddingHorizontal: 14, paddingVertical: 10 }}
+                onPress={closeAdminModal}
+              >
+                <Text style={{ color: "#374151", fontSize: 13, fontWeight: "800" }}>Close</Text>
+              </TouchableOpacity>
+            </View>
+
+            <SectionCard title="Worker details" subtitle="Both fields are required.">
+              <LabeledInput
+                label="Worker ID"
+                value={adminForm.workerID}
+                onChangeText={(value) =>
+                  setAdminForm((current) => ({ ...current, workerID: value }))
+                }
+                placeholder="e.g. 1024"
+                keyboardType="numeric"
+              />
+              <LabeledInput
+                label="Worker name"
+                value={adminForm.workerName}
+                onChangeText={(value) =>
+                  setAdminForm((current) => ({ ...current, workerName: value }))
+                }
+                placeholder="Surname First name"
+                autoCapitalize="words"
+              />
+              <ActionButton
+                label={adminSubmitting ? "Adding..." : "Add worker"}
+                onPress={handleAddWorker}
+                disabled={adminSubmitting}
+              />
+              <FeedbackBanner
+                type={adminFeedback.type === "error" ? "error" : "success"}
+                message={adminFeedback.message}
+              />
+            </SectionCard>
+          </ScreenScroll>
+        </SafeAreaView>
+      </Modal>
     </ScreenScroll>
   );
 }

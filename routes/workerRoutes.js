@@ -14,4 +14,10 @@ router.get(
   workerController.getRegularPieceworkTotals
 );
 
+// List workers
+router.get("/list", workerController.listWorkers);
+
+// Add a new worker
+router.post("/add", workerController.addWorker);
+
 module.exports = router;

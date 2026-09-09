@@ -7,7 +7,7 @@ import {
   View,
 } from "react-native";
 import { CameraView, useCameraPermissions } from "expo-camera";
-import { searchWorkers, getWorkerById } from "../../workers-data";
+import { searchWorkers, getWorkerById, refreshServerWorkers } from "../workers/workerRegistry";
 
 export default function WorkerSuggestionInput({
   label = "Worker ID",
@@ -28,6 +28,10 @@ export default function WorkerSuggestionInput({
       setIsOpen(false);
     }
   }, [workerID]);
+
+  useEffect(() => {
+    refreshServerWorkers();
+  }, []);
 
   const suggestions = query.trim()
     ? searchWorkers(query.trim()).slice(0, 8)
