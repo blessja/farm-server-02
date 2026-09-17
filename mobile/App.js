@@ -16,6 +16,7 @@ import QueueScreen from "./src/screens/QueueScreen";
 import CheckedInScreen from "./src/screens/CheckedInScreen";
 import TabBar from "./src/components/TabBar";
 import AuthScreen from "./src/screens/AuthScreen";
+import SplashScreen from "./src/components/SplashScreen";
 import { api } from "./src/api/client";
 import {
   clearAuthToken,
@@ -151,13 +152,7 @@ export default function App() {
 
   const renderContent = () => {
     if (bootState.loading) {
-      return (
-        <View className="flex-1 px-5 justify-center">
-          <Text className="text-gray-800 text-base font-bold">
-            Preparing mobile workspace...
-          </Text>
-        </View>
-      );
+      return <SplashScreen />;
     }
 
     if (!bootState.authenticated) {

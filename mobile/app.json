@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Farm Mobile",
-    "slug": "farm-mobile",
+    "name": "Glen Oak",
+    "slug": "glen-oak",
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
@@ -9,21 +9,23 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Allow Farm Mobile to scan worker badges and row labels."
+          "cameraPermission": "Allow Glen Oak to scan worker badges and row labels."
         }
       ],
       [
         "expo-secure-store",
         {
           "configureAndroidBackup": true,
-          "faceIDPermission": "Allow Farm Mobile to securely access saved sign-in credentials."
+          "faceIDPermission": "Allow Glen Oak to securely access saved sign-in credentials."
         }
       ]
     ],
     "splash": {
+      "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#1a5f4a"
     },
+    "icon": "./assets/icon.png",
     "assetBundlePatterns": [
       "**/*"
     ],
@@ -35,13 +37,14 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#ffffff"
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#1a5f4a"
       },
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO"
       ],
-      "package": "com.anonymous.farmmobile"
+      "package": "com.anonymous.glenoaksupplements"
     },
     "web": {
       "bundler": "metro"
