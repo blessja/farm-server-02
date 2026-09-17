@@ -222,6 +222,7 @@ export default function App() {
       <ExpoStatusBar style="dark" />
       <StatusBar barStyle="dark-content" />
       <View className="flex-1 bg-gray-50">
+        {bootState.loading ? null : (
         <SafeAreaView className="bg-gray-50" edges={["top"]}>
           <View className="px-5 pt-3.5 pb-3">
             <View className="flex-row items-start justify-between gap-3">
@@ -264,7 +265,7 @@ export default function App() {
             </View>
           </View>
         </SafeAreaView>
-
+      )}
         <View className="flex-1" key={cacheEpoch}>
           {renderContent()}
         </View>

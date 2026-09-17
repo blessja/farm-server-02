@@ -150,6 +150,18 @@ export const api = {
     const suffix = params.toString() ? `?${params.toString()}` : "";
     return request(`/api/workers/regular-piecework-totals${suffix}`);
   },
+  getDayHours: async () => {
+    try {
+      return await request("/api/hours");
+    } catch (error) {
+      if (error?.status === 404) return [];
+      throw error;
+    }
+  },
+  saveDayHours: (body) =>
+    queuedMutation("/api/hours/save", body, "Save day hours"),
+  deleteDayHours: (body) =>
+    queuedMutation("/api/hours/delete", body, "Clear day hours"),
   replayQueuedAction: (action) =>
     request(action.path, {
       method: action.method || "POST",

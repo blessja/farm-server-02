@@ -1,4 +1,4 @@
-package com.anonymous.farmmobile
+package com.anonymous.glenoaksupplements
 
 import android.app.Application
 import android.content.res.Configuration

@@ -1,10 +1,9 @@
 import React, { useEffect, useRef } from "react";
-import { View, Text, Animated, Dimensions } from "react-native";
+import { View, Text, Animated, StyleSheet } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import GlenOakLogo from "./GlenOakLogo";
 
-const WINDOW_WIDTH = Dimensions.get("window").width;
-const WINDOW_HEIGHT = Dimensions.get("window").height;
+const LOGO_SIZE = 170;
 
 export default function SplashScreen() {
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
@@ -46,31 +45,40 @@ export default function SplashScreen() {
       colors={["#10b981", "#059669", "#047857"]}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
-      className="flex-1 justify-center items-center"
+      className="flex-1"
     >
-      <View className="flex-1 justify-center items-center w-full">
-        {/* Logo Container */}
+      <View className="relative flex-1 w-full">
+        {/* Centered logo */}
         <Animated.View
           style={{
+            ...StyleSheet.absoluteFillObject,
+            justifyContent: "center",
+            alignItems: "center",
             transform: [{ scale: scaleAnim }],
             opacity: opacityAnim,
           }}
-          className="items-center mb-8"
         >
-          {/* Glen Oak Logo */}
-          <GlenOakLogo width={160} height={160} />
+          <View style={{ width: LOGO_SIZE, height: LOGO_SIZE, justifyContent: "center", alignItems: "center" }}>
+            {/* Glen Oak Logo */}
+            <GlenOakLogo width={LOGO_SIZE} height={LOGO_SIZE} />
 
-          {/* Animated spinner */}
-          <Animated.View
-            style={{
-              transform: [{ rotate: spin }],
-            }}
-            className="absolute w-48 h-48 rounded-full border-4 border-transparent border-t-white border-r-white"
-          />
+            {/* Animated spinner ring centered over the logo */}
+            <Animated.View
+              style={{
+                ...StyleSheet.absoluteFillObject,
+                borderRadius: LOGO_SIZE / 2,
+                borderWidth: 5,
+                borderColor: "transparent",
+                borderTopColor: "#ffffff",
+                borderRightColor: "#ffffff",
+                transform: [{ rotate: spin }],
+              }}
+            />
+          </View>
         </Animated.View>
 
-        {/* Loading Text */}
-        <View className="items-center mt-12">
+        {/* Loading Text pinned near the bottom */}
+        <View className="absolute inset-x-0 bottom-12 items-center">
           <Text className="text-white text-2xl font-bold mb-2">Glen Oak</Text>
           <Text className="text-white/80 text-sm">
             Preparing mobile workspace...

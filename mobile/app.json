@@ -18,13 +18,17 @@
           "configureAndroidBackup": true,
           "faceIDPermission": "Allow Glen Oak to securely access saved sign-in credentials."
         }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#1a5f4a",
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 220,
+          "resizeMode": "contain"
+        }
       ]
     ],
-    "splash": {
-      "image": "./assets/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#1a5f4a"
-    },
     "icon": "./assets/icon.png",
     "assetBundlePatterns": [
       "**/*"
