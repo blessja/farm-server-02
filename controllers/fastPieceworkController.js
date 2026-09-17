@@ -42,7 +42,7 @@ exports.fastCheckIn = async (req, res) => {
     // Check if already completed for this job type
     if (row.active_jobs && row.active_jobs.length > 0) {
       const existingJob = row.active_jobs.find(
-        (job) => job.job_type === jobType
+        (job) => (job.job_type || "").toUpperCase() === (jobType || "").toUpperCase()
       );
       if (existingJob) {
         return res.status(409).json({
@@ -152,8 +152,31 @@ exports.getFastPieceworkTotals = async (req, res) => {
     const { jobType, date } = req.query;
 
     // ✅ Query PieceworkWorker collection instead of Worker
-    const pieceworkWorkers = await PieceworkWorker.find({});
-    const blocks = await Block.find({});
+    // Project only the fields needed (fast over large/slow DB links)
+    const pieceworkWorkers = await PieceworkWorker.find(
+      {},
+      {
+        workerID: 1,
+        name: 1,
+        piecework_stock_count: 1,
+        "blocks.block_name": 1,
+        "blocks.rows.row_number": 1,
+        "blocks.rows.job_type": 1,
+        "blocks.rows.stock_count": 1,
+        "blocks.rows.date": 1,
+      }
+    ).lean();
+    const blocks = await Block.find(
+      {},
+      {
+        block_name: 1,
+        total_stocks: 1,
+        total_rows: 1,
+        variety: 1,
+        size_ha: 1,
+        "rows.row_number": 1,
+      }
+    ).lean();
 
     const blockInfo = {};
     blocks.forEach((block) => {

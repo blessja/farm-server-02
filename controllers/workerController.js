@@ -197,8 +197,29 @@ exports.getRegularPieceworkTotals = async (req, res) => {
   try {
     const { jobType, date, blockName } = req.query;
 
-    const workers = await Worker.find({});
-    const blocks = await Block.find({});
+    const workers = await Worker.find(
+      {},
+      {
+        workerID: 1,
+        name: 1,
+        "blocks.block_name": 1,
+        "blocks.rows.row_number": 1,
+        "blocks.rows.job_type": 1,
+        "blocks.rows.stock_count": 1,
+        "blocks.rows.date": 1,
+        "blocks.rows.time_spent": 1,
+      }
+    ).lean();
+    const blocks = await Block.find(
+      {},
+      {
+        block_name: 1,
+        total_stocks: 1,
+        total_rows: 1,
+        variety: 1,
+        size_ha: 1,
+      }
+    ).lean();
 
     // Fast piecework job types to exclude
     const fastJobTypes = [
