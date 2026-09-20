@@ -160,6 +160,8 @@ export const api = {
   },
   saveDayHours: (body) =>
     queuedMutation("/api/hours/save", body, "Save day hours"),
+  saveDayHoursBulk: (body) =>
+    queuedMutation("/api/hours/save-bulk", body, "Save day hours"),
   deleteDayHours: (body) =>
     queuedMutation("/api/hours/delete", body, "Clear day hours"),
   replayQueuedAction: (action) =>

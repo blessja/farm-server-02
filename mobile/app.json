@@ -27,7 +27,8 @@
           "imageWidth": 220,
           "resizeMode": "contain"
         }
-      ]
+      ],
+      "expo-sharing"
     ],
     "icon": "./assets/icon.png",
     "assetBundlePatterns": [

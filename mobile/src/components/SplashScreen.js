@@ -45,13 +45,13 @@ export default function SplashScreen() {
       colors={["#10b981", "#059669", "#047857"]}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
-      className="flex-1"
+      style={{ flex: 1 }}
     >
       <View className="relative flex-1 w-full">
         {/* Centered logo */}
         <Animated.View
           style={{
-            ...StyleSheet.absoluteFillObject,
+            flex: 1,
             justifyContent: "center",
             alignItems: "center",
             transform: [{ scale: scaleAnim }],

@@ -4,8 +4,10 @@ import { api } from "../api/client";
 import ScreenScroll from "../components/ScreenScroll";
 import SectionCard from "../components/SectionCard";
 import SelectField from "../components/SelectField";
+import ActionButton from "../components/ActionButton";
 import TotalsGrid from "../components/TotalsGrid";
 import TotalsSummary from "../components/TotalsSummary";
+import { exportTotalsPdf } from "../utils/totalsExport";
 import { useAsyncData } from "../hooks/useAsyncData";
 
 function dateKey(dateStr) {
@@ -34,6 +36,8 @@ export default function TotalsScreen() {
 
   const [blockFilter, setBlockFilter] = useState("");
   const [jobFilter, setJobFilter] = useState("");
+  const [exporting, setExporting] = useState(false);
+  const [exportMessage, setExportMessage] = useState(null);
 
   const allRows = useMemo(() => {
     const rows = [];
@@ -120,6 +124,28 @@ export default function TotalsScreen() {
   const isFiltered = blockFilter || jobFilter;
   const hasData = filteredRows.length > 0;
 
+  async function handleExport() {
+    if (exporting || !hasData) return;
+    setExporting(true);
+    setExportMessage(null);
+    try {
+      await exportTotalsPdf({
+        rows: filteredRows,
+        hours: dayHours,
+        blockFilter,
+        jobFilter,
+      });
+      setExportMessage({ text: "PDF created with the current filter.", ok: true });
+    } catch (error) {
+      setExportMessage({
+        text: error?.message || "Could not create the PDF. Try again.",
+        ok: false,
+      });
+    } finally {
+      setExporting(false);
+    }
+  }
+
   return (
     <ScreenScroll
       refreshing={loading}
@@ -166,6 +192,34 @@ export default function TotalsScreen() {
             style={{ color: "#16a34a", fontSize: 13, fontWeight: "700", marginTop: -4, marginBottom: 4 }}
           >
             Clear job filter
+          </Text>
+        ) : null}
+      </SectionCard>
+
+      <SectionCard
+        title="Export"
+        subtitle="Creates a PDF of the totals exactly as shown—filtered data stays filtered."
+      >
+        <ActionButton
+          label={exporting ? "Preparing PDF..." : "Export totals to PDF"}
+          onPress={handleExport}
+          disabled={exporting || !hasData}
+          tone="secondary"
+        />
+        {!hasData ? (
+          <Text style={{ color: "#9ca3af", fontSize: 13 }}>
+            Add some piecework totals before exporting.
+          </Text>
+        ) : null}
+        {exportMessage ? (
+          <Text
+            style={{
+              color: exportMessage.ok ? "#16a34a" : "#dc2626",
+              fontSize: 13,
+              fontWeight: "700",
+            }}
+          >
+            {exportMessage.text}
           </Text>
         ) : null}
       </SectionCard>

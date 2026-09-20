@@ -11,6 +11,7 @@ import WorkerSuggestionInput from "../components/WorkerSuggestionInput";
 import SelectField from "../components/SelectField";
 import TotalsGrid from "../components/TotalsGrid";
 import TotalsSummary from "../components/TotalsSummary";
+import { exportTotalsPdf } from "../utils/totalsExport";
 import { sortNamesNumerically } from "../utils/sortNames";
 
 const initialForm = {
@@ -32,6 +33,8 @@ export default function FastPieceworkScreen({ sharedState, offlineQueue }) {
   const [allowSameJob, setAllowSameJob] = useState(false);
   const [blockFilter, setBlockFilter] = useState("");
   const [jobFilter, setJobFilter] = useState("");
+  const [exporting, setExporting] = useState(false);
+  const [exportMessage, setExportMessage] = useState(null);
 
   const totalsState = useAsyncData(() => api.getFastTotals(), [], {
     cacheKey: "fast-totals",
@@ -141,6 +144,29 @@ export default function FastPieceworkScreen({ sharedState, offlineQueue }) {
 
   const isFiltered = Boolean(blockFilter || jobFilter);
   const hasFastData = filteredFastRows.length > 0;
+
+  async function handleExport() {
+    if (exporting || !hasFastData) return;
+    setExporting(true);
+    setExportMessage(null);
+    try {
+      await exportTotalsPdf({
+        rows: filteredFastRows,
+        hours: dayHours,
+        blockFilter,
+        jobFilter,
+        title: "Fast Totals",
+      });
+      setExportMessage({ text: "PDF created with the current filter.", ok: true });
+    } catch (error) {
+      setExportMessage({
+        text: error?.message || "Could not create the PDF. Try again.",
+        ok: false,
+      });
+    } finally {
+      setExporting(false);
+    }
+  }
 
   const blockOptions = sortNamesNumerically(
     [...new Set(blocks.map((blockName) => String(blockName)))]
@@ -395,6 +421,34 @@ export default function FastPieceworkScreen({ sharedState, offlineQueue }) {
           />
         ) : null}
         <FeedbackBanner type="error" message={totalsState.error || hoursState.error} />
+      </SectionCard>
+
+      <SectionCard
+        title="Export"
+        subtitle="Creates a PDF of the fast totals exactly as shown—filtered data stays filtered."
+      >
+        <ActionButton
+          label={exporting ? "Preparing PDF..." : "Export fast totals to PDF"}
+          onPress={handleExport}
+          disabled={exporting || !hasFastData}
+          tone="secondary"
+        />
+        {!hasFastData ? (
+          <Text style={{ color: "#9ca3af", fontSize: 13 }}>
+            Add some fast piecework totals before exporting.
+          </Text>
+        ) : null}
+        {exportMessage ? (
+          <Text
+            style={{
+              color: exportMessage.ok ? "#16a34a" : "#dc2626",
+              fontSize: 13,
+              fontWeight: "700",
+            }}
+          >
+            {exportMessage.text}
+          </Text>
+        ) : null}
       </SectionCard>
     </ScreenScroll>
   );

@@ -14,7 +14,7 @@ import FeedbackBanner from "./FeedbackBanner";
 const NAME_COL_WIDTH = 140;
 const ID_COL_WIDTH = 48;
 const DAY_COL_WIDTH = 76;
-const TOTAL_COL_WIDTH = 64;
+const TOTAL_COL_WIDTH = 80;
 const ROW_HEIGHT = 46;
 const HEADER_HEIGHT = 40;
 
@@ -87,6 +87,11 @@ export default function TotalsGrid({
   const [hoursFeedback, setHoursFeedback] = useState({ type: "info", message: "" });
   const [hoursSaving, setHoursSaving] = useState(false);
 
+  const [columnModal, setColumnModal] = useState(null);
+  const [columnInput, setColumnInput] = useState("");
+  const [columnFeedback, setColumnFeedback] = useState({ type: "info", message: "" });
+  const [columnSaving, setColumnSaving] = useState(false);
+
   const { workerOrder, dateOrder, matrix, dateLabels } = useMemo(() => {
     const wMap = {};
     const dMap = {};
@@ -131,17 +136,37 @@ export default function TotalsGrid({
     return totals;
   }, [rows, dateOrder]);
 
+  // Only worker+date keys that actually appear in the (possibly filtered)
+  // rows. Hours are day-level, so totals must only count hours for cells
+  // that are part of the current view to stay correct under filters.
+  const rowKeys = useMemo(() => {
+    const set = new Set();
+    rows.forEach((r) => set.add(`${r.workerID}__${dateKey(r.date)}`));
+    return set;
+  }, [rows]);
+
   const columnHours = useMemo(() => {
     const totals = {};
     dateOrder.forEach((dk) => {
       totals[dk] = 0;
     });
     Object.keys(hours).forEach((key) => {
+      if (!rowKeys.has(key)) return;
       const dk = key.split("__")[1];
       if (totals[dk] !== undefined) totals[dk] += hours[key].hours;
     });
     return totals;
-  }, [hours, dateOrder]);
+  }, [hours, dateOrder, rowKeys]);
+
+  // Workers that actually appear on each date column in the current view.
+  // Used by the day-hours header cell to fill the whole column at once.
+  const columnWorkers = useMemo(() => {
+    const map = {};
+    dateOrder.forEach((dk) => {
+      map[dk] = workerOrder.filter((w) => matrix[`${w.workerID}__${dk}`]);
+    });
+    return map;
+  }, [dateOrder, workerOrder, matrix]);
 
   const workerTotals = useMemo(() => {
     const totals = {};
@@ -155,16 +180,17 @@ export default function TotalsGrid({
   const workerHoursTotals = useMemo(() => {
     const totals = {};
     Object.keys(hours).forEach((key) => {
+      if (!rowKeys.has(key)) return;
       const workerID = key.split("__")[0];
       if (!totals[workerID]) totals[workerID] = 0;
       totals[workerID] += hours[key].hours;
     });
     return totals;
-  }, [hours]);
+  }, [hours, rowKeys]);
 
   const grandTotal = rows.reduce((s, r) => s + r.vines, 0);
-  const grandTotalHours = Object.keys(hours).reduce(
-    (s, key) => s + hours[key].hours,
+  const grandTotalHours = Array.from(rowKeys).reduce(
+    (s, key) => s + (hours[key]?.hours || 0),
     0
   );
 
@@ -235,6 +261,87 @@ export default function TotalsGrid({
     }
   }
 
+  function handleOpenColumnModal(dk) {
+    if (!editable) return;
+    const workers = columnWorkers[dk] || [];
+    setColumnModal({
+      dateKey: dk,
+      dateLabel: dateLabels[dk] || dk,
+      workerCount: workers.length,
+    });
+    setColumnInput("");
+    setColumnFeedback({ type: "info", message: "" });
+  }
+
+  async function handleSaveColumnHours() {
+    if (!columnModal) return;
+    const trimmed = columnInput.trim();
+    const value = Number(trimmed);
+    if (trimmed === "" || Number.isNaN(value) || value < 0) {
+      setColumnFeedback({
+        type: "error",
+        message: "Enter a valid number of hours (0 or more).",
+      });
+      return;
+    }
+
+    const workers = columnWorkers[columnModal.dateKey] || [];
+    if (workers.length === 0) {
+      setColumnFeedback({
+        type: "error",
+        message: "No workers worked on this day in the current view.",
+      });
+      return;
+    }
+
+    setColumnSaving(true);
+    setColumnFeedback({ type: "info", message: "" });
+
+    try {
+      const rounded = Math.round(value * 100) / 100;
+      const result = await api.saveDayHoursBulk({
+        date: columnModal.dateKey,
+        entries: workers.map((w) => ({
+          workerID: w.workerID,
+          workerName: w.workerName,
+          hours: rounded,
+        })),
+      });
+      setColumnFeedback({ type: "success", message: result.message });
+      onHoursChanged?.();
+      setColumnModal(null);
+    } catch (error) {
+      setColumnFeedback({ type: "error", message: error.message });
+    } finally {
+      setColumnSaving(false);
+    }
+  }
+
+  async function handleClearColumnHours() {
+    if (!columnModal) return;
+    const workers = columnWorkers[columnModal.dateKey] || [];
+    setColumnSaving(true);
+    setColumnFeedback({ type: "info", message: "" });
+
+    let cleared = 0;
+    try {
+      for (const w of workers) {
+        await api.deleteDayHours({
+          workerID: w.workerID,
+          date: columnModal.dateKey,
+        });
+        cleared += 1;
+      }
+      setColumnFeedback({ type: "success", message: `Cleared ${cleared} worker(s) for this day.` });
+      onHoursChanged?.();
+      setColumnModal(null);
+    } catch (error) {
+      setColumnFeedback({ type: "error", message: error.message });
+    } finally {
+      setColumnSaving(false);
+    }
+  }
+
   if (!hasData) {
     return (
       <View style={{ borderRadius: 12, backgroundColor: "#f9fafb", borderWidth: 1, borderColor: "#f3f4f6", padding: 16 }}>
@@ -265,6 +372,22 @@ export default function TotalsGrid({
             }}
           >
             <View style={{ width: ID_COL_WIDTH }}>
+              {editable ? (
+                <View
+                  style={{
+                    height: HEADER_HEIGHT,
+                    justifyContent: "center",
+                    alignItems: "center",
+                    backgroundColor: "#ecfeff",
+                    borderBottomWidth: 1,
+                    borderBottomColor: "#e5e7eb",
+                  }}
+                >
+                  <Text style={{ fontSize: 9, fontWeight: "800", color: "#0e7490", textTransform: "uppercase", letterSpacing: 0.5 }}>
+                    HRS
+                  </Text>
+                </View>
+              ) : null}
               <View
                 style={{
                   height: HEADER_HEIGHT,
@@ -313,6 +436,22 @@ export default function TotalsGrid({
             </View>
 
             <View style={{ width: NAME_COL_WIDTH, borderLeftWidth: 1, borderLeftColor: "#e5e7eb" }}>
+              {editable ? (
+                <View
+                  style={{
+                    height: HEADER_HEIGHT,
+                    justifyContent: "center",
+                    paddingLeft: 14,
+                    backgroundColor: "#ecfeff",
+                    borderBottomWidth: 1,
+                    borderBottomColor: "#e5e7eb",
+                  }}
+                >
+                  <Text style={{ fontSize: 10, fontWeight: "800", color: "#0e7490", textTransform: "uppercase", letterSpacing: 0.5 }}>
+                    Day hours
+                  </Text>
+                </View>
+              ) : null}
               <View
                 style={{
                   height: HEADER_HEIGHT,
@@ -370,6 +509,37 @@ export default function TotalsGrid({
           {/* ── SCROLLABLE DATE + TOTAL COLUMNS ── */}
           <ScrollView horizontal showsHorizontalScrollIndicator style={{ flex: 1 }}>
             <View>
+              {/* ── DAY-HOURS ROW (fill a whole date column at once) ── */}
+              {editable ? (
+                <View style={{ flexDirection: "row", height: HEADER_HEIGHT, backgroundColor: "#ecfeff", borderBottomWidth: 1, borderBottomColor: "#e5e7eb" }}>
+                  {dateOrder.map((dk) => (
+                    <HeaderCell key={dk} width={DAY_COL_WIDTH} style={{ padding: 0 }}>
+                      <TouchableOpacity
+                        activeOpacity={0.6}
+                        onPress={() => handleOpenColumnModal(dk)}
+                        style={{
+                          width: DAY_COL_WIDTH,
+                          height: HEADER_HEIGHT,
+                          justifyContent: "center",
+                          alignItems: "center",
+                          borderRightWidth: 1,
+                          borderRightColor: "#e5e7eb",
+                        }}
+                      >
+                        <Text style={{ fontSize: 10, fontWeight: "700", color: "#0e7490" }}>
+                          {columnHours[dk] > 0 ? formatHours(columnHours[dk]) : "+ hrs"}
+                        </Text>
+                      </TouchableOpacity>
+                    </HeaderCell>
+                  ))}
+                  <HeaderCell width={TOTAL_COL_WIDTH} style={{ backgroundColor: "#ccfbf1" }}>
+                    <Text style={{ fontSize: 9, fontWeight: "800", color: "#0f766e", textTransform: "uppercase", letterSpacing: 0.4 }}>
+                      Day hrs
+                    </Text>
+                  </HeaderCell>
+                </View>
+              ) : null}
+
               {/* ── HEADER ROW ── */}
               <View style={{ flexDirection: "row", height: HEADER_HEIGHT, backgroundColor: "#f9fafb", borderBottomWidth: 1, borderBottomColor: "#e5e7eb" }}>
                 {dateOrder.map((dk) => (
@@ -384,6 +554,9 @@ export default function TotalsGrid({
                   <Text style={{ fontSize: 11, fontWeight: "800", color: "#16a34a", textTransform: "uppercase", letterSpacing: 0.5 }}>
                     Total
                   </Text>
+                  <Text style={{ fontSize: 9, fontWeight: "700", color: "#15803d", marginTop: 2, textTransform: "uppercase" }}>
+                    Vines · Hrs
+                  </Text>
                 </HeaderCell>
               </View>
 
@@ -392,7 +565,6 @@ export default function TotalsGrid({
                 const rowBg = idx % 2 === 0 ? "#fff" : "#f9fafb";
                 const wTotal = workerTotals[w.workerID] || 0;
                 const wHours = workerHoursTotals[w.workerID] || 0;
-                const rate = wHours > 0 ? Math.round((wTotal / wHours) * 10) / 10 : 0;
 
                 return (
                   <View
@@ -452,16 +624,16 @@ export default function TotalsGrid({
                       );
                     })}
 
-                    <DataCell width={TOTAL_COL_WIDTH} style={{ backgroundColor: "#f0fdf4", borderRightWidth: 0 }}>
-                      <Text style={{ fontSize: 13, fontWeight: "800", color: "#16a34a" }}>
-                        {wTotal}
-                      </Text>
-                      {rate > 0 ? (
-                        <Text style={{ fontSize: 10, fontWeight: "700", color: "#15803d", marginTop: 1 }}>
-                          {rate}/hr
-                        </Text>
-                      ) : null}
-                    </DataCell>
+<DataCell width={TOTAL_COL_WIDTH} style={{ backgroundColor: "#f0fdf4", borderRightWidth: 0 }}>
+                  <Text style={{ fontSize: 13, fontWeight: "800", color: "#16a34a" }}>
+                    {wTotal}
+                  </Text>
+                  {wHours > 0 ? (
+                    <Text style={{ fontSize: 10, fontWeight: "700", color: "#15803d", marginTop: 1 }}>
+                      {formatHours(wHours)}
+                    </Text>
+                  ) : null}
+                </DataCell>
                   </View>
                 );
               })}
@@ -587,6 +759,99 @@ export default function TotalsGrid({
                   borderColor: "#e5e7eb",
                 }}
                 onPress={() => setHoursModal(null)}
+              >
+                <Text style={{ color: "#374151", fontSize: 15, fontWeight: "800" }}>
+                  Close
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ─── Day-Hours Editor Modal (fill the whole column) ─── */}
+      <Modal
+        visible={!!columnModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setColumnModal(null)}
+      >
+        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "center", padding: 24 }}>
+          <View style={{ borderRadius: 24, backgroundColor: "#fff", padding: 24, gap: 16 }}>
+            <View style={{ gap: 4 }}>
+              <Text style={{ fontSize: 18, fontWeight: "800", color: "#111827" }}>
+                Set day hours
+              </Text>
+              <Text style={{ fontSize: 14, color: "#4b5563", lineHeight: 20 }}>
+                On <Text style={{ fontWeight: "800" }}>{columnModal?.dateLabel}</Text> for all{" "}
+                {columnModal?.workerCount || 0} worker(s) in this column. You can still edit each
+                worker's cell afterwards.
+              </Text>
+            </View>
+
+            <View style={{ gap: 6 }}>
+              <Text style={{ color: "#4b5563", fontSize: 12, fontWeight: "700" }}>
+                Hours worked (applied to every worker that day)
+              </Text>
+              <TextInput
+                style={{
+                  borderRadius: 12,
+                  borderWidth: 1,
+                  borderColor: "#e5e7eb",
+                  backgroundColor: "#fff",
+                  paddingHorizontal: 14,
+                  paddingVertical: 12,
+                  fontSize: 15,
+                  color: "#111827",
+                }}
+                value={columnInput}
+                onChangeText={setColumnInput}
+                placeholder="e.g. 7.5"
+                placeholderTextColor="#9ca3af"
+                keyboardType="decimal-pad"
+                autoFocus
+              />
+            </View>
+
+            <FeedbackBanner
+              type={columnFeedback.type === "error" ? "error" : "success"}
+              message={columnFeedback.message}
+            />
+
+            <View style={{ gap: 10 }}>
+              <ActionButton
+                label={columnSaving ? "Saving..." : "Apply to all workers"}
+                onPress={handleSaveColumnHours}
+                disabled={columnSaving}
+              />
+              <TouchableOpacity
+                activeOpacity={0.7}
+                style={{
+                  borderRadius: 16,
+                  paddingVertical: 14,
+                  alignItems: "center",
+                  backgroundColor: "#fff",
+                  borderWidth: 1,
+                  borderColor: "#e5e7eb",
+                }}
+                disabled={columnSaving}
+                onPress={handleClearColumnHours}
+              >
+                <Text style={{ color: "#6b7280", fontSize: 15, fontWeight: "800" }}>
+                  Clear all workers for this day
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                style={{
+                  borderRadius: 16,
+                  paddingVertical: 14,
+                  alignItems: "center",
+                  backgroundColor: "#f3f4f6",
+                  borderWidth: 1,
+                  borderColor: "#e5e7eb",
+                }}
+                onPress={() => setColumnModal(null)}
               >
                 <Text style={{ color: "#374151", fontSize: 15, fontWeight: "800" }}>
                   Close
