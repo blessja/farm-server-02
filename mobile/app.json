@@ -49,10 +49,17 @@
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO"
       ],
-      "package": "com.anonymous.glenoaksupplements"
+      "package": "com.anonymous.glenoaksupplements",
+      "versionCode": 2
     },
     "web": {
       "bundler": "metro"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "e09eb6fd-369c-4006-a6e7-7705d9e32b34"
+      }
+    },
+    "owner": "bjackson2"
   }
 }
