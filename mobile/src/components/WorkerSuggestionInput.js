@@ -7,15 +7,19 @@ import {
   View,
 } from "react-native";
 import { CameraView, useCameraPermissions } from "expo-camera";
+import { useLanguage } from "../i18n";
 import { searchWorkers, getWorkerById, refreshServerWorkers } from "../workers/workerRegistry";
 
 export default function WorkerSuggestionInput({
-  label = "Worker ID",
+  label,
   workerID,
   workerName,
   onSelect,
-  placeholder = "e.g. 1024",
+  placeholder,
 }) {
+  const { t } = useLanguage();
+  const resolvedLabel = label ?? t("wsi.workerID");
+  const resolvedPlaceholder = placeholder ?? t("wsi.placeholder");
   const [query, setQuery] = useState(workerID || "");
   const [isOpen, setIsOpen] = useState(false);
   const [scannerOpen, setScannerOpen] = useState(false);
@@ -98,7 +102,7 @@ export default function WorkerSuggestionInput({
     <>
       <View style={{ gap: 6 }}>
         <Text style={{ color: "#4b5563", fontSize: 12, fontWeight: "700" }}>
-          {label}
+          {resolvedLabel}
         </Text>
         <View style={{ flexDirection: "row", gap: 10, alignItems: "center" }}>
           <TextInput
@@ -115,7 +119,7 @@ export default function WorkerSuggestionInput({
             }}
             value={query}
             onChangeText={handleTextChange}
-            placeholder={placeholder}
+            placeholder={resolvedPlaceholder}
             placeholderTextColor="#9ca3af"
             onFocus={() => {
               if (query.trim().length > 0) setIsOpen(true);
@@ -134,7 +138,7 @@ export default function WorkerSuggestionInput({
             <Text
               style={{ color: "#fff", fontWeight: "800", fontSize: 13 }}
             >
-              Scan
+              {t("wsi.scan")}
             </Text>
           </TouchableOpacity>
         </View>
@@ -178,7 +182,7 @@ export default function WorkerSuggestionInput({
                     marginTop: 2,
                   }}
                 >
-                  ID {item.workerID}
+                  {t("wsi.idLabel", { id: item.workerID })}
                 </Text>
               </TouchableOpacity>
             ))}
@@ -189,10 +193,10 @@ export default function WorkerSuggestionInput({
       <Modal visible={scannerOpen} animationType="slide">
         <View className="flex-1 bg-gray-900 px-4 pt-16 pb-8">
           <Text className="text-white text-2xl font-extrabold">
-            Scan barcode or QR code
+            {t("wsi.scanTitle")}
           </Text>
           <Text className="mt-2 text-gray-300 text-sm leading-5">
-            Point the camera at a worker badge.
+            {t("wsi.scanSubtitle")}
           </Text>
           <View className="flex-1 mt-6 rounded-3xl overflow-hidden border border-gray-700">
             <CameraView
@@ -231,7 +235,7 @@ export default function WorkerSuggestionInput({
                 fontWeight: "800",
               }}
             >
-              Close scanner
+              {t("wsi.closeScanner")}
             </Text>
           </TouchableOpacity>
         </View>

@@ -8,6 +8,7 @@ import ActionButton from "../components/ActionButton";
 import FeedbackBanner from "../components/FeedbackBanner";
 import { useAsyncData } from "../hooks/useAsyncData";
 import WorkerSuggestionInput from "../components/WorkerSuggestionInput";
+import { useLanguage } from "../i18n";
 
 const initialForm = {
   workerID: "",
@@ -16,6 +17,7 @@ const initialForm = {
 };
 
 export default function ClockScreen({ offlineQueue }) {
+  const { t } = useLanguage();
   const [form, setForm] = useState(initialForm);
   const [feedback, setFeedback] = useState({ type: "info", message: "" });
   const [submitting, setSubmitting] = useState(false);
@@ -44,11 +46,11 @@ export default function ClockScreen({ offlineQueue }) {
   return (
     <ScreenScroll refreshing={clockState.loading} onRefresh={clockState.refresh}>
       <SectionCard
-        title="Daily clock"
-        subtitle="Clock in and out for hourly attendance tracking."
+        title={t("clock.title")}
+        subtitle={t("clock.subtitle")}
       >
         <WorkerSuggestionInput
-          label="Worker ID"
+          label={t("clock.workerID")}
           workerID={form.workerID}
           workerName={form.workerName}
           onSelect={({ workerID, workerName }) =>
@@ -60,26 +62,26 @@ export default function ClockScreen({ offlineQueue }) {
           }
         />
         <LabeledInput
-          label="Worker name"
+          label={t("clock.workerName")}
           value={form.workerName}
           onChangeText={(value) => setForm((current) => ({ ...current, workerName: value }))}
-          placeholder="Worker full name"
+          placeholder={t("clock.workerFullName")}
           autoCapitalize="words"
         />
         <LabeledInput
-          label="Timezone"
+          label={t("clock.timezone")}
           value={form.timezone}
           onChangeText={(value) => setForm((current) => ({ ...current, timezone: value }))}
           placeholder="Africa/Johannesburg"
         />
         <View className="gap-2.5">
           <ActionButton
-            label={submitting ? "Working..." : "Clock in"}
+            label={submitting ? t("common.working") : t("clock.clockIn")}
             onPress={() => submit("in")}
             disabled={submitting}
           />
           <ActionButton
-            label={submitting ? "Working..." : "Clock out"}
+            label={submitting ? t("common.working") : t("clock.clockOut")}
             tone="secondary"
             onPress={() => submit("out")}
             disabled={submitting}
@@ -89,8 +91,8 @@ export default function ClockScreen({ offlineQueue }) {
       </SectionCard>
 
       <SectionCard
-        title="Recent clock records"
-        subtitle="Worker attendance overview."
+        title={t("clock.recent")}
+        subtitle={t("clock.recentSub")}
       >
         {clockState.loading && !clockState.data ? (
           <ActivityIndicator color="#16a34a" />
@@ -99,13 +101,13 @@ export default function ClockScreen({ offlineQueue }) {
             <View key={worker._id || worker.workerID} className="rounded-xl bg-gray-50 border border-gray-100 p-3.5">
               <Text className="text-gray-900 text-[15px] font-extrabold">{worker.workerName}</Text>
               <Text className="mt-1 text-gray-400 text-[13px]">
-                ID {worker.workerID} • Sessions {worker.clockIns?.length || 0}
+                {t("clock.sessions", { id: worker.workerID, count: worker.clockIns?.length || 0 })}
               </Text>
             </View>
           ))
         )}
         {!records.length && !clockState.loading ? (
-          <Text className="text-gray-400 text-sm">No clock records returned yet.</Text>
+          <Text className="text-gray-400 text-sm">{t("clock.noRecords")}</Text>
         ) : null}
         <FeedbackBanner type="error" message={clockState.error} />
       </SectionCard>

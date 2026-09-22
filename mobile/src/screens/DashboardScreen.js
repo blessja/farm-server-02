@@ -15,9 +15,11 @@ import FeedbackBanner from "../components/FeedbackBanner";
 import ActionButton from "../components/ActionButton";
 import LabeledInput from "../components/LabeledInput";
 import { useAsyncData } from "../hooks/useAsyncData";
+import { useLanguage } from "../i18n";
 import { addServerWorker } from "../workers/workerRegistry";
 
 export default function DashboardScreen({ sharedState, offlineQueue }) {
+  const { t } = useLanguage();
   const blocksState = useAsyncData(() => api.getBlocks(), [], {
     cacheKey: "blocks",
     staleTime: 30 * 60 * 1000,
@@ -54,7 +56,7 @@ export default function DashboardScreen({ sharedState, offlineQueue }) {
     if (!workerID || !workerName) {
       setAdminFeedback({
         type: "error",
-        message: "Both worker ID and worker name are required.",
+        message: t("dash.workerIdAndNameRequired"),
       });
       return;
     }
@@ -84,21 +86,21 @@ export default function DashboardScreen({ sharedState, offlineQueue }) {
       }}
     >
       <SectionCard
-        title="Today at a glance"
-        subtitle="Live counts pulled from the backend."
+        title={t("dash.title")}
+        subtitle={t("dash.subtitle")}
       >
         {(blocksState.loading || checkinsState.loading) && !blocksState.data ? (
           <ActivityIndicator color="#16a34a" />
         ) : (
           <View className="flex-row flex-wrap gap-2.5">
-            <InfoPill label="Blocks" value={`${blockCount}`} />
-            <InfoPill label="Checked in" value={`${activeWorkers}`} />
+            <InfoPill label={t("dash.blocks")} value={`${blockCount}`} />
+            <InfoPill label={t("dash.checkedIn")} value={`${activeWorkers}`} />
             <InfoPill
-              label="Selected"
+              label={t("dash.selected")}
               value={
                 sharedState.selectedBlock
                   ? `${sharedState.selectedBlock}/${sharedState.selectedRow || "-"}`
-                  : "None"
+                  : t("common.none")
               }
             />
           </View>
@@ -107,34 +109,32 @@ export default function DashboardScreen({ sharedState, offlineQueue }) {
       </SectionCard>
 
       <SectionCard
-        title="Offline sync"
-        subtitle="Write actions are queued locally if the phone loses connection, then replayed when the app comes back online."
+        title={t("dash.offlineSync")}
+        subtitle={t("dash.offlineSyncSub")}
       >
         <View className="flex-row flex-wrap gap-2.5">
-          <InfoPill label="Queued" value={`${offlineQueue.queueCount}`} />
+          <InfoPill label={t("dash.queued")} value={`${offlineQueue.queueCount}`} />
         </View>
         <Text className="text-gray-600 text-sm leading-5">
-          {offlineQueue.lastSyncMessage || "Queue will auto-sync when the app is reopened or comes back online."}
+          {offlineQueue.lastSyncMessage || t("dash.autoSync")}
         </Text>
-        <ActionButton label="Sync queued actions now" onPress={offlineQueue.syncQueue} />
+        <ActionButton label={t("dash.syncNow")} onPress={offlineQueue.syncQueue} />
       </SectionCard>
 
       <SectionCard
-        title="Quick guide"
-        subtitle="How to use the mobile app."
+        title={t("dash.guide")}
+        subtitle={t("dash.guideSub")}
       >
         <Text className="text-gray-600 text-sm leading-6">
-          1. Pick a block and row in the DayWork tab.{"\n"}
-          2. Use DayWork for regular check-in and checkout.{"\n"}
-          3. Use Clock for daily attendance and Fast for single-scan jobs.
+          {t("dash.guideText")}
         </Text>
       </SectionCard>
 
       <SectionCard
-        title="Admin"
-        subtitle="Add a new worker so they appear in the worker search and scanner suggestions."
+        title={t("dash.admin")}
+        subtitle={t("dash.adminSub")}
       >
-        <ActionButton label="Add worker" onPress={openAdminModal} />
+        <ActionButton label={t("dash.addWorker")} onPress={openAdminModal} />
       </SectionCard>
 
       <Modal visible={adminModalVisible} animationType="slide">
@@ -142,9 +142,9 @@ export default function DashboardScreen({ sharedState, offlineQueue }) {
           <ScreenScroll refreshing={false}>
             <View className="flex-row items-center justify-between mb-1">
               <View className="flex-1">
-                <Text className="text-gray-900 text-lg font-extrabold">Add worker</Text>
+                <Text className="text-gray-900 text-lg font-extrabold">{t("dash.addWorkerModal")}</Text>
                 <Text className="text-gray-400 text-[13px] leading-5 mt-0.5">
-                  The worker will appear in the search and scanner suggestions.
+                  {t("dash.addWorkerModalSub")}
                 </Text>
               </View>
               <TouchableOpacity
@@ -152,31 +152,31 @@ export default function DashboardScreen({ sharedState, offlineQueue }) {
                 style={{ borderRadius: 12, backgroundColor: "#f3f4f6", borderWidth: 1, borderColor: "#e5e7eb", paddingHorizontal: 14, paddingVertical: 10 }}
                 onPress={closeAdminModal}
               >
-                <Text style={{ color: "#374151", fontSize: 13, fontWeight: "800" }}>Close</Text>
+                <Text style={{ color: "#374151", fontSize: 13, fontWeight: "800" }}>{t("common.close")}</Text>
               </TouchableOpacity>
             </View>
 
-            <SectionCard title="Worker details" subtitle="Both fields are required.">
+            <SectionCard title={t("dash.workerDetails")} subtitle={t("dash.bothFieldsRequired")}>
               <LabeledInput
-                label="Worker ID"
+                label={t("dash.workerID")}
                 value={adminForm.workerID}
                 onChangeText={(value) =>
                   setAdminForm((current) => ({ ...current, workerID: value }))
                 }
-                placeholder="e.g. 1024"
+                placeholder={t("dash.workerIDPlaceholder")}
                 keyboardType="numeric"
               />
               <LabeledInput
-                label="Worker name"
+                label={t("dash.workerName")}
                 value={adminForm.workerName}
                 onChangeText={(value) =>
                   setAdminForm((current) => ({ ...current, workerName: value }))
                 }
-                placeholder="Surname First name"
+                placeholder={t("dash.workerNamePlaceholder")}
                 autoCapitalize="words"
               />
               <ActionButton
-                label={adminSubmitting ? "Adding..." : "Add worker"}
+                label={adminSubmitting ? t("dash.adding") : t("dash.addWorker")}
                 onPress={handleAddWorker}
                 disabled={adminSubmitting}
               />

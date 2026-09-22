@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Modal, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { CameraView, useCameraPermissions } from "expo-camera";
+import { useLanguage } from "../i18n";
 
 export default function ScannerInput({
   label,
@@ -11,6 +12,7 @@ export default function ScannerInput({
   autoCapitalize = "none",
   keyboardType,
 }) {
+  const { t } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
   const [permission, requestPermission] = useCameraPermissions();
   const [hasScanned, setHasScanned] = useState(false);
@@ -89,16 +91,16 @@ export default function ScannerInput({
             style={{ borderRadius: 12, backgroundColor: "#2D7A55", paddingHorizontal: 14, paddingVertical: 12 }}
             onPress={openScanner}
           >
-            <Text style={{ color: "#fff", fontWeight: "800", fontSize: 13 }}>Scan</Text>
+            <Text style={{ color: "#fff", fontWeight: "800", fontSize: 13 }}>{t("si.scan")}</Text>
           </TouchableOpacity>
         </View>
       </View>
 
       <Modal visible={isOpen} animationType="slide">
         <View className="flex-1 bg-gray-900 px-4 pt-16 pb-8">
-          <Text className="text-white text-2xl font-extrabold">Scan barcode or QR code</Text>
+          <Text className="text-white text-2xl font-extrabold">{t("si.scanTitle")}</Text>
           <Text className="mt-2 text-gray-300 text-sm leading-5">
-            Point the camera at a worker badge or row label.
+            {t("si.scanSubtitle")}
           </Text>
           <View className="flex-1 mt-6 rounded-3xl overflow-hidden border border-gray-700">
             <CameraView
@@ -122,7 +124,7 @@ export default function ScannerInput({
             style={{ marginTop: 16, borderRadius: 16, backgroundColor: "#1f2937", paddingVertical: 14, alignItems: "center", borderWidth: 1, borderColor: "#374151" }}
             onPress={() => setIsOpen(false)}
           >
-            <Text style={{ color: "#fff", fontSize: 15, fontWeight: "800" }}>Close scanner</Text>
+            <Text style={{ color: "#fff", fontSize: 15, fontWeight: "800" }}>{t("si.closeScanner")}</Text>
           </TouchableOpacity>
         </View>
       </Modal>

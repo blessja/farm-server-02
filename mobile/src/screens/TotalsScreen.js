@@ -9,6 +9,7 @@ import TotalsGrid from "../components/TotalsGrid";
 import TotalsSummary from "../components/TotalsSummary";
 import { exportTotalsPdf } from "../utils/totalsExport";
 import { useAsyncData } from "../hooks/useAsyncData";
+import { useLanguage } from "../i18n";
 
 function dateKey(dateStr) {
   if (!dateStr) return "unknown";
@@ -17,6 +18,7 @@ function dateKey(dateStr) {
 }
 
 export default function TotalsScreen() {
+  const { t } = useLanguage();
   const regularState = useAsyncData(() => api.getRegularTotals(), [], {
     cacheKey: "regular-totals",
     staleTime: 5 * 60 * 1000,
@@ -135,10 +137,10 @@ export default function TotalsScreen() {
         blockFilter,
         jobFilter,
       });
-      setExportMessage({ text: "PDF created with the current filter.", ok: true });
+      setExportMessage({ text: t("totals.pdfCreated"), ok: true });
     } catch (error) {
       setExportMessage({
-        text: error?.message || "Could not create the PDF. Try again.",
+        text: error?.message || t("totals.pdfError"),
         ok: false,
       });
     } finally {
@@ -155,60 +157,60 @@ export default function TotalsScreen() {
         hoursState.refresh();
       }}
     >
-      <SectionCard title="Totals" subtitle="Day-by-day piecework summary. Tap any cell to add or edit hours worked for that day.">
+      <SectionCard title={t("totals.title")} subtitle={t("totals.subtitle")}>
         <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
           <TotalsSummary rows={filteredRows} hours={dayHours} />
         </View>
       </SectionCard>
 
-      <SectionCard title="Filters">
+      <SectionCard title={t("totals.filters")}>
         <SelectField
-          label="Block"
+          label={t("dw.block")}
           value={blockFilter}
-          placeholder="All blocks"
+          placeholder={t("totals.allBlocks")}
           options={blockOptions}
           onSelect={(v) => setBlockFilter(v)}
-          emptyMessage="No blocks found"
+          emptyMessage={t("common.noBlocksFound")}
         />
         {blockFilter ? (
           <Text
             onPress={() => setBlockFilter("")}
             style={{ color: "#16a34a", fontSize: 13, fontWeight: "700", marginTop: -4, marginBottom: 8 }}
           >
-            Clear block filter
+            {t("totals.clearBlockFilter")}
           </Text>
         ) : null}
         <SelectField
-          label="Job type"
+          label={t("dw.jobType")}
           value={jobFilter}
-          placeholder="All jobs"
+          placeholder={t("totals.allJobs")}
           options={jobOptions}
           onSelect={(v) => setJobFilter(v)}
-          emptyMessage="No job types found"
+          emptyMessage={t("totals.noJobTypesFound")}
         />
         {jobFilter ? (
           <Text
             onPress={() => setJobFilter("")}
             style={{ color: "#16a34a", fontSize: 13, fontWeight: "700", marginTop: -4, marginBottom: 4 }}
           >
-            Clear job filter
+            {t("totals.clearJobFilter")}
           </Text>
         ) : null}
       </SectionCard>
 
       <SectionCard
-        title="Export"
-        subtitle="Creates a PDF of the totals exactly as shown—filtered data stays filtered."
+        title={t("totals.export")}
+        subtitle={t("totals.exportSub")}
       >
         <ActionButton
-          label={exporting ? "Preparing PDF..." : "Export totals to PDF"}
+          label={exporting ? t("totals.preparingPdf") : t("totals.exportPdf")}
           onPress={handleExport}
           disabled={exporting || !hasData}
           tone="secondary"
         />
         {!hasData ? (
           <Text style={{ color: "#9ca3af", fontSize: 13 }}>
-            Add some piecework totals before exporting.
+            {t("totals.addTotalsFirst")}
           </Text>
         ) : null}
         {exportMessage ? (
@@ -225,15 +227,15 @@ export default function TotalsScreen() {
       </SectionCard>
 
       {!hasData && !loading ? (
-        <SectionCard title="No data">
+        <SectionCard title={t("totals.noData")}>
           <Text style={{ color: "#9ca3af", fontSize: 14 }}>
-            {isFiltered ? "No totals match the selected filters." : "No piecework totals available yet."}
+            {isFiltered ? t("totals.noDataFiltered") : t("grid.noTotalsAvailable")}
           </Text>
         </SectionCard>
       ) : null}
 
       {hasData ? (
-        <SectionCard title="Vines and hours by worker and day" subtitle="Scroll horizontally to see all dates. Tap a cell to record hours worked.">
+        <SectionCard title={t("totals.gridTitle")} subtitle={t("totals.gridSub")}>
           <TotalsGrid
             rows={filteredRows}
             hours={dayHours}

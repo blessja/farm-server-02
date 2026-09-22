@@ -1,5 +1,6 @@
 import React, { useMemo } from "react";
 import { Text, View } from "react-native";
+import { useLanguage } from "../i18n";
 
 function dateKey(dateStr) {
   if (!dateStr) return "unknown";
@@ -32,6 +33,7 @@ function StatPill({ label, value, color }) {
  * rows: [{ workerID, date, vines }]  hours: { `${workerID}__${dateKey}`: { hours } }
  */
 export default function TotalsSummary({ rows = [], hours = {} }) {
+  const { t } = useLanguage();
   const stats = useMemo(() => {
     const workerCount = new Set(rows.map((r) => r.workerID)).size;
     const vineTotal = rows.reduce((s, r) => s + (r.vines || 0), 0);
@@ -47,10 +49,10 @@ export default function TotalsSummary({ rows = [], hours = {} }) {
 
   return (
     <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
-      <StatPill label="Workers" value={stats.workerCount} color="#eff6ff" />
-      <StatPill label="Vines" value={stats.vineTotal} color="#f0fdf4" />
-      <StatPill label="Hours" value={stats.hourTotal || 0} color="#fefce8" />
-      <StatPill label="Days" value={stats.dayCount} color="#f5f3ff" />
+      <StatPill label={t("summary.workers")} value={stats.workerCount} color="#eff6ff" />
+      <StatPill label={t("summary.vines")} value={stats.vineTotal} color="#f0fdf4" />
+      <StatPill label={t("summary.hours")} value={stats.hourTotal || 0} color="#fefce8" />
+      <StatPill label={t("summary.days")} value={stats.dayCount} color="#f5f3ff" />
     </View>
   );
 }

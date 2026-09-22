@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Text, TouchableOpacity, View } from "react-native";
+import { useLanguage } from "../i18n";
 
 export default function SelectField({
   label,
@@ -7,10 +8,12 @@ export default function SelectField({
   placeholder,
   options = [],
   onSelect,
-  emptyMessage = "No options available",
+  emptyMessage,
   disabledValues = [],
 }) {
+  const { t } = useLanguage();
   const [open, setOpen] = useState(false);
+  const resolvedEmpty = emptyMessage ?? t("sf.noOptions");
 
   return (
     <View style={{ gap: 6 }}>
@@ -41,7 +44,7 @@ export default function SelectField({
       {open ? (
         <View style={{ borderRadius: 12, borderWidth: 1, borderColor: "#e5e7eb", backgroundColor: "#fff", overflow: "hidden" }}>
           {!options.length ? (
-            <Text style={{ color: "#9ca3af", fontSize: 14, paddingHorizontal: 14, paddingVertical: 12 }}>{emptyMessage}</Text>
+            <Text style={{ color: "#9ca3af", fontSize: 14, paddingHorizontal: 14, paddingVertical: 12 }}>{resolvedEmpty}</Text>
           ) : (
             options.map((option, index) => {
               const selected = value === option.value;
@@ -69,7 +72,7 @@ export default function SelectField({
                   }}
                 >
                   <Text style={{ color: selected ? "#fff" : "#111827", fontSize: 14, fontWeight: "700" }}>
-                    {option.label}{isDisabled ? " (checked in)" : ""}
+                    {option.label}{isDisabled ? ` ${t("sf.checkedIn")}` : ""}
                   </Text>
                 </TouchableOpacity>
               );

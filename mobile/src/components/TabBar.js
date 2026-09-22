@@ -1,10 +1,12 @@
 import React, { useState } from "react";
 import { Modal, Pressable, Text, TouchableOpacity, View, useWindowDimensions } from "react-native";
+import { useLanguage } from "../i18n";
 
 const COMPACT_BREAKPOINT = 500;
 
 export default function TabBar({ tabs, activeTab, onChange }) {
   const { width } = useWindowDimensions();
+  const { t } = useLanguage();
   const [menuOpen, setMenuOpen] = useState(false);
   const compact = width < COMPACT_BREAKPOINT;
 
@@ -39,7 +41,7 @@ export default function TabBar({ tabs, activeTab, onChange }) {
               {activeTabInfo ? activeTabInfo.label : ""}
             </Text>
             <TouchableOpacity activeOpacity={0.7} onPress={() => setMenuOpen(true)}>
-              <Text style={{ fontSize: 12, fontWeight: "700", color: "#16a34a" }}>Menu</Text>
+              <Text style={{ fontSize: 12, fontWeight: "700", color: "#16a34a" }}>{t("common.menu")}</Text>
             </TouchableOpacity>
           </View>
         </View>

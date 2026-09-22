@@ -13,6 +13,7 @@ import TotalsGrid from "../components/TotalsGrid";
 import TotalsSummary from "../components/TotalsSummary";
 import { exportTotalsPdf } from "../utils/totalsExport";
 import { sortNamesNumerically } from "../utils/sortNames";
+import { useLanguage } from "../i18n";
 
 const initialForm = {
   workerID: "",
@@ -27,6 +28,7 @@ function dateKey(dateStr) {
 }
 
 export default function FastPieceworkScreen({ sharedState, offlineQueue }) {
+  const { t } = useLanguage();
   const [form, setForm] = useState(initialForm);
   const [feedback, setFeedback] = useState({ type: "info", message: "" });
   const [submitting, setSubmitting] = useState(false);
@@ -157,10 +159,10 @@ export default function FastPieceworkScreen({ sharedState, offlineQueue }) {
         jobFilter,
         title: "Fast Totals",
       });
-      setExportMessage({ text: "PDF created with the current filter.", ok: true });
+      setExportMessage({ text: t("fast.pdfCreated"), ok: true });
     } catch (error) {
       setExportMessage({
-        text: error?.message || "Could not create the PDF. Try again.",
+        text: error?.message || t("fast.pdfError"),
         ok: false,
       });
     } finally {
@@ -192,7 +194,7 @@ export default function FastPieceworkScreen({ sharedState, offlineQueue }) {
     [...new Set(rows.map((rowNumber) => String(rowNumber)))]
   ).map((rowNumber) => ({
     label: completedRowNumbers.includes(rowNumber)
-      ? `${rowNumber} — completed for ${selectedJob}`
+      ? t("fast.rowCompleted", { row: rowNumber, job: selectedJob })
       : rowNumber,
     value: rowNumber,
   }));
@@ -230,21 +232,23 @@ export default function FastPieceworkScreen({ sharedState, offlineQueue }) {
       }}
     >
       <SectionCard
-        title="Fast piecework"
-        subtitle="Single-scan jobs: leaf picking, sucker removal, shoot thinning, other."
+        title={t("fast.title")}
+        subtitle={t("fast.subtitle")}
       >
         <Text className="text-gray-600 text-sm leading-5">
-          Block: {sharedState.selectedBlock || "Not selected"}{"  "}
-          Row: {sharedState.selectedRow || "Not selected"}
+          {t("dw.blockLabel", {
+            block: sharedState.selectedBlock || t("common.notSelected"),
+            row: sharedState.selectedRow || t("common.notSelected"),
+          })}{"  "}
         </Text>
       </SectionCard>
 
       <SectionCard
-        title="Selection"
-        subtitle="Pick the block and row, then scan the worker. Rows already completed for the selected job will be disabled."
+        title={t("fast.selection")}
+        subtitle={t("fast.selectionSub")}
       >
         <LabeledInput
-          label="Job type"
+          label={t("dw.jobType")}
           value={form.jobType}
           onChangeText={(value) => {
             setForm((current) => ({ ...current, jobType: value }));
@@ -257,21 +261,21 @@ export default function FastPieceworkScreen({ sharedState, offlineQueue }) {
           <ActivityIndicator color="#16a34a" />
         ) : null}
         <SelectField
-          label="Block"
+          label={t("dw.block")}
           value={sharedState.selectedBlock}
-          placeholder="Select block"
+          placeholder={t("dw.selectBlock")}
           options={blockOptions}
           onSelect={(value) => {
             sharedState.setSelectedBlock(value);
             sharedState.setSelectedRow("");
             setAllowSameJob(false);
           }}
-          emptyMessage="No blocks found"
+          emptyMessage={t("common.noBlocksFound")}
         />
         <SelectField
-          label="Row"
+          label={t("dw.row")}
           value={sharedState.selectedRow}
-          placeholder="Select row"
+          placeholder={t("dw.selectRow")}
           options={rowOptions}
           onSelect={(value) => {
             sharedState.setSelectedRow(value);
@@ -279,8 +283,8 @@ export default function FastPieceworkScreen({ sharedState, offlineQueue }) {
           }}
           emptyMessage={
             sharedState.selectedBlock
-              ? "No rows available in this block"
-              : "Select a block first"
+              ? t("dw.noRowsInBlock")
+              : t("dw.selectBlockFirst")
           }
           disabledValues={disabledRowValues}
         />
@@ -312,7 +316,7 @@ export default function FastPieceworkScreen({ sharedState, offlineQueue }) {
               )}
             </View>
             <Text className="text-gray-600 text-sm" style={{ flex: 1 }}>
-              Allow same fast job on a completed row
+              {t("fast.allowSameJob")}
             </Text>
           </TouchableOpacity>
         )}
@@ -320,11 +324,11 @@ export default function FastPieceworkScreen({ sharedState, offlineQueue }) {
       </SectionCard>
 
       <SectionCard
-        title="Fast check-in"
-        subtitle="Uses the selected block and row from above."
+        title={t("fast.checkin")}
+        subtitle={t("dw.regCheckinSub")}
       >
         <WorkerSuggestionInput
-          label="Worker ID"
+          label={t("clock.workerID")}
           workerID={form.workerID}
           workerName={form.workerName}
           onSelect={({ workerID, workerName }) =>
@@ -336,15 +340,15 @@ export default function FastPieceworkScreen({ sharedState, offlineQueue }) {
           }
         />
         <LabeledInput
-          label="Worker name"
+          label={t("dw.workerName")}
           value={form.workerName}
           onChangeText={(value) => setForm((current) => ({ ...current, workerName: value }))}
-          placeholder="Auto-filled from scan or selection"
+          placeholder={t("dw.autoFilled")}
           autoCapitalize="words"
           readOnly
         />
         <ActionButton
-          label={submitting ? "Submitting..." : "Submit fast piecework"}
+          label={submitting ? t("common.submitting") : t("fast.submitFast")}
           onPress={handleSubmit}
           disabled={
             submitting ||
@@ -357,20 +361,20 @@ export default function FastPieceworkScreen({ sharedState, offlineQueue }) {
       </SectionCard>
 
       <SectionCard
-        title="Fast totals"
-        subtitle="Day-by-day fast piecework summary for wage calculations. Scroll horizontally and tap a cell to record hours worked."
+        title={t("fast.totals")}
+        subtitle={t("fast.totalsSub")}
       >
         {fastRows.length > 0 ? (
           <TotalsSummary rows={filteredFastRows} hours={dayHours} />
         ) : null}
         {fastRows.length > 0 ? (
           <SelectField
-            label="Filter block"
+            label={t("fast.filterBlock")}
             value={blockFilter}
-            placeholder="All blocks"
+            placeholder={t("fast.allBlocks")}
             options={fastBlockOptions}
             onSelect={(v) => setBlockFilter(v)}
-            emptyMessage="No blocks found"
+            emptyMessage={t("common.noBlocksFound")}
           />
         ) : null}
         {blockFilter ? (
@@ -378,17 +382,17 @@ export default function FastPieceworkScreen({ sharedState, offlineQueue }) {
             onPress={() => setBlockFilter("")}
             style={{ color: "#16a34a", fontSize: 13, fontWeight: "700", marginTop: -4, marginBottom: 8 }}
           >
-            Clear block filter
+            {t("fast.clearBlockFilter")}
           </Text>
         ) : null}
         {fastRows.length > 0 ? (
           <SelectField
-            label="Filter job type"
+            label={t("fast.filterJobType")}
             value={jobFilter}
-            placeholder="All jobs"
+            placeholder={t("fast.allJobs")}
             options={fastJobOptions}
             onSelect={(v) => setJobFilter(v)}
-            emptyMessage="No job types found"
+            emptyMessage={t("fast.noJobTypesFound")}
           />
         ) : null}
         {jobFilter ? (
@@ -396,17 +400,17 @@ export default function FastPieceworkScreen({ sharedState, offlineQueue }) {
             onPress={() => setJobFilter("")}
             style={{ color: "#16a34a", fontSize: 13, fontWeight: "700", marginTop: -4, marginBottom: 4 }}
           >
-            Clear job filter
+            {t("fast.clearJobFilter")}
           </Text>
         ) : null}
         {!isFiltered && !fastRows.length && !totalsState.loading ? (
           <Text style={{ color: "#9ca3af", fontSize: 14 }}>
-            No fast piecework totals available yet.
+            {t("fast.noTotalsYet")}
           </Text>
         ) : null}
         {isFiltered && !hasFastData && !totalsState.loading ? (
           <Text style={{ color: "#9ca3af", fontSize: 14 }}>
-            No totals match the selected filters.
+            {t("fast.noTotalsMatchFilters")}
           </Text>
         ) : null}
         {totalsState.loading && !totalsState.data ? (
@@ -417,25 +421,25 @@ export default function FastPieceworkScreen({ sharedState, offlineQueue }) {
             hours={dayHours}
             editable
             onHoursChanged={() => hoursState.refresh()}
-            emptyMessage="No fast piecework totals match the current filters."
+            emptyMessage={t("fast.noTotalsMatchCurrent")}
           />
         ) : null}
         <FeedbackBanner type="error" message={totalsState.error || hoursState.error} />
       </SectionCard>
 
       <SectionCard
-        title="Export"
-        subtitle="Creates a PDF of the fast totals exactly as shown—filtered data stays filtered."
+        title={t("fast.export")}
+        subtitle={t("fast.exportSub")}
       >
         <ActionButton
-          label={exporting ? "Preparing PDF..." : "Export fast totals to PDF"}
+          label={exporting ? t("fast.preparingPdf") : t("fast.exportPdf")}
           onPress={handleExport}
           disabled={exporting || !hasFastData}
           tone="secondary"
         />
         {!hasFastData ? (
           <Text style={{ color: "#9ca3af", fontSize: 13 }}>
-            Add some fast piecework totals before exporting.
+            {t("fast.addTotalsFirst")}
           </Text>
         ) : null}
         {exportMessage ? (

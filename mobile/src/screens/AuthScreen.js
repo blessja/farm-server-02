@@ -7,8 +7,10 @@ import LabeledInput from "../components/LabeledInput";
 import ActionButton from "../components/ActionButton";
 import FeedbackBanner from "../components/FeedbackBanner";
 import { DEVICE_NAME } from "../config/env";
+import { useLanguage } from "../i18n";
 
 export default function AuthScreen({ onAuthenticated, initialSupervisorName = "" }) {
+  const { t } = useLanguage();
   const [supervisorName, setSupervisorName] = useState(initialSupervisorName);
   const [pin, setPin] = useState("");
   const [feedback, setFeedback] = useState({ type: "info", message: "" });
@@ -19,12 +21,12 @@ export default function AuthScreen({ onAuthenticated, initialSupervisorName = ""
     const trimmedPin = pin.trim();
 
     if (!trimmedSupervisorName) {
-      setFeedback({ type: "error", message: "Supervisor name is required." });
+      setFeedback({ type: "error", message: t("auth.nameRequired") });
       return;
     }
 
     if (!trimmedPin) {
-      setFeedback({ type: "error", message: "Supervisor PIN is required." });
+      setFeedback({ type: "error", message: t("auth.pinRequired") });
       return;
     }
 
@@ -41,7 +43,7 @@ export default function AuthScreen({ onAuthenticated, initialSupervisorName = ""
       if (result.authEnabled === false) {
         setFeedback({
           type: "success",
-          message: "Server auth is disabled. Continuing without a token.",
+          message: t("auth.authDisabled"),
         });
         onAuthenticated({
           supervisorName: trimmedSupervisorName,
@@ -50,7 +52,7 @@ export default function AuthScreen({ onAuthenticated, initialSupervisorName = ""
       } else {
         setFeedback({
           type: "success",
-          message: `Login successful. Welcome, ${result.supervisorName}.`,
+          message: t("auth.loginSuccess", { name: result.supervisorName }),
         });
         onAuthenticated({
           supervisorName: result.supervisorName,
@@ -67,27 +69,27 @@ export default function AuthScreen({ onAuthenticated, initialSupervisorName = ""
   return (
     <ScreenScroll>
       <SectionCard
-        title="Supervisor login"
-        subtitle="Supervisors must sign in before using the app. When backend auth is enabled, the name and PIN are verified by the server."
+        title={t("auth.title")}
+        subtitle={t("auth.subtitle")}
       >
-        <Text className="text-gray-600 text-sm leading-5">Device: {DEVICE_NAME}</Text>
+        <Text className="text-gray-600 text-sm leading-5">{t("auth.device", { name: DEVICE_NAME })}</Text>
         <LabeledInput
-          label="Supervisor name"
+          label={t("auth.supervisorName")}
           value={supervisorName}
           onChangeText={setSupervisorName}
-          placeholder="Enter supervisor name"
+          placeholder={t("auth.supervisorNamePlaceholder")}
           autoCapitalize="words"
         />
         <LabeledInput
-          label="Supervisor PIN"
+          label={t("auth.supervisorPIN")}
           value={pin}
           onChangeText={setPin}
-          placeholder="Enter mobile PIN"
+          placeholder={t("auth.supervisorPINPlaceholder")}
           keyboardType="numeric"
           secureTextEntry
         />
         <ActionButton
-          label={submitting ? "Signing in..." : "Sign in"}
+          label={submitting ? t("auth.signingIn") : t("auth.signIn")}
           onPress={handleLogin}
           disabled={submitting}
         />

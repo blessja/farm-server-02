@@ -13,17 +13,18 @@ import ActionButton from "../components/ActionButton";
 import FeedbackBanner from "../components/FeedbackBanner";
 import { useAsyncData } from "../hooks/useAsyncData";
 import ScannerInput from "../components/ScannerInput";
+import { useLanguage } from "../i18n";
 
 const filterModes = [
-  { key: "worker", label: "Worker" },
-  { key: "block", label: "Block" },
-  { key: "row", label: "Row" },
-  { key: "job", label: "Job" },
+  { key: "worker", langKey: "mw.worker" },
+  { key: "block", langKey: "mw.block" },
+  { key: "row", langKey: "mw.row" },
+  { key: "job", langKey: "mw.job" },
 ];
 
 const modeOptions = [
-  { key: "move", label: "Move" },
-  { key: "swap", label: "Swap" },
+  { key: "move", langKey: "mw.move" },
+  { key: "swap", langKey: "mw.swap" },
 ];
 
 const defaultMove = {
@@ -49,6 +50,7 @@ function getAssignmentId(assignment, index = 0) {
 }
 
 export default function MoveWorkersScreen({ sharedState, offlineQueue }) {
+  const { t } = useLanguage();
   const [mode, setMode] = useState("move");
   const [searchText, setSearchText] = useState("");
   const [filterMode, setFilterMode] = useState("worker");
@@ -160,7 +162,7 @@ export default function MoveWorkersScreen({ sharedState, offlineQueue }) {
     if (!swapSelection.first || !swapSelection.second) {
       setFeedback({
         type: "error",
-        message: "Select two active workers to swap.",
+        message: t("mw.selectTwoToSwap"),
       });
       return;
     }
@@ -193,16 +195,24 @@ export default function MoveWorkersScreen({ sharedState, offlineQueue }) {
   const swapPreview =
     swapSelection.first && swapSelection.second
       ? [
-          `${swapSelection.first.workerName} will move from Row ${swapSelection.first.rowNumber} to Row ${swapSelection.second.rowNumber}.`,
-          `${swapSelection.second.workerName} will move from Row ${swapSelection.second.rowNumber} to Row ${swapSelection.first.rowNumber}.`,
+          t("mw.previewSwap", {
+            name: swapSelection.first.workerName,
+            from: swapSelection.first.rowNumber,
+            to: swapSelection.second.rowNumber,
+          }),
+          t("mw.previewSwap", {
+            name: swapSelection.second.workerName,
+            from: swapSelection.second.rowNumber,
+            to: swapSelection.first.rowNumber,
+          }),
         ]
       : [];
 
   return (
     <ScreenScroll refreshing={checkinsState.loading} onRefresh={checkinsState.refresh}>
       <SectionCard
-        title="Move workers"
-        subtitle="Search active assignments, then move or swap workers between rows."
+        title={t("mw.title")}
+        subtitle={t("mw.subtitle")}
       >
         <View className="flex-row gap-2.5">
           {modeOptions.map((option) => {
@@ -223,7 +233,7 @@ export default function MoveWorkersScreen({ sharedState, offlineQueue }) {
                 onPress={() => setMode(option.key)}
               >
                 <Text style={{ fontSize: 14, fontWeight: "800", color: active ? "#fff" : "#4b5563" }}>
-                  {option.label}
+                  {t(option.langKey)}
                 </Text>
               </TouchableOpacity>
             );
@@ -232,15 +242,15 @@ export default function MoveWorkersScreen({ sharedState, offlineQueue }) {
         <View className="gap-3">
           <View className="flex-1">
             <LabeledInput
-              label="Search"
+              label={t("mw.search")}
               value={searchText}
               onChangeText={setSearchText}
-              placeholder="Search active assignments"
+              placeholder={t("mw.searchPlaceholder")}
               autoCapitalize="none"
             />
           </View>
           <View className="gap-1.5">
-            <Text className="text-gray-600 text-xs font-bold">Filter</Text>
+            <Text className="text-gray-600 text-xs font-bold">{t("mw.filter")}</Text>
             <View className="flex-row flex-wrap gap-2">
               {filterModes.map((mode) => {
                 const active = filterMode === mode.key;
@@ -259,7 +269,7 @@ export default function MoveWorkersScreen({ sharedState, offlineQueue }) {
                     onPress={() => setFilterMode(mode.key)}
                   >
                     <Text style={{ fontSize: 12, fontWeight: "800", color: active ? "#fff" : "#4b5563" }}>
-                      {mode.label}
+                      {t(mode.langKey)}
                     </Text>
                   </TouchableOpacity>
                 );
@@ -270,16 +280,16 @@ export default function MoveWorkersScreen({ sharedState, offlineQueue }) {
       </SectionCard>
 
       <SectionCard
-        title="Active workers"
+        title={t("mw.activeWorkers")}
         subtitle={
           mode === "move"
-            ? "Choose an active assignment. Block, row, and job type auto-fill."
-            : "Pick two workers to swap their row assignments."
+            ? t("mw.activeWorkersMoveSub")
+            : t("mw.activeWorkersSwapSub")
         }
       >
         {checkinsState.loading ? <ActivityIndicator color="#16a34a" /> : null}
         {!filteredAssignments.length && !checkinsState.loading ? (
-          <Text className="text-gray-400 text-sm">No matching active workers found.</Text>
+          <Text className="text-gray-400 text-sm">{t("mw.noMatching")}</Text>
         ) : null}
         <View className="gap-2.5">
           {filteredAssignments.map((assignment, index) => {
@@ -321,8 +331,11 @@ export default function MoveWorkersScreen({ sharedState, offlineQueue }) {
                   {assignment.workerName} ({assignment.workerID})
                 </Text>
                 <Text style={{ marginTop: 4, fontSize: 13, lineHeight: 18, color: active ? "#DCEFE1" : "#819080" }}>
-                  Block {assignment.blockName} • Row {assignment.rowNumber} •{" "}
-                  {assignment.job_type || "No job type"}
+                  {t("mw.activePosition", {
+                    block: assignment.blockName,
+                    row: assignment.rowNumber,
+                    job: assignment.job_type || t("mw.noJobType"),
+                  })}
                 </Text>
               </TouchableOpacity>
             );
@@ -333,71 +346,73 @@ export default function MoveWorkersScreen({ sharedState, offlineQueue }) {
 
       {mode === "move" ? (
         <SectionCard
-          title="Move selected worker"
-          subtitle="Different job types may share a row. Same worker cannot be on the target row twice."
+          title={t("mw.moveTitle")}
+          subtitle={t("mw.moveSub")}
         >
           <LabeledInput
-            label="Selected worker"
+            label={t("mw.selectedWorker")}
             value={moveForm.workerName}
             onChangeText={(value) =>
               setMoveForm((current) => ({ ...current, workerName: value }))
             }
-            placeholder="Select an active worker above"
+            placeholder={t("mw.selectActiveAbove")}
             autoCapitalize="words"
           />
           <LabeledInput
-            label="Block"
+            label={t("dw.block")}
             value={moveForm.blockName}
             onChangeText={(value) =>
               setMoveForm((current) => ({ ...current, blockName: value }))
             }
-            placeholder="Auto-filled from assignment"
+            placeholder={t("mw.autoFilled")}
             autoCapitalize="characters"
           />
           <LabeledInput
-            label="Wrong row"
+            label={t("mw.wrongRow")}
             value={moveForm.fromRowNumber}
             onChangeText={(value) =>
               setMoveForm((current) => ({ ...current, fromRowNumber: value }))
             }
-            placeholder="Auto-filled from assignment"
+            placeholder={t("mw.autoFilled")}
           />
           <LabeledInput
-            label="Job type"
+            label={t("dw.jobType")}
             value={moveForm.jobType}
             onChangeText={(value) =>
               setMoveForm((current) => ({ ...current, jobType: value }))
             }
-            placeholder="Auto-filled from assignment"
+            placeholder={t("mw.autoFilled")}
             autoCapitalize="characters"
           />
           <ScannerInput
-            label="Correct row"
+            label={t("mw.correctRow")}
             value={moveForm.toRowNumber}
             onChangeText={(value) =>
               setMoveForm((current) => ({ ...current, toRowNumber: value }))
             }
-            placeholder="Uses active Day row if blank"
+            placeholder={t("mw.correctRowPlaceholder")}
           />
           {(moveForm.workerName || moveForm.toRowNumber || sharedState.selectedRow) ? (
             <View className="rounded-2xl bg-farm-50 border border-farm-200 p-3.5 gap-1.5">
-              <Text className="text-farm-800 text-xs font-extrabold uppercase">Preview</Text>
+              <Text className="text-farm-800 text-xs font-extrabold uppercase">{t("mw.preview")}</Text>
               <Text className="text-farm-700 text-sm leading-5">
-                {moveForm.workerName || "Selected worker"} will move from Row{" "}
-                {moveForm.fromRowNumber || "?"} to Row{" "}
-                {moveForm.toRowNumber || sharedState.selectedRow || "?"} in Block{" "}
-                {moveForm.blockName || sharedState.selectedBlock || "?"}.
+                {t("mw.willMoveFromToBlock", {
+                  name: moveForm.workerName || t("mw.selectedWorker"),
+                  from: moveForm.fromRowNumber || "?",
+                  to: moveForm.toRowNumber || sharedState.selectedRow || "?",
+                  block: moveForm.blockName || sharedState.selectedBlock || "?",
+                })}
               </Text>
             </View>
           ) : null}
           <ActionButton
-            label={submitting ? "Moving..." : "Move worker to correct row"}
+            label={submitting ? t("mw.moving") : t("mw.moveButton")}
             onPress={() => handleMoveWorker()}
             disabled={submitting}
           />
           {pendingMoveOverride ? (
             <ActionButton
-              label={submitting ? "Applying..." : "Move with same-job override"}
+              label={submitting ? t("mw.applying") : t("mw.moveOverride")}
               tone="secondary"
               onPress={() => handleMoveWorker(pendingMoveOverride)}
               disabled={submitting}
@@ -410,26 +425,26 @@ export default function MoveWorkersScreen({ sharedState, offlineQueue }) {
         </SectionCard>
       ) : (
         <SectionCard
-          title="Swap selected workers"
-          subtitle="Choose two workers from the same block and exchange their row assignments."
+          title={t("mw.swapTitle")}
+          subtitle={t("mw.swapSub")}
         >
           <LabeledInput
-            label="First worker"
+            label={t("mw.firstWorker")}
             value={swapSelection.first?.workerName || ""}
             onChangeText={() => {}}
-            placeholder="Tap a worker above first"
+            placeholder={t("mw.tapFirstAbove")}
             autoCapitalize="words"
           />
           <LabeledInput
-            label="Second worker"
+            label={t("mw.secondWorker")}
             value={swapSelection.second?.workerName || ""}
             onChangeText={() => {}}
-            placeholder="Tap a second worker above"
+            placeholder={t("mw.tapSecondAbove")}
             autoCapitalize="words"
           />
           {swapPreview.length ? (
             <View className="rounded-2xl bg-farm-50 border border-farm-200 p-3.5 gap-1.5">
-              <Text className="text-farm-800 text-xs font-extrabold uppercase">Preview</Text>
+              <Text className="text-farm-800 text-xs font-extrabold uppercase">{t("mw.preview")}</Text>
               {swapPreview.map((line) => (
                 <Text key={line} className="text-farm-700 text-sm leading-5">
                   {line}
@@ -438,7 +453,7 @@ export default function MoveWorkersScreen({ sharedState, offlineQueue }) {
             </View>
           ) : null}
           <ActionButton
-            label={submitting ? "Swapping..." : "Swap workers"}
+            label={submitting ? t("mw.swapping") : t("mw.swapButton")}
             onPress={handleSwapWorkers}
             disabled={submitting}
           />

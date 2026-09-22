@@ -2,10 +2,12 @@ import React, { useEffect, useRef } from "react";
 import { View, Text, Animated, StyleSheet } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import GlenOakLogo from "./GlenOakLogo";
+import { useLanguage } from "../i18n";
 
 const LOGO_SIZE = 170;
 
 export default function SplashScreen() {
+  const { t } = useLanguage();
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
   const opacityAnim = useRef(new Animated.Value(0.3)).current;
   const spinAnim = useRef(new Animated.Value(0)).current;
@@ -81,7 +83,7 @@ export default function SplashScreen() {
         <View className="absolute inset-x-0 bottom-12 items-center">
           <Text className="text-white text-2xl font-bold mb-2">Glen Oak</Text>
           <Text className="text-white/80 text-sm">
-            Preparing mobile workspace...
+            {t("splash.preparing")}
           </Text>
 
           {/* Loading dots animation */}

@@ -16,6 +16,7 @@ import ActionButton from "../components/ActionButton";
 import FeedbackBanner from "../components/FeedbackBanner";
 import { useAsyncData } from "../hooks/useAsyncData";
 import { sortNamesNumerically } from "../utils/sortNames";
+import { useLanguage } from "../i18n";
 
 function formatTime(isoString) {
   if (!isoString) return "--:--";
@@ -37,6 +38,7 @@ function elapsedSince(isoString) {
 }
 
 export default function CheckedInScreen({ offlineQueue }) {
+  const { t } = useLanguage();
   const checkinsState = useAsyncData(() => api.getCurrentCheckins(), [], {
     cacheKey: "checkins",
     staleTime: 5 * 60 * 1000,
@@ -524,7 +526,7 @@ export default function CheckedInScreen({ offlineQueue }) {
   }
 
   const groupedByBlock = records.reduce((acc, item) => {
-    const block = item.blockName || "Unknown";
+    const block = item.blockName || t("common.unknown");
     if (!acc[block]) acc[block] = [];
     acc[block].push(item);
     return acc;
@@ -538,8 +540,8 @@ export default function CheckedInScreen({ offlineQueue }) {
       onRefresh={checkinsState.refresh}
     >
       <SectionCard
-        title="Actions"
-        subtitle="Move a worker to another row or check out a worker."
+        title={t("ci.actions")}
+        subtitle={t("ci.actionsSub")}
       >
         <View className="flex-row gap-2.5">
           <TouchableOpacity
@@ -553,7 +555,7 @@ export default function CheckedInScreen({ offlineQueue }) {
             }}
             onPress={openMoveModal}
           >
-            <Text style={{ color: "#fff", fontSize: 14, fontWeight: "800" }}>Move Worker</Text>
+            <Text style={{ color: "#fff", fontSize: 14, fontWeight: "800" }}>{t("ci.moveWorker")}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             activeOpacity={0.7}
@@ -568,14 +570,14 @@ export default function CheckedInScreen({ offlineQueue }) {
             }}
             onPress={openCheckoutModal}
           >
-            <Text style={{ color: "#374151", fontSize: 14, fontWeight: "800" }}>Checkout</Text>
+            <Text style={{ color: "#374151", fontSize: 14, fontWeight: "800" }}>{t("ci.checkout")}</Text>
           </TouchableOpacity>
         </View>
       </SectionCard>
 
       <SectionCard
-        title="Currently working"
-        subtitle={`${records.length} worker${records.length !== 1 ? "s" : ""} checked in across all blocks.`}
+        title={t("ci.currentlyWorking")}
+        subtitle={t("ci.currentlyWorkingSub", { count: records.length })}
       >
         {checkinsState.loading && !records.length ? (
           <ActivityIndicator color="#16a34a" />
@@ -583,7 +585,7 @@ export default function CheckedInScreen({ offlineQueue }) {
 
         {!records.length && !checkinsState.loading ? (
           <Text className="text-gray-400 text-sm">
-            No workers are currently checked in.
+            {t("ci.noWorkersCheckedIn")}
           </Text>
         ) : null}
 
@@ -610,7 +612,7 @@ export default function CheckedInScreen({ offlineQueue }) {
                             {item.workerName}
                           </Text>
                           <Text className="mt-0.5 text-gray-400 text-[13px]">
-                            ID {item.workerID}
+                            {t("ci.id", { id: item.workerID })}
                           </Text>
                         </View>
                         <View className="items-end">
@@ -618,13 +620,13 @@ export default function CheckedInScreen({ offlineQueue }) {
                             {item.job_type}
                           </Text>
                           <Text className="text-gray-400 text-xs mt-0.5">
-                            Row {item.rowNumber}
+                            {t("ci.row", { row: item.rowNumber })}
                           </Text>
                         </View>
                       </View>
                       <View className="flex-row items-center justify-between mt-2 pt-2 border-t border-gray-100">
                         <Text className="text-gray-400 text-xs">
-                          In at {formatTime(item.startTime)}
+                          {t("ci.inAt", { time: formatTime(item.startTime) })}
                         </Text>
                         <Text className="text-gray-500 text-xs font-bold">
                           {elapsedSince(item.startTime)}
@@ -669,9 +671,9 @@ export default function CheckedInScreen({ offlineQueue }) {
                             >
                               {activeOperation === "checkout"
                                 ? inlineCheckoutSubmitting
-                                  ? "Submitting..."
-                                  : "Submit"
-                                : "Checkout"}
+                                  ? t("common.submitting")
+                                  : t("common.submit")
+                                : t("ci.checkout")}
                             </Text>
                           </TouchableOpacity>
                           <TouchableOpacity
@@ -723,9 +725,9 @@ export default function CheckedInScreen({ offlineQueue }) {
                             >
                               {activeOperation === "move"
                                 ? inlineMoveSubmitting
-                                  ? "Submitting..."
-                                  : "Submit"
-                                : "Move"}
+                                  ? t("common.submitting")
+                                  : t("common.submit")
+                                : t("ci.move")}
                             </Text>
                           </TouchableOpacity>
                         </View>
@@ -733,12 +735,12 @@ export default function CheckedInScreen({ offlineQueue }) {
                         {activeOperation === "checkout" ? (
                           <View className="mt-2 pt-2 border-t border-gray-100 gap-2.5">
                             <View className="gap-1.5">
-                              <Text className="text-gray-600 text-xs font-bold">Stocks completed</Text>
+                              <Text className="text-gray-600 text-xs font-bold">{t("ci.stocksCompleted")}</Text>
                               <TextInput
                                 className="rounded-xl border border-gray-200 bg-white px-3.5 py-3 text-gray-900 text-[15px]"
                                 value={inlineCheckoutStock}
                                 onChangeText={setInlineCheckoutStock}
-                                placeholder="Leave blank to complete remaining"
+                                placeholder={t("ci.stocksPlaceholder")}
                                 placeholderTextColor="#9ca3af"
                                 keyboardType="numeric"
                               />
@@ -753,23 +755,23 @@ export default function CheckedInScreen({ offlineQueue }) {
                         {activeOperation === "move" ? (
                           <View className="mt-2 pt-2 border-t border-gray-100 gap-2.5">
                             <SelectField
-                              label="Target block"
+                              label={t("ci.targetBlock")}
                               value={inlineMoveTargetBlock}
-                              placeholder="Select block"
+                              placeholder={t("ci.selectBlock")}
                               options={blockOptions}
                               onSelect={handleInlineBlockSelect}
-                              emptyMessage="No blocks found"
+                              emptyMessage={t("common.noBlocksFound")}
                             />
 
                             {inlineMoveTargetBlock ? (
                               <SelectField
-                                label="Target row"
+                                label={t("ci.targetRow")}
                                 value={inlineMoveTargetRow}
-                                placeholder="Select target row"
+                                placeholder={t("ci.selectTargetRow")}
                                 options={inlineRowOptions}
                                 onSelect={handleInlineRowSelect}
                                 emptyMessage={
-                                  inlineRowsState.loading ? "Loading rows..." : "No rows available"
+                                  inlineRowsState.loading ? t("ci.loadingRows") : t("ci.noRowsAvailable")
                                 }
                               />
                             ) : null}
@@ -778,10 +780,14 @@ export default function CheckedInScreen({ offlineQueue }) {
                             !inlineSameJobOccupied &&
                             inlineMoveRowOccupants.length === 0 ? (
                               <View className="rounded-2xl bg-farm-50 border border-farm-200 p-3.5 gap-1.5">
-                                <Text className="text-farm-800 text-xs font-extrabold uppercase">Preview</Text>
+                                <Text className="text-farm-800 text-xs font-extrabold uppercase">{t("common.preview")}</Text>
                                 <Text className="text-farm-700 text-sm leading-5">
-                                  {item.workerName} will move from Row {item.rowNumber} to Row{" "}
-                                  {inlineMoveTargetRow} in {inlineMoveTargetBlock}.
+                                  {t("ci.willMoveFromTo", {
+                                    name: item.workerName,
+                                    from: item.rowNumber,
+                                    to: inlineMoveTargetRow,
+                                    block: inlineMoveTargetBlock,
+                                  })}
                                 </Text>
                               </View>
                             ) : null}
@@ -791,12 +797,13 @@ export default function CheckedInScreen({ offlineQueue }) {
                             inlineMoveRowOccupants.length > 0 ? (
                               <View className="rounded-2xl bg-amber-50 border border-amber-200 p-3.5 gap-1.5">
                                 <Text className="text-amber-800 text-xs font-extrabold uppercase">
-                                  Different job on row
+                                  {t("ci.diffJobOnRow")}
                                 </Text>
                                 <Text className="text-amber-700 text-sm leading-5">
-                                  Row {inlineMoveTargetRow} has{" "}
-                                  {inlineMoveRowOccupants.map((o) => o.workerName).join(", ")} doing
-                                  different jobs. Multiple jobs allowed.
+                                  {t("ci.diffJobOnRowDesc", {
+                                    row: inlineMoveTargetRow,
+                                    names: inlineMoveRowOccupants.map((o) => o.workerName).join(", "),
+                                  })}
                                 </Text>
                               </View>
                             ) : null}
@@ -804,16 +811,20 @@ export default function CheckedInScreen({ offlineQueue }) {
                             {inlineMoveTargetRow && inlineSameJobOccupied ? (
                               <View className="rounded-2xl bg-white border border-gray-200 p-3.5 gap-3">
                                 <View className="gap-1.5">
-                                  <Text className="text-gray-900 text-sm font-extrabold">Row occupied</Text>
+                                  <Text className="text-gray-900 text-sm font-extrabold">{t("ci.rowOccupied")}</Text>
                                   <Text className="text-gray-600 text-[13px] leading-5">
-                                    {item.workerName} ({item.job_type || "N/A"}) wants to move to Row{" "}
-                                    {inlineMoveTargetRow} in {inlineMoveTargetBlock}.
+                                    {t("ci.rowOccupiedDesc", {
+                                      name: item.workerName,
+                                      job: item.job_type || t("common.na"),
+                                      row: inlineMoveTargetRow,
+                                      block: inlineMoveTargetBlock,
+                                    })}
                                   </Text>
                                 </View>
 
                                 <View className="gap-1.5">
                                   <Text className="text-gray-400 text-xs font-bold uppercase tracking-wider">
-                                    Currently on this row
+                                    {t("ci.currentlyOnRow")}
                                   </Text>
                                   {inlineMoveRowOccupants.map((o) => (
                                     <View
@@ -824,7 +835,7 @@ export default function CheckedInScreen({ offlineQueue }) {
                                         {o.workerName} ({o.workerID})
                                       </Text>
                                       <Text className="text-gray-400 text-xs">
-                                        {o.job_type || "No job"} · {elapsedSince(o.startTime)} on row
+                                        {o.job_type || t("common.noJob")} · {t("ci.onRow", { time: elapsedSince(o.startTime) })}
                                       </Text>
                                     </View>
                                   ))}
@@ -844,7 +855,7 @@ export default function CheckedInScreen({ offlineQueue }) {
                                     onPress={handleInlineAllowMultiple}
                                   >
                                     <Text style={{ color: "#fff", fontSize: 13, fontWeight: "800" }}>
-                                      {inlineOccupantsSubmitting ? "Working..." : "Allow — move here too"}
+                                      {inlineOccupantsSubmitting ? t("common.working") : t("ci.allowMoveHereToo")}
                                     </Text>
                                   </TouchableOpacity>
 
@@ -863,8 +874,8 @@ export default function CheckedInScreen({ offlineQueue }) {
                                   >
                                     <Text style={{ color: "#374151", fontSize: 13, fontWeight: "800" }}>
                                       {inlineOccupantsSubmitting
-                                        ? "Working..."
-                                        : "Swap — exchange rows"}
+                                        ? t("common.working")
+                                        : t("ci.swapExchangeRows")}
                                     </Text>
                                   </TouchableOpacity>
 
@@ -882,7 +893,7 @@ export default function CheckedInScreen({ offlineQueue }) {
                                     onPress={handleInlineRejectOccupants}
                                   >
                                     <Text style={{ color: "#6b7280", fontSize: 13, fontWeight: "800" }}>
-                                      Cancel
+                                      {t("common.cancel")}
                                     </Text>
                                   </TouchableOpacity>
                                 </View>
@@ -908,8 +919,8 @@ export default function CheckedInScreen({ offlineQueue }) {
                               >
                                 <Text style={{ fontSize: 15, fontWeight: "800", color: "#374151" }}>
                                   {inlineMoveSubmitting
-                                    ? "Applying..."
-                                    : "Move with same-job override"}
+                                    ? t("common.applying")
+                                    : t("ci.moveWithOverride")}
                                 </Text>
                               </TouchableOpacity>
                             ) : null}
@@ -938,9 +949,9 @@ export default function CheckedInScreen({ offlineQueue }) {
           <ScreenScroll refreshing={false}>
             <View className="flex-row items-center justify-between mb-1">
               <View className="flex-1">
-                <Text className="text-gray-900 text-lg font-extrabold">Move Worker</Text>
+                <Text className="text-gray-900 text-lg font-extrabold">{t("ci.moveWorkerModal")}</Text>
                 <Text className="text-gray-400 text-[13px] leading-5 mt-0.5">
-                  Pick a worker, then choose target block and row.
+                  {t("ci.moveWorkerModalSub")}
                 </Text>
               </View>
               <TouchableOpacity
@@ -948,13 +959,13 @@ export default function CheckedInScreen({ offlineQueue }) {
                 style={{ borderRadius: 12, backgroundColor: "#f3f4f6", borderWidth: 1, borderColor: "#e5e7eb", paddingHorizontal: 14, paddingVertical: 10 }}
                 onPress={() => setMoveOpen(false)}
               >
-                <Text style={{ color: "#374151", fontSize: 13, fontWeight: "800" }}>Close</Text>
+                <Text style={{ color: "#374151", fontSize: 13, fontWeight: "800" }}>{t("common.close")}</Text>
               </TouchableOpacity>
             </View>
 
-          <SectionCard title="Select worker" subtitle="Tap a worker to expand move options.">
+          <SectionCard title={t("ci.selectWorker")} subtitle={t("ci.tapToExpandMove")}>
             {records.length === 0 ? (
-              <Text className="text-gray-400 text-sm">No workers available.</Text>
+              <Text className="text-gray-400 text-sm">{t("ci.noWorkersAvailable")}</Text>
             ) : null}
 
             {records.map((w, index) => {
@@ -990,7 +1001,12 @@ export default function CheckedInScreen({ offlineQueue }) {
                       {w.workerName} ({w.workerID})
                     </Text>
                     <Text style={{ marginTop: 3, fontSize: 13, color: active ? "#dcfce7" : "#9ca3af" }}>
-                      {w.blockName} · Row {w.rowNumber} · {w.job_type || "No job"} · {elapsedSince(w.startTime)}
+                      {t("ci.workerPosition", {
+                        block: w.blockName,
+                        row: w.rowNumber,
+                        job: w.job_type || t("common.noJob"),
+                        elapsed: elapsedSince(w.startTime),
+                      })}
                     </Text>
                   </TouchableOpacity>
 
@@ -998,74 +1014,82 @@ export default function CheckedInScreen({ offlineQueue }) {
                     <View style={{ marginTop: 8, marginLeft: 4, marginRight: 4, gap: 10 }}>
                       <View className="rounded-xl bg-white border border-gray-200 p-3.5 gap-2.5">
                         <View className="flex-row items-center justify-between">
-                          <Text className="text-gray-500 text-xs font-bold">From block</Text>
+                          <Text className="text-gray-500 text-xs font-bold">{t("ci.fromBlock")}</Text>
                           <Text className="text-gray-900 text-sm font-extrabold">{w.blockName}</Text>
                         </View>
                         <View className="flex-row items-center justify-between">
-                          <Text className="text-gray-500 text-xs font-bold">Job</Text>
-                          <Text className="text-gray-900 text-sm font-extrabold">{w.job_type || "N/A"}</Text>
+                          <Text className="text-gray-500 text-xs font-bold">{t("ci.job")}</Text>
+                          <Text className="text-gray-900 text-sm font-extrabold">{w.job_type || t("common.na")}</Text>
                         </View>
                         <View className="flex-row items-center justify-between">
-                          <Text className="text-gray-500 text-xs font-bold">From row</Text>
+                          <Text className="text-gray-500 text-xs font-bold">{t("ci.fromRow")}</Text>
                           <Text className="text-gray-900 text-sm font-extrabold">{w.rowNumber}</Text>
                         </View>
                       </View>
 
                       <SelectField
-                        label="Target block"
+                        label={t("ci.targetBlock")}
                         value={moveTargetBlock}
-                        placeholder="Select block"
+                        placeholder={t("ci.selectBlock")}
                         options={blockOptions}
                         onSelect={(value) => {
                           setMoveTargetBlock(value);
                           setMoveTargetRow("");
                         }}
-                        emptyMessage="No blocks found"
+                        emptyMessage={t("common.noBlocksFound")}
                       />
 
                       {moveTargetBlock ? (
                         <SelectField
-                          label="Target row"
+                          label={t("ci.targetRow")}
                           value={moveTargetRow}
-                          placeholder="Select target row"
+                          placeholder={t("ci.selectTargetRow")}
                           options={moveRowOptions}
                           onSelect={handleRowSelect}
                           emptyMessage={
                             moveRowsState.loading
-                              ? "Loading rows..."
-                              : "No rows available"
+                              ? t("ci.loadingRows")
+                              : t("ci.noRowsAvailable")
                           }
                         />
                       ) : null}
 
                       {moveTargetRow && !isSameJobOccupied && moveRowOccupants.length === 0 ? (
                         <View className="rounded-2xl bg-farm-50 border border-farm-200 p-3.5 gap-1.5">
-                          <Text className="text-farm-800 text-xs font-extrabold uppercase">Preview</Text>
+                          <Text className="text-farm-800 text-xs font-extrabold uppercase">{t("common.preview")}</Text>
                           <Text className="text-farm-700 text-sm leading-5">
-                            {w.workerName} will move from Row {w.rowNumber} to Row {moveTargetRow} in {moveTargetBlock}.
+                            {t("ci.willMoveFromTo", {
+                              name: w.workerName,
+                              from: w.rowNumber,
+                              to: moveTargetRow,
+                              block: moveTargetBlock,
+                            })}
                           </Text>
                         </View>
                       ) : null}
 
                       {moveTargetRow && !isSameJobOccupied && moveRowOccupants.length > 0 ? (
                         <View className="rounded-2xl bg-amber-50 border border-amber-200 p-3.5 gap-1.5">
-                          <Text className="text-amber-800 text-xs font-extrabold uppercase">Different job on row</Text>
+                          <Text className="text-amber-800 text-xs font-extrabold uppercase">{t("ci.diffJobOnRow")}</Text>
                           <Text className="text-amber-700 text-sm leading-5">
-                            Row {moveTargetRow} has {moveRowOccupants.map((o) => o.workerName).join(", ")} doing different jobs. Multiple jobs allowed.
+                            {t("ci.diffJobOnRowDesc", {
+                              row: moveTargetRow,
+                              names: moveRowOccupants.map((o) => o.workerName).join(", "),
+                            })}
                           </Text>
                         </View>
                       ) : null}
 
                       {moveTargetRow && moveRowOccupants.length === 0 ? (
                         <ActionButton
-                          label={moveSubmitting ? "Moving..." : "Move worker"}
+                          label={moveSubmitting ? t("ci.moving") : t("ci.moveWorkerBtn")}
                           onPress={() => handleMove()}
                           disabled={moveSubmitting || !moveTargetRow}
                         />
                       ) : null}
                       {pendingMoveOverride ? (
                         <ActionButton
-                          label={moveSubmitting ? "Applying..." : "Move with same-job override"}
+                          label={moveSubmitting ? t("common.applying") : t("ci.moveWithOverride")}
                           tone="secondary"
                           onPress={() => handleMove(pendingMoveOverride)}
                           disabled={moveSubmitting}
@@ -1090,18 +1114,23 @@ export default function CheckedInScreen({ offlineQueue }) {
         <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "center", padding: 24 }}>
           <View style={{ borderRadius: 24, backgroundColor: "#fff", padding: 24, gap: 16 }}>
             <Text style={{ fontSize: 18, fontWeight: "800", color: "#111827" }}>
-              Row occupied
+              {t("ci.rowOccupied")}
             </Text>
 
             {moveWorker ? (
               <Text style={{ fontSize: 14, color: "#4b5563", lineHeight: 20 }}>
-                <Text style={{ fontWeight: "800" }}>{moveWorker.workerName}</Text> ({moveWorker.job_type || "N/A"}) wants to move to Row {moveTargetRow} in {moveTargetBlock}.
+                {t("ci.rowOccupiedDesc", {
+                  name: moveWorker.workerName,
+                  job: moveWorker.job_type || t("common.na"),
+                  row: moveTargetRow,
+                  block: moveTargetBlock,
+                })}
               </Text>
             ) : null}
 
             <View style={{ gap: 6 }}>
               <Text style={{ fontSize: 12, fontWeight: "700", color: "#6b7280", textTransform: "uppercase", letterSpacing: 1 }}>
-                Currently on this row
+                {t("ci.currentlyOnRow")}
               </Text>
               {moveRowOccupants.map((o) => (
                 <View
@@ -1112,7 +1141,7 @@ export default function CheckedInScreen({ offlineQueue }) {
                     {o.workerName} ({o.workerID})
                   </Text>
                   <Text style={{ fontSize: 12, color: "#9ca3af" }}>
-                    {o.job_type || "No job"} · {elapsedSince(o.startTime)} on row
+                    {o.job_type || t("common.noJob")} · {t("ci.onRow", { time: elapsedSince(o.startTime) })}
                   </Text>
                 </View>
               ))}
@@ -1136,7 +1165,7 @@ export default function CheckedInScreen({ offlineQueue }) {
                 disabled={occupantsSubmitting}
               >
                 <Text style={{ color: "#fff", fontSize: 15, fontWeight: "800" }}>
-                  {occupantsSubmitting ? "Working..." : "Allow — move here too"}
+                  {occupantsSubmitting ? t("common.working") : t("ci.allowMoveHereToo")}
                 </Text>
               </TouchableOpacity>
 
@@ -1154,7 +1183,7 @@ export default function CheckedInScreen({ offlineQueue }) {
                 disabled={occupantsSubmitting}
               >
                 <Text style={{ color: "#374151", fontSize: 15, fontWeight: "800" }}>
-                  {occupantsSubmitting ? "Working..." : "Swap — exchange rows"}
+                  {occupantsSubmitting ? t("common.working") : t("ci.swapExchangeRows")}
                 </Text>
               </TouchableOpacity>
 
@@ -1171,7 +1200,7 @@ export default function CheckedInScreen({ offlineQueue }) {
                 onPress={handleRejectOccupants}
                 disabled={occupantsSubmitting}
               >
-                <Text style={{ color: "#6b7280", fontSize: 15, fontWeight: "800" }}>Cancel</Text>
+                <Text style={{ color: "#6b7280", fontSize: 15, fontWeight: "800" }}>{t("common.cancel")}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -1184,9 +1213,9 @@ export default function CheckedInScreen({ offlineQueue }) {
           <ScreenScroll refreshing={false}>
             <View className="flex-row items-center justify-between mb-1">
               <View className="flex-1">
-                <Text className="text-gray-900 text-lg font-extrabold">Checkout</Text>
+                <Text className="text-gray-900 text-lg font-extrabold">{t("ci.checkoutModal")}</Text>
                 <Text className="text-gray-400 text-[13px] leading-5 mt-0.5">
-                  Tap a worker to expand the checkout form inline.
+                  {t("ci.checkoutModalSub")}
                 </Text>
               </View>
               <TouchableOpacity
@@ -1194,13 +1223,13 @@ export default function CheckedInScreen({ offlineQueue }) {
                 style={{ borderRadius: 12, backgroundColor: "#f3f4f6", borderWidth: 1, borderColor: "#e5e7eb", paddingHorizontal: 14, paddingVertical: 10 }}
                 onPress={() => setCheckoutOpen(false)}
               >
-                <Text style={{ color: "#374151", fontSize: 13, fontWeight: "800" }}>Close</Text>
+                <Text style={{ color: "#374151", fontSize: 13, fontWeight: "800" }}>{t("common.close")}</Text>
               </TouchableOpacity>
             </View>
 
-          <SectionCard title="Select worker" subtitle="Tap a worker below to check them out.">
+          <SectionCard title={t("ci.selectWorker")} subtitle={t("ci.tapToExpandCheckout")}>
             {records.length === 0 ? (
-              <Text className="text-gray-400 text-sm">No workers available.</Text>
+              <Text className="text-gray-400 text-sm">{t("ci.noWorkersAvailable")}</Text>
             ) : null}
 
             {records.map((w, index) => {
@@ -1232,7 +1261,12 @@ export default function CheckedInScreen({ offlineQueue }) {
                       {w.workerName} ({w.workerID})
                     </Text>
                     <Text style={{ marginTop: 3, fontSize: 13, color: active ? "#dcfce7" : "#9ca3af" }}>
-                      {w.blockName} · Row {w.rowNumber} · {w.job_type || "No job"} · {elapsedSince(w.startTime)}
+                      {t("ci.workerPosition", {
+                        block: w.blockName,
+                        row: w.rowNumber,
+                        job: w.job_type || t("common.noJob"),
+                        elapsed: elapsedSince(w.startTime),
+                      })}
                     </Text>
                   </TouchableOpacity>
 
@@ -1240,37 +1274,37 @@ export default function CheckedInScreen({ offlineQueue }) {
                     <View style={{ marginTop: 8, marginLeft: 4, marginRight: 4, gap: 10 }}>
                       <View className="rounded-xl bg-white border border-gray-200 p-3.5 gap-2.5">
                         <View className="flex-row items-center justify-between">
-                          <Text className="text-gray-500 text-xs font-bold">Block</Text>
+                          <Text className="text-gray-500 text-xs font-bold">{t("ci.block")}</Text>
                           <Text className="text-gray-900 text-sm font-extrabold">{w.blockName}</Text>
                         </View>
                         <View className="flex-row items-center justify-between">
-                          <Text className="text-gray-500 text-xs font-bold">Row</Text>
+                          <Text className="text-gray-500 text-xs font-bold">{t("ci.row")}</Text>
                           <Text className="text-gray-900 text-sm font-extrabold">{w.rowNumber}</Text>
                         </View>
                         <View className="flex-row items-center justify-between">
-                          <Text className="text-gray-500 text-xs font-bold">Job</Text>
-                          <Text className="text-gray-900 text-sm font-extrabold">{w.job_type || "N/A"}</Text>
+                          <Text className="text-gray-500 text-xs font-bold">{t("ci.job")}</Text>
+                          <Text className="text-gray-900 text-sm font-extrabold">{w.job_type || t("common.na")}</Text>
                         </View>
                         <View className="flex-row items-center justify-between">
-                          <Text className="text-gray-500 text-xs font-bold">Started</Text>
+                          <Text className="text-gray-500 text-xs font-bold">{t("ci.started")}</Text>
                           <Text className="text-gray-900 text-sm font-extrabold">{formatTime(w.startTime)}</Text>
                         </View>
                       </View>
 
                       <View className="gap-1.5">
-                        <Text className="text-gray-600 text-xs font-bold">Stocks completed</Text>
+                        <Text className="text-gray-600 text-xs font-bold">{t("ci.stocksCompleted")}</Text>
                         <TextInput
                           className="rounded-xl border border-gray-200 bg-white px-3.5 py-3 text-gray-900 text-[15px]"
                           value={checkoutStock}
                           onChangeText={setCheckoutStock}
-                          placeholder="Leave blank to complete remaining"
+                          placeholder={t("ci.stocksPlaceholder")}
                           placeholderTextColor="#9ca3af"
                           keyboardType="numeric"
                         />
                       </View>
 
                       <ActionButton
-                        label={checkoutSubmitting ? "Submitting..." : "Submit checkout"}
+                        label={checkoutSubmitting ? t("common.submitting") : t("ci.submitCheckout")}
                         tone="secondary"
                         onPress={handleCheckout}
                         disabled={checkoutSubmitting}

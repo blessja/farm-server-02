@@ -11,9 +11,10 @@ import SectionCard from "../components/SectionCard";
 import ActionButton from "../components/ActionButton";
 import FeedbackBanner from "../components/FeedbackBanner";
 import LabeledInput from "../components/LabeledInput";
+import { useLanguage } from "../i18n";
 
-function formatTimestamp(value) {
-  if (!value) return "Unknown time";
+function formatTimestamp(value, unknownText) {
+  if (!value) return unknownText;
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
   return date.toLocaleString();
@@ -55,6 +56,7 @@ function parseEditedValue(originalValue, textValue) {
 }
 
 export default function QueueScreen({ offlineQueue }) {
+  const { t } = useLanguage();
   const [busyId, setBusyId] = useState("");
   const [feedback, setFeedback] = useState({ type: "info", message: "" });
   const [resolverItem, setResolverItem] = useState(null);
@@ -86,7 +88,7 @@ export default function QueueScreen({ offlineQueue }) {
     setFeedback({ type: "info", message: "" });
     try {
       await offlineQueue.retryAction(actionId);
-      setFeedback({ type: "success", message: "Queued action synced." });
+      setFeedback({ type: "success", message: t("q.synced") });
     } catch (error) {
       setFeedback({ type: "error", message: error.message });
     } finally {
@@ -99,7 +101,7 @@ export default function QueueScreen({ offlineQueue }) {
     setFeedback({ type: "info", message: "" });
     try {
       await offlineQueue.removeAction(actionId);
-      setFeedback({ type: "success", message: "Queued action removed." });
+      setFeedback({ type: "success", message: t("q.removed") });
     } catch (error) {
       setFeedback({ type: "error", message: error.message });
     } finally {
@@ -112,7 +114,7 @@ export default function QueueScreen({ offlineQueue }) {
     setFeedback({ type: "info", message: "" });
     try {
       await offlineQueue.clearQueue();
-      setFeedback({ type: "success", message: "Offline queue cleared." });
+      setFeedback({ type: "success", message: t("q.cleared") });
     } catch (error) {
       setFeedback({ type: "error", message: error.message });
     } finally {
@@ -142,7 +144,7 @@ export default function QueueScreen({ offlineQueue }) {
       });
 
       await offlineQueue.retryAction(resolverItem.id);
-      setFeedback({ type: "success", message: "Conflict resolved and action synced." });
+      setFeedback({ type: "success", message: t("q.conflictResolved") });
       closeResolver();
     } catch (error) {
       setFeedback({ type: "error", message: error.message });
@@ -172,7 +174,7 @@ export default function QueueScreen({ offlineQueue }) {
       }));
       setFeedback({
         type: "success",
-        message: "Override applied. You can retry the action now.",
+        message: t("q.overrideApplied"),
       });
     } catch (error) {
       setFeedback({ type: "error", message: error.message });
@@ -185,24 +187,24 @@ export default function QueueScreen({ offlineQueue }) {
     <>
       <ScreenScroll refreshing={false} onRefresh={offlineQueue.refreshQueue}>
         <SectionCard
-          title="Supervisor queue"
-          subtitle="Inspect locally queued actions, retry, or resolve conflicts before they sync."
+          title={t("q.title")}
+          subtitle={t("q.subtitle")}
         >
           <View className="gap-3">
             <Text className="text-gray-900 text-lg font-extrabold">
-              {offlineQueue.queueCount} queued
+              {t("q.queuedCount", { count: offlineQueue.queueCount })}
             </Text>
             <Text className="text-red-600 text-[13px] font-bold">
-              {conflictCount} need supervisor review
+              {t("q.needsReview", { count: conflictCount })}
             </Text>
             <View className="gap-2.5">
               <ActionButton
-                label="Sync all"
+                label={t("q.syncAll")}
                 onPress={offlineQueue.syncQueue}
                 disabled={busyId === "all"}
               />
               <ActionButton
-                label="Clear all"
+                label={t("q.clearAll")}
                 tone="secondary"
                 onPress={handleClear}
                 disabled={busyId === "all" || offlineQueue.queueCount === 0}
@@ -210,7 +212,7 @@ export default function QueueScreen({ offlineQueue }) {
             </View>
           </View>
           <Text className="text-gray-500 text-sm leading-5">
-            {offlineQueue.lastSyncMessage || "Queued actions are waiting for retry."}
+            {offlineQueue.lastSyncMessage || t("q.waitingRetry")}
           </Text>
           <FeedbackBanner
             type={feedback.type === "error" ? "error" : "success"}
@@ -219,11 +221,11 @@ export default function QueueScreen({ offlineQueue }) {
         </SectionCard>
 
         <SectionCard
-          title="Queued items"
-          subtitle="Each entry stores the endpoint, payload, attempt count, and last retry error."
+          title={t("q.items")}
+          subtitle={t("q.itemsSub")}
         >
           {!offlineQueue.queueItems.length ? (
-            <Text className="text-gray-400 text-sm">No offline actions are waiting.</Text>
+            <Text className="text-gray-400 text-sm">{t("q.noItems")}</Text>
           ) : null}
 
           {offlineQueue.queueItems.map((item) => (
@@ -235,24 +237,24 @@ export default function QueueScreen({ offlineQueue }) {
                 {item.method || "POST"} {item.path}
               </Text>
               <Text className="text-gray-400 text-[13px] leading-5">
-                Queued: {formatTimestamp(item.createdAt)}
+                {t("q.queuedTime", { time: formatTimestamp(item.createdAt, t("q.unknownTime")) })}
               </Text>
               <Text className="text-gray-400 text-[13px] leading-5">
-                Attempts: {item.attempts || 0}
+                {t("q.attempts", { count: item.attempts || 0 })}
               </Text>
               {item.lastStatus ? (
                 <Text className="text-gray-400 text-[13px] leading-5">
-                  Last status: {item.lastStatus}
+                  {t("q.lastStatus", { code: item.lastStatus })}
                 </Text>
               ) : null}
               {item.lastError ? (
                 <Text className="text-red-600 text-[13px] leading-5 font-bold">
-                  Last error: {item.lastError}
+                  {t("q.lastError", { error: item.lastError })}
                 </Text>
               ) : null}
               {item.lastPayload?.message ? (
                 <Text className="text-red-600 text-[13px] leading-5 font-bold">
-                  Backend message: {item.lastPayload.message}
+                  {t("q.backendMessage", { message: item.lastPayload.message })}
                 </Text>
               ) : null}
               <View className="rounded-xl bg-white p-3 border border-gray-100">
@@ -262,20 +264,20 @@ export default function QueueScreen({ offlineQueue }) {
               </View>
               <View className="gap-2.5">
                 <ActionButton
-                  label={busyId === item.id ? "Retrying..." : "Retry"}
+                  label={busyId === item.id ? t("common.retrying") : t("q.retry")}
                   onPress={() => handleRetry(item.id)}
                   disabled={busyId === item.id}
                 />
                 {isConflictItem(item) ? (
                   <ActionButton
-                    label="Resolve conflict"
+                    label={t("q.resolveConflict")}
                     tone="secondary"
                     onPress={() => openResolver(item)}
                     disabled={busyId === item.id}
                   />
                 ) : null}
                 <ActionButton
-                  label="Remove"
+                  label={t("q.remove")}
                   tone="secondary"
                   onPress={() => handleRemove(item.id)}
                   disabled={busyId === item.id}
@@ -290,9 +292,9 @@ export default function QueueScreen({ offlineQueue }) {
 
       <Modal visible={Boolean(resolverItem)} animationType="slide">
         <View className="flex-1 bg-white pt-16 px-4 pb-6">
-          <Text className="text-gray-900 text-2xl font-extrabold">Resolve queued conflict</Text>
+          <Text className="text-gray-900 text-2xl font-extrabold">{t("q.resolveTitle")}</Text>
           <Text className="mt-2 text-gray-400 text-sm leading-5">
-            Update the queued payload to match current server state, then retry it.
+            {t("q.resolveSub")}
           </Text>
 
           <ScrollView contentContainerStyle={{ paddingTop: 18, paddingBottom: 32, gap: 12 }}>
@@ -316,7 +318,7 @@ export default function QueueScreen({ offlineQueue }) {
 
             {resolverItem?.path === "/api/checkin" ? (
               <ActionButton
-                label={resolverBusy ? "Applying..." : "Allow multiple workers"}
+                label={resolverBusy ? t("common.applying") : t("q.allowMultiple")}
                 tone="secondary"
                 onPress={handleAllowMultipleWorkers}
                 disabled={resolverBusy}
@@ -325,12 +327,12 @@ export default function QueueScreen({ offlineQueue }) {
 
             <View className="gap-2.5 mt-1.5">
               <ActionButton
-                label={resolverBusy ? "Saving..." : "Save and retry"}
+                label={resolverBusy ? t("common.saving") : t("q.saveRetry")}
                 onPress={handleResolverSaveAndRetry}
                 disabled={resolverBusy}
               />
               <ActionButton
-                label="Cancel"
+                label={t("common.cancel")}
                 tone="secondary"
                 onPress={closeResolver}
                 disabled={resolverBusy}

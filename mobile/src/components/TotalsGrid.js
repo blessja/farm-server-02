@@ -10,6 +10,7 @@ import {
 import { api } from "../api/client";
 import ActionButton from "./ActionButton";
 import FeedbackBanner from "./FeedbackBanner";
+import { useLanguage } from "../i18n";
 
 const NAME_COL_WIDTH = 140;
 const ID_COL_WIDTH = 48;
@@ -80,8 +81,10 @@ export default function TotalsGrid({
   hours = {},
   editable = true,
   onHoursChanged,
-  emptyMessage = "No piecework totals available yet.",
+  emptyMessage,
 }) {
+  const { t } = useLanguage();
+  const resolvedEmpty = emptyMessage ?? t("grid.noTotalsAvailable");
   const [hoursModal, setHoursModal] = useState(null);
   const [hoursInput, setHoursInput] = useState("");
   const [hoursFeedback, setHoursFeedback] = useState({ type: "info", message: "" });
@@ -216,7 +219,7 @@ export default function TotalsGrid({
     if (trimmed === "" || Number.isNaN(value) || value < 0) {
       setHoursFeedback({
         type: "error",
-        message: "Enter a valid number of hours (0 or more).",
+        message: t("grid.invalidHours"),
       });
       return;
     }
@@ -280,7 +283,7 @@ export default function TotalsGrid({
     if (trimmed === "" || Number.isNaN(value) || value < 0) {
       setColumnFeedback({
         type: "error",
-        message: "Enter a valid number of hours (0 or more).",
+        message: t("grid.invalidHours"),
       });
       return;
     }
@@ -289,7 +292,7 @@ export default function TotalsGrid({
     if (workers.length === 0) {
       setColumnFeedback({
         type: "error",
-        message: "No workers worked on this day in the current view.",
+        message: t("grid.noWorkersOnDay"),
       });
       return;
     }
@@ -332,7 +335,7 @@ export default function TotalsGrid({
         });
         cleared += 1;
       }
-      setColumnFeedback({ type: "success", message: `Cleared ${cleared} worker(s) for this day.` });
+      setColumnFeedback({ type: "success", message: t("grid.clearedWorkers", { count: cleared }) });
       onHoursChanged?.();
       setColumnModal(null);
     } catch (error) {
@@ -345,7 +348,7 @@ export default function TotalsGrid({
   if (!hasData) {
     return (
       <View style={{ borderRadius: 12, backgroundColor: "#f9fafb", borderWidth: 1, borderColor: "#f3f4f6", padding: 16 }}>
-        <Text style={{ color: "#9ca3af", fontSize: 14 }}>{emptyMessage}</Text>
+        <Text style={{ color: "#9ca3af", fontSize: 14 }}>{resolvedEmpty}</Text>
       </View>
     );
   }
@@ -384,7 +387,7 @@ export default function TotalsGrid({
                   }}
                 >
                   <Text style={{ fontSize: 9, fontWeight: "800", color: "#0e7490", textTransform: "uppercase", letterSpacing: 0.5 }}>
-                    HRS
+                    {t("grid.hrs")}
                   </Text>
                 </View>
               ) : null}
@@ -399,7 +402,7 @@ export default function TotalsGrid({
                 }}
               >
                 <Text style={{ fontSize: 11, fontWeight: "800", color: "#374151", textTransform: "uppercase", letterSpacing: 0.5 }}>
-                  ID
+                  {t("grid.id")}
                 </Text>
               </View>
 
@@ -448,7 +451,7 @@ export default function TotalsGrid({
                   }}
                 >
                   <Text style={{ fontSize: 10, fontWeight: "800", color: "#0e7490", textTransform: "uppercase", letterSpacing: 0.5 }}>
-                    Day hours
+                    {t("grid.dayHours")}
                   </Text>
                 </View>
               ) : null}
@@ -463,7 +466,7 @@ export default function TotalsGrid({
                 }}
               >
                 <Text style={{ fontSize: 12, fontWeight: "800", color: "#374151", textTransform: "uppercase", letterSpacing: 0.5 }}>
-                  Worker
+                  {t("grid.worker")}
                 </Text>
               </View>
 
@@ -500,7 +503,7 @@ export default function TotalsGrid({
                 }}
               >
                 <Text style={{ fontSize: 13, fontWeight: "800", color: "#16a34a", textTransform: "uppercase", letterSpacing: 0.3 }}>
-                  Total
+                  {t("grid.total")}
                 </Text>
               </View>
             </View>
@@ -527,14 +530,14 @@ export default function TotalsGrid({
                         }}
                       >
                         <Text style={{ fontSize: 10, fontWeight: "700", color: "#0e7490" }}>
-                          {columnHours[dk] > 0 ? formatHours(columnHours[dk]) : "+ hrs"}
+                          {columnHours[dk] > 0 ? formatHours(columnHours[dk]) : t("grid.plusHrs")}
                         </Text>
                       </TouchableOpacity>
                     </HeaderCell>
                   ))}
                   <HeaderCell width={TOTAL_COL_WIDTH} style={{ backgroundColor: "#ccfbf1" }}>
                     <Text style={{ fontSize: 9, fontWeight: "800", color: "#0f766e", textTransform: "uppercase", letterSpacing: 0.4 }}>
-                      Day hrs
+                      {t("grid.dayHrs")}
                     </Text>
                   </HeaderCell>
                 </View>
@@ -552,10 +555,10 @@ export default function TotalsGrid({
 
                 <HeaderCell width={TOTAL_COL_WIDTH} style={{ backgroundColor: "#f0fdf4", borderRightWidth: 0 }}>
                   <Text style={{ fontSize: 11, fontWeight: "800", color: "#16a34a", textTransform: "uppercase", letterSpacing: 0.5 }}>
-                    Total
+                    {t("grid.total")}
                   </Text>
                   <Text style={{ fontSize: 9, fontWeight: "700", color: "#15803d", marginTop: 2, textTransform: "uppercase" }}>
-                    Vines · Hrs
+                    {t("grid.vinesHrs")}
                   </Text>
                 </HeaderCell>
               </View>
@@ -617,7 +620,7 @@ export default function TotalsGrid({
                                 marginTop: 1,
                               }}
                             >
-                              {hoursText || "+ hrs"}
+                              {hoursText || t("grid.plusHrs")}
                             </Text>
                           ) : null}
                         </TouchableOpacity>
@@ -688,17 +691,20 @@ export default function TotalsGrid({
           <View style={{ borderRadius: 24, backgroundColor: "#fff", padding: 24, gap: 16 }}>
             <View style={{ gap: 4 }}>
               <Text style={{ fontSize: 18, fontWeight: "800", color: "#111827" }}>
-                Edit hours worked
+                {t("grid.editHours")}
               </Text>
               <Text style={{ fontSize: 14, color: "#4b5563", lineHeight: 20 }}>
-                <Text style={{ fontWeight: "800" }}>{hoursModal?.workerName}</Text> (ID{" "}
-                {hoursModal?.workerID}) on {hoursModal?.dateLabel}
+                {t("grid.editSub", {
+                  name: hoursModal?.workerName || "",
+                  id: hoursModal?.workerID || "",
+                  date: hoursModal?.dateLabel || "",
+                })}
               </Text>
             </View>
 
             <View style={{ gap: 6 }}>
               <Text style={{ color: "#4b5563", fontSize: 12, fontWeight: "700" }}>
-                Hours worked
+                {t("grid.hoursWorked")}
               </Text>
               <TextInput
                 style={{
@@ -713,7 +719,7 @@ export default function TotalsGrid({
                 }}
                 value={hoursInput}
                 onChangeText={setHoursInput}
-                placeholder="e.g. 7.5"
+                placeholder={t("grid.hoursPlaceholder")}
                 placeholderTextColor="#9ca3af"
                 keyboardType="decimal-pad"
                 autoFocus
@@ -727,7 +733,7 @@ export default function TotalsGrid({
 
             <View style={{ gap: 10 }}>
               <ActionButton
-                label={hoursSaving ? "Saving..." : "Save hours"}
+                label={hoursSaving ? t("common.saving") : t("grid.saveHours")}
                 onPress={handleSaveHours}
                 disabled={hoursSaving}
               />
@@ -745,7 +751,7 @@ export default function TotalsGrid({
                 onPress={handleClearHours}
               >
                 <Text style={{ color: "#6b7280", fontSize: 15, fontWeight: "800" }}>
-                  Clear hours
+                  {t("grid.clearHours")}
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -761,7 +767,7 @@ export default function TotalsGrid({
                 onPress={() => setHoursModal(null)}
               >
                 <Text style={{ color: "#374151", fontSize: 15, fontWeight: "800" }}>
-                  Close
+                  {t("common.close")}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -780,18 +786,19 @@ export default function TotalsGrid({
           <View style={{ borderRadius: 24, backgroundColor: "#fff", padding: 24, gap: 16 }}>
             <View style={{ gap: 4 }}>
               <Text style={{ fontSize: 18, fontWeight: "800", color: "#111827" }}>
-                Set day hours
+                {t("grid.setDayHours")}
               </Text>
               <Text style={{ fontSize: 14, color: "#4b5563", lineHeight: 20 }}>
-                On <Text style={{ fontWeight: "800" }}>{columnModal?.dateLabel}</Text> for all{" "}
-                {columnModal?.workerCount || 0} worker(s) in this column. You can still edit each
-                worker's cell afterwards.
+                {t("grid.setDayHoursDesc", {
+                  date: columnModal?.dateLabel || "",
+                  count: columnModal?.workerCount || 0,
+                })}
               </Text>
             </View>
 
             <View style={{ gap: 6 }}>
               <Text style={{ color: "#4b5563", fontSize: 12, fontWeight: "700" }}>
-                Hours worked (applied to every worker that day)
+                {t("grid.hoursWorkedApplied")}
               </Text>
               <TextInput
                 style={{
@@ -806,7 +813,7 @@ export default function TotalsGrid({
                 }}
                 value={columnInput}
                 onChangeText={setColumnInput}
-                placeholder="e.g. 7.5"
+                placeholder={t("grid.hoursPlaceholder")}
                 placeholderTextColor="#9ca3af"
                 keyboardType="decimal-pad"
                 autoFocus
@@ -820,7 +827,7 @@ export default function TotalsGrid({
 
             <View style={{ gap: 10 }}>
               <ActionButton
-                label={columnSaving ? "Saving..." : "Apply to all workers"}
+                label={columnSaving ? t("common.saving") : t("grid.applyToAll")}
                 onPress={handleSaveColumnHours}
                 disabled={columnSaving}
               />
@@ -838,7 +845,7 @@ export default function TotalsGrid({
                 onPress={handleClearColumnHours}
               >
                 <Text style={{ color: "#6b7280", fontSize: 15, fontWeight: "800" }}>
-                  Clear all workers for this day
+                  {t("grid.clearAllForDay")}
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -854,7 +861,7 @@ export default function TotalsGrid({
                 onPress={() => setColumnModal(null)}
               >
                 <Text style={{ color: "#374151", fontSize: 15, fontWeight: "800" }}>
-                  Close
+                  {t("common.close")}
                 </Text>
               </TouchableOpacity>
             </View>

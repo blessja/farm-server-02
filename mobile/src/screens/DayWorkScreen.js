@@ -9,6 +9,7 @@ import WorkerSuggestionInput from "../components/WorkerSuggestionInput";
 import SelectField from "../components/SelectField";
 import LabeledInput from "../components/LabeledInput";
 import { useAsyncData } from "../hooks/useAsyncData";
+import { useLanguage } from "../i18n";
 import { sortNamesNumerically } from "../utils/sortNames";
 
 const defaultCheckin = {
@@ -23,6 +24,7 @@ const defaultCheckout = {
 };
 
 export default function DayWorkScreen({ sharedState, offlineQueue }) {
+  const { t } = useLanguage();
   const [checkinForm, setCheckinForm] = useState(defaultCheckin);
   const [checkoutForm, setCheckoutForm] = useState(defaultCheckout);
   const [feedback, setFeedback] = useState({ type: "info", message: "" });
@@ -254,51 +256,53 @@ export default function DayWorkScreen({ sharedState, offlineQueue }) {
       }}
     >
       <SectionCard
-        title="DayWork"
-        subtitle="Choose today's block and row, then check-in and checkout."
+        title={t("dw.title")}
+        subtitle={t("dw.subtitle")}
       >
         <Text className="text-gray-600 text-sm leading-5">
-          Block: {sharedState.selectedBlock || "Not selected"}{"  "}
-          Row: {sharedState.selectedRow || "Not selected"}
+          {t("dw.blockLabel", {
+            block: sharedState.selectedBlock || t("common.notSelected"),
+            row: sharedState.selectedRow || t("common.notSelected"),
+          })}{"  "}
         </Text>
       </SectionCard>
 
       <SectionCard
-        title="Day selection"
-        subtitle="Fill in job type first, then select block and row. Rows with same-job workers will prompt for confirmation."
+        title={t("dw.daySelection")}
+        subtitle={t("dw.daySelectionSub")}
       >
         <LabeledInput
-          label="Job type"
+          label={t("dw.jobType")}
           value={sharedState.jobType}
           onChangeText={(value) => sharedState.setJobType(value)}
-          placeholder="e.g. PRUNING"
+          placeholder={t("dw.jobTypePlaceholder")}
           autoCapitalize="characters"
         />
         {blocksState.loading && !blocks.length ? (
           <ActivityIndicator color="#16a34a" />
         ) : null}
         <SelectField
-          label="Block"
+          label={t("dw.block")}
           value={sharedState.selectedBlock}
-          placeholder="Select block"
+          placeholder={t("dw.selectBlock")}
           options={blockOptions}
           onSelect={(value) => {
             sharedState.setSelectedBlock(value);
             sharedState.setSelectedRow("");
             setAllowMultipleWorkers(false);
           }}
-          emptyMessage="No blocks found"
+          emptyMessage={t("common.noBlocksFound")}
         />
         <SelectField
-          label="Row"
+          label={t("dw.row")}
           value={sharedState.selectedRow}
-          placeholder="Select row"
+          placeholder={t("dw.selectRow")}
           options={allRowOptions}
           onSelect={handleRowSelect}
           emptyMessage={
             sharedState.selectedBlock
-              ? "No rows available in this block"
-              : "Select a block first"
+              ? t("dw.noRowsInBlock")
+              : t("dw.selectBlockFirst")
           }
           disabledValues={disabledRowValues}
         />
@@ -330,7 +334,7 @@ export default function DayWorkScreen({ sharedState, offlineQueue }) {
               )}
             </View>
             <Text className="text-gray-600 text-sm" style={{ flex: 1 }}>
-              Allow multiple workers on same row
+              {t("dw.allowMultiple")}
             </Text>
           </TouchableOpacity>
         )}
@@ -338,11 +342,11 @@ export default function DayWorkScreen({ sharedState, offlineQueue }) {
       </SectionCard>
 
       <SectionCard
-        title="Regular check-in"
-        subtitle="Uses the selected block and row from above."
+        title={t("dw.regCheckin")}
+        subtitle={t("dw.regCheckinSub")}
       >
         <WorkerSuggestionInput
-          label="Worker ID / Worker Name"
+          label={t("dw.workerIDOrName")}
           workerID={checkinForm.workerID}
           workerName={checkinForm.workerName}
           onSelect={({ workerID, workerName }) =>
@@ -354,15 +358,15 @@ export default function DayWorkScreen({ sharedState, offlineQueue }) {
           }
         />
         <LabeledInput
-          label="Worker name"
+          label={t("dw.workerName")}
           value={checkinForm.workerName}
           onChangeText={(value) => setCheckinForm((current) => ({ ...current, workerName: value }))}
-          placeholder="Auto-filled from scan or selection"
+          placeholder={t("dw.autoFilled")}
           autoCapitalize="words"
           readOnly
         />
         <ActionButton
-          label={submitting ? "Working..." : "Submit check-in"}
+          label={submitting ? t("common.working") : t("dw.submitCheckin")}
           onPress={handleCheckin}
           disabled={
             submitting || !sharedState.selectedBlock || !sharedState.selectedRow || !checkinForm.workerID
@@ -375,11 +379,11 @@ export default function DayWorkScreen({ sharedState, offlineQueue }) {
       </SectionCard>
 
       <SectionCard
-        title="Regular checkout"
-        subtitle="Uses the selected block and row from above."
+        title={t("dw.regCheckout")}
+        subtitle={t("dw.regCheckinSub")}
       >
         <WorkerSuggestionInput
-          label="Worker ID / Worker Name"
+          label={t("dw.workerIDOrName")}
           workerID={checkoutForm.workerID}
           workerName={checkoutForm.workerName}
           onSelect={({ workerID, workerName }) =>
@@ -391,22 +395,22 @@ export default function DayWorkScreen({ sharedState, offlineQueue }) {
           }
         />
         <LabeledInput
-          label="Worker name"
+          label={t("dw.workerName")}
           value={checkoutForm.workerName}
           onChangeText={(value) => setCheckoutForm((current) => ({ ...current, workerName: value }))}
-          placeholder="Auto-filled from scan or selection"
+          placeholder={t("dw.autoFilled")}
           autoCapitalize="words"
           readOnly
         />
         <LabeledInput
-          label="Stock completed"
+          label={t("dw.stockCompleted")}
           value={checkoutForm.stockCount}
           onChangeText={(value) => setCheckoutForm((current) => ({ ...current, stockCount: value }))}
-          placeholder="Leave blank to complete remaining"
+          placeholder={t("dw.leaveBlank")}
           keyboardType="numeric"
         />
         <ActionButton
-          label={submitting ? "Submitting..." : "Submit checkout"}
+          label={submitting ? t("common.submitting") : t("dw.submitCheckout")}
           tone="secondary"
           onPress={handleCheckout}
           disabled={
@@ -424,12 +428,15 @@ export default function DayWorkScreen({ sharedState, offlineQueue }) {
         <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "center", padding: 24 }}>
           <View style={{ borderRadius: 24, backgroundColor: "#fff", padding: 24, gap: 16 }}>
             <Text style={{ fontSize: 18, fontWeight: "800", color: "#111827" }}>
-              Row already occupied
+              {t("dw.rowOccupied")}
             </Text>
 
             <Text style={{ fontSize: 14, color: "#4b5563", lineHeight: 20 }}>
-              Row {sharedState.selectedRow} in {sharedState.selectedBlock} already has workers doing{" "}
-              <Text style={{ fontWeight: "800" }}>{sharedState.jobType}</Text>:
+              {t("dw.rowOccupiedDesc", {
+                row: sharedState.selectedRow,
+                block: sharedState.selectedBlock,
+                job: sharedState.jobType || "",
+              })}
             </Text>
 
             <View style={{ gap: 6 }}>
@@ -442,14 +449,14 @@ export default function DayWorkScreen({ sharedState, offlineQueue }) {
                     {o.workerName} ({o.workerID})
                   </Text>
                   <Text style={{ fontSize: 12, color: "#9ca3af" }}>
-                    {o.job_type || "No job"} · Row {o.rowNumber}
+                    {o.job_type || t("common.noJob")} · {t("common.rowCol")} {o.rowNumber}
                   </Text>
                 </View>
               ))}
             </View>
 
             <Text style={{ fontSize: 14, color: "#4b5563", lineHeight: 20 }}>
-              Allow <Text style={{ fontWeight: "800" }}>{checkinForm.workerName || "this worker"}</Text> to check in on the same row for the same job?
+              {t("dw.allowWorkerCheckin", { name: checkinForm.workerName || t("common.thisWorker") })}
             </Text>
 
             <FeedbackBanner
@@ -470,7 +477,7 @@ export default function DayWorkScreen({ sharedState, offlineQueue }) {
                 disabled={conflictSubmitting}
               >
                 <Text style={{ color: "#fff", fontSize: 15, fontWeight: "800" }}>
-                  {conflictSubmitting ? "Working..." : "Allow — check in here"}
+                  {conflictSubmitting ? t("common.working") : t("dw.allowCheckinHere")}
                 </Text>
               </TouchableOpacity>
 
@@ -487,7 +494,7 @@ export default function DayWorkScreen({ sharedState, offlineQueue }) {
                 onPress={handleRejectConflict}
                 disabled={conflictSubmitting}
               >
-                <Text style={{ color: "#6b7280", fontSize: 15, fontWeight: "800" }}>Cancel</Text>
+                <Text style={{ color: "#6b7280", fontSize: 15, fontWeight: "800" }}>{t("common.cancel")}</Text>
               </TouchableOpacity>
             </View>
           </View>
