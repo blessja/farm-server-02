@@ -8,7 +8,7 @@ import {
 } from "react-native";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { useLanguage } from "../i18n";
-import { searchWorkers, getWorkerById, refreshServerWorkers } from "../workers/workerRegistry";
+import { searchWorkers, getWorkerById, resolveWorkerInput, refreshServerWorkers } from "../workers/workerRegistry";
 
 export default function WorkerSuggestionInput({
   label,
@@ -43,7 +43,12 @@ export default function WorkerSuggestionInput({
 
   function handleTextChange(text) {
     setQuery(text);
-    onSelect({ workerID: text, workerName: "" });
+    const resolved = resolveWorkerInput(text);
+    if (resolved) {
+      onSelect({ workerID: resolved.workerID, workerName: resolved.name });
+    } else {
+      onSelect({ workerID: text, workerName: "" });
+    }
     if (text.trim().length > 0) {
       setIsOpen(true);
     } else {

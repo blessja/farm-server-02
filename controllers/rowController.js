@@ -511,16 +511,24 @@ exports.checkOutWorker = async (req, res) => {
       return res.status(404).send({ message: "Row not found" });
     }
 
-    let job, jobIndex, timeSpentInMinutes, currentRemaining;
+    let job = null;
+    let jobIndex = -1;
+    let timeSpentInMinutes = 0;
+    let currentRemaining = 0;
     let usedJobType = jobType ? jobType.trim().toUpperCase() : "UNKNOWN";
 
-    // Try NEW FORMAT first (active_jobs)
+    // Try NEW FORMAT first (active_jobs). Prefer a worker-plus-job match, but
+    // always fall back to a worker-only match: a checkout must remove the
+    // worker's active job even when the reported job type differs slightly from
+    // what was stored at check-in. Otherwise the worker stays visible in the
+    // Working tab and the fallen-back legacy path counts the row again.
     if (row.active_jobs && row.active_jobs.length > 0) {
       if (jobType) {
         jobIndex = row.active_jobs.findIndex(
           (job) => job.worker_id === workerID && job.job_type.toUpperCase() === usedJobType
         );
-      } else {
+      }
+      if (jobIndex === -1) {
         jobIndex = row.active_jobs.findIndex(
           (job) => job.worker_id === workerID
         );
@@ -535,9 +543,13 @@ exports.checkOutWorker = async (req, res) => {
       }
     }
 
-    // Fallback to OLD FORMAT if not found in active_jobs
+    // Fallback to OLD FORMAT only when this worker has no active job record.
+    // Because the worker-only match above handles every active_jobs entry, this
+    // branch is reached only for legacy check-ins, never while an active job for
+    // this worker still exists (that combination is what showed the worker again
+    // and counted the row twice).
     if (!job && row.worker_id === workerID) {
-      if (!row.start_time) {
+      if (!row.start_time || row.time_spent) {
         return res
           .status(400)
           .send({ message: "Worker is not checked in to this row" });
@@ -575,13 +587,24 @@ exports.checkOutWorker = async (req, res) => {
       // NEW FORMAT
       job.remaining_stock = currentRemaining - stockCompleted;
       row.active_jobs.splice(jobIndex, 1);
+
+      // Clear the legacy worker fields too. Otherwise the Working tab keeps
+      // showing this worker as active, and a second checkout of the same row
+      // would count the stock twice.
+      if (row.worker_id === workerID) {
+        row.worker_id = "";
+        row.worker_name = "";
+        row.start_time = null;
+        row.time_spent = null;
+        row.job_type = "";
+      }
     } else {
       // OLD FORMAT
       row.remaining_stock_count = currentRemaining - stockCompleted;
       row.worker_name = "";
       row.worker_id = "";
       row.start_time = null;
-      row.time_spent = null;
+      row.time_spent = timeSpentInMinutes;
     }
 
     await block.save();

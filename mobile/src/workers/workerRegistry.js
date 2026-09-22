@@ -42,6 +42,21 @@ export function getWorkerById(workerID) {
   return mergeWorkers().find((worker) => worker.workerID === id);
 }
 
+export function getWorkerByName(name) {
+  const clean = String(name || "").trim().toUpperCase();
+  if (!clean) return undefined;
+  return mergeWorkers().find((worker) => worker.name.toUpperCase() === clean);
+}
+
+// Resolve a raw typed/scanned token to the exact worker record. Tries the ID
+// first, then an exact name match, so a supervisor can type a full name and
+// submit without the backend complaining about missing fields.
+export function resolveWorkerInput(token) {
+  const clean = String(token || "").trim();
+  if (!clean) return undefined;
+  return getWorkerById(clean) || getWorkerByName(clean);
+}
+
 export function refreshServerWorkers() {
   if (refreshPromise) return refreshPromise;
 

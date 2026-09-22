@@ -11,6 +11,7 @@ import { api } from "../api/client";
 import ActionButton from "./ActionButton";
 import FeedbackBanner from "./FeedbackBanner";
 import { useLanguage } from "../i18n";
+import { sortNamesNumerically } from "../utils/sortNames";
 
 const NAME_COL_WIDTH = 140;
 const ID_COL_WIDTH = 48;
@@ -94,6 +95,33 @@ export default function TotalsGrid({
   const [columnInput, setColumnInput] = useState("");
   const [columnFeedback, setColumnFeedback] = useState({ type: "info", message: "" });
   const [columnSaving, setColumnSaving] = useState(false);
+
+  // For each worker, the blocks and row numbers they worked in the current
+  // (filtered) view. Shown under the worker name in smaller text.
+  const workerLocations = useMemo(() => {
+    const map = {};
+    rows.forEach((r) => {
+      if (!r.workerID) return;
+      if (!map[r.workerID]) map[r.workerID] = {};
+      const blockKey = r.blockName || t("common.unknown");
+      if (!map[r.workerID][blockKey]) map[r.workerID][blockKey] = new Set();
+      map[r.workerID][blockKey].add(String(r.rowNumber));
+    });
+    return map;
+  }, [rows, t]);
+
+  function workerLocationText(workerID) {
+    const loc = workerLocations[workerID];
+    if (!loc) return "";
+    const blockNames = Object.keys(loc);
+    if (blockNames.length === 1) {
+      const rowsWorked = sortNamesNumerically([...loc[blockNames[0]]]);
+      return `${t("grid.rowsWorked")}: ${rowsWorked.join(", ")}`;
+    }
+    return blockNames
+      .map((b) => `${b}: ${sortNamesNumerically([...loc[b]]).join(",")}`)
+      .join("  ");
+  }
 
   const { workerOrder, dateOrder, matrix, dateLabels } = useMemo(() => {
     const wMap = {};
@@ -472,6 +500,7 @@ export default function TotalsGrid({
 
               {workerOrder.map((w, idx) => {
                 const rowBg = idx % 2 === 0 ? "#fff" : "#f9fafb";
+                const locText = workerLocationText(w.workerID);
 
                 return (
                   <View
@@ -488,6 +517,11 @@ export default function TotalsGrid({
                     <Text numberOfLines={1} style={{ fontSize: 13, fontWeight: "700", color: "#111827" }}>
                       {w.workerName}
                     </Text>
+                    {locText ? (
+                      <Text numberOfLines={1} style={{ fontSize: 10, fontWeight: "500", color: "#9ca3af", marginTop: 1 }}>
+                        {locText}
+                      </Text>
+                    ) : null}
                   </View>
                 );
               })}

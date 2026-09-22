@@ -15,11 +15,11 @@ import FeedbackBanner from "../components/FeedbackBanner";
 import ActionButton from "../components/ActionButton";
 import LabeledInput from "../components/LabeledInput";
 import { useAsyncData } from "../hooks/useAsyncData";
-import { useLanguage } from "../i18n";
-import { addServerWorker } from "../workers/workerRegistry";
+import { LANGUAGES, useLanguage } from "../i18n";
+import { addServerWorker, resolveWorkerInput } from "../workers/workerRegistry";
 
 export default function DashboardScreen({ sharedState, offlineQueue }) {
-  const { t } = useLanguage();
+  const { language, setLanguage, t } = useLanguage();
   const blocksState = useAsyncData(() => api.getBlocks(), [], {
     cacheKey: "blocks",
     staleTime: 30 * 60 * 1000,
@@ -51,12 +51,30 @@ export default function DashboardScreen({ sharedState, offlineQueue }) {
   const blockCount = Array.isArray(blocksState.data) ? blocksState.data.length : 0;
 
   async function handleAddWorker() {
-    const workerID = adminForm.workerID.trim();
-    const workerName = adminForm.workerName.trim();
-    if (!workerID || !workerName) {
+    let workerID = adminForm.workerID.trim();
+    let workerName = adminForm.workerName.trim();
+
+    // Resolve a typed ID or name against the known roster, the same way the
+    // other screens do, so a correct name is not rejected as "missing fields".
+    if (workerID && !workerName) {
+      const resolved = resolveWorkerInput(workerID);
+      if (resolved) workerName = resolved.name;
+    } else if (!workerID && workerName) {
+      const resolved = resolveWorkerInput(workerName);
+      if (resolved) workerID = resolved.workerID;
+    }
+
+    if (!workerID) {
       setAdminFeedback({
         type: "error",
-        message: t("dash.workerIdAndNameRequired"),
+        message: t("dash.idRequired"),
+      });
+      return;
+    }
+    if (!workerName) {
+      setAdminFeedback({
+        type: "error",
+        message: t("dash.nameRequired"),
       });
       return;
     }
@@ -128,6 +146,48 @@ export default function DashboardScreen({ sharedState, offlineQueue }) {
         <Text className="text-gray-600 text-sm leading-6">
           {t("dash.guideText")}
         </Text>
+      </SectionCard>
+
+      <SectionCard
+        title={t("dash.language")}
+        subtitle={t("dash.languageSub")}
+      >
+        <View className="flex-row flex-wrap gap-2.5">
+          {Object.values(LANGUAGES).map((lang) => {
+            const active = language === lang.key;
+            return (
+              <TouchableOpacity
+                key={lang.key}
+                activeOpacity={0.7}
+                onPress={() => setLanguage(lang.key)}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 8,
+                  paddingHorizontal: 14,
+                  paddingVertical: 10,
+                  borderRadius: 12,
+                  borderWidth: 1,
+                  borderColor: active ? "#16a34a" : "#d1d5db",
+                  backgroundColor: active ? "#dcfce7" : "#fff",
+                }}
+              >
+                {active && (
+                  <Text style={{ color: "#15803d", fontSize: 14, fontWeight: "800" }}>✓</Text>
+                )}
+                <Text
+                  style={{
+                    fontSize: 14,
+                    fontWeight: active ? "700" : "500",
+                    color: active ? "#15803d" : "#374151",
+                  }}
+                >
+                  {lang.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
       </SectionCard>
 
       <SectionCard

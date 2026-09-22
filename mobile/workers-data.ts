@@ -141,7 +141,7 @@ export const WORKERS_DATA: Worker[] = [
  { workerID: "5204", name: "Klassen Shelley-Anne Ch" },
  { workerID: "3001", name: "Mombeshora Collen" },
  { workerID: "3007", name: "Chaibva Knowledge" },
-
+{ workerID: "2006", name: "Moleta Fanie" },
  { workerID: "3011", name: "Kanyinji Daniel" },
  { workerID: "3014", name: "Ngazimbi Jacob" },
  { workerID: "3019", name: "Kuzeyamisa Kumbulani" },

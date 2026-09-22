@@ -2,12 +2,18 @@ import { API_BASE_URL } from "../config/env";
 import { getAuthToken, setAuthToken, clearAuthToken } from "../storage/authStorage";
 import { enqueueAction, removeQueuedAction } from "../storage/offlineQueue";
 
+const REQUEST_TIMEOUT_MS = 12000;
+
 function isNetworkError(error) {
   const message = error?.message || "";
   return (
     error?.name === "TypeError" ||
+    error?.name === "AbortError" ||
+    error?.aborted === true ||
     message.includes("Network request failed") ||
     message.includes("network request failed") ||
+    message.includes("timed out") ||
+    message.includes("timeout") ||
     message.includes("fetch")
   );
 }
@@ -15,14 +21,32 @@ function isNetworkError(error) {
 async function request(path, options = {}) {
   const token = await getAuthToken();
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(options.headers || {}),
-    },
-    ...options,
-  });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+  let response;
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(options.headers || {}),
+      },
+      ...options,
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (controller.signal.aborted) {
+      // Never wait forever: treat a slow/unreachable server like an offline
+      // connection so write actions queue instead of hanging the screen.
+      const timeoutError = new Error("Network request failed (timed out)");
+      timeoutError.name = "AbortError";
+      throw timeoutError;
+    }
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
 
   const contentType = response.headers.get("content-type") || "";
   const payload = contentType.includes("application/json")

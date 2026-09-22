@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { ActivityIndicator, Modal, Text, TouchableOpacity, View } from "react-native";
 import { api } from "../api/client";
 import ScreenScroll from "../components/ScreenScroll";
@@ -11,22 +11,16 @@ import LabeledInput from "../components/LabeledInput";
 import { useAsyncData } from "../hooks/useAsyncData";
 import { useLanguage } from "../i18n";
 import { sortNamesNumerically } from "../utils/sortNames";
+import { getRowAdvanceSettings, setRowAdvanceSettings } from "../storage/settingsStorage";
 
 const defaultCheckin = {
   workerID: "",
   workerName: "",
 };
 
-const defaultCheckout = {
-  workerID: "",
-  workerName: "",
-  stockCount: "",
-};
-
 export default function DayWorkScreen({ sharedState, offlineQueue }) {
   const { t } = useLanguage();
   const [checkinForm, setCheckinForm] = useState(defaultCheckin);
-  const [checkoutForm, setCheckoutForm] = useState(defaultCheckout);
   const [feedback, setFeedback] = useState({ type: "info", message: "" });
   const [submitting, setSubmitting] = useState(false);
 
@@ -38,6 +32,18 @@ export default function DayWorkScreen({ sharedState, offlineQueue }) {
 
   const [allowMultipleWorkers, setAllowMultipleWorkers] = useState(false);
   const [rowDirection, setRowDirection] = useState(1);
+  const [autoNextEnabled, setAutoNextEnabled] = useState(true);
+  const [nextDirection, setNextDirection] = useState("follow");
+
+  useEffect(() => {
+    (async () => {
+      const settings = await getRowAdvanceSettings();
+      if (settings) {
+        setAutoNextEnabled(settings.enabled !== false);
+        if (settings.direction) setNextDirection(settings.direction);
+      }
+    })();
+  }, []);
 
   const blocksState = useAsyncData(() => api.getBlocks(), [], {
     cacheKey: "blocks",
@@ -139,16 +145,33 @@ export default function DayWorkScreen({ sharedState, offlineQueue }) {
   }
 
   function advanceToNextRow() {
+    if (!autoNextEnabled) return;
     const availableRows = availableRowNumbers();
     const currentNum = selectedRowNumber();
     if (!Number.isFinite(currentNum) || availableRows.length === 0) {
       sharedState.setSelectedRow("");
       return;
     }
-    const nextRow = String(currentNum + rowDirection);
+    let delta = rowDirection;
+    if (nextDirection === "up") delta = 1;
+    else if (nextDirection === "down") delta = -1;
+    const nextRow = String(currentNum + delta);
     if (availableRows.includes(nextRow)) {
       sharedState.setSelectedRow(nextRow);
+      if (nextDirection === "up" || nextDirection === "down") {
+        setRowDirection(delta);
+      }
     }
+  }
+
+  function toggleAutoNext(value) {
+    setAutoNextEnabled(value);
+    setRowAdvanceSettings(value, nextDirection);
+  }
+
+  function handleNextDirection(direction) {
+    setNextDirection(direction);
+    setRowAdvanceSettings(autoNextEnabled, direction);
   }
 
   async function handleCheckin() {
@@ -204,7 +227,11 @@ export default function DayWorkScreen({ sharedState, offlineQueue }) {
       setConflictPayload(null);
       setConflictOccupants([]);
       setCheckinForm(defaultCheckin);
-      sharedState.setSelectedRow("");
+      if (autoNextEnabled) {
+        advanceToNextRow();
+      } else {
+        sharedState.setSelectedRow("");
+      }
       setAllowMultipleWorkers(false);
       setFeedback({ type: "success", message: result.message });
       offlineQueue.refreshQueueCount();
@@ -221,29 +248,6 @@ export default function DayWorkScreen({ sharedState, offlineQueue }) {
     setConflictPayload(null);
     setConflictOccupants([]);
     setConflictFeedback({ type: "info", message: "" });
-  }
-
-  async function handleCheckout() {
-    setSubmitting(true);
-    setFeedback({ type: "info", message: "" });
-    try {
-      const payload = {
-        ...checkoutForm,
-        jobType: (sharedState.jobType || "").trim().toUpperCase(),
-        blockName: sharedState.selectedBlock,
-        rowNumber: sharedState.selectedRow,
-        stockCount:
-          checkoutForm.stockCount === "" ? undefined : Number(checkoutForm.stockCount),
-      };
-      const result = await api.regularCheckout(payload);
-      setFeedback({ type: "success", message: result.message });
-      setCheckoutForm(defaultCheckout);
-      await Promise.all([offlineQueue.refreshQueueCount(), checkinsState.refresh()]);
-    } catch (error) {
-      setFeedback({ type: "error", message: error.message });
-    } finally {
-      setSubmitting(false);
-    }
   }
 
   return (
@@ -338,6 +342,77 @@ export default function DayWorkScreen({ sharedState, offlineQueue }) {
             </Text>
           </TouchableOpacity>
         )}
+        <TouchableOpacity
+          activeOpacity={0.7}
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 10,
+            paddingVertical: 8,
+          }}
+          onPress={() => toggleAutoNext(!autoNextEnabled)}
+        >
+          <View
+            style={{
+              width: 22,
+              height: 22,
+              borderRadius: 6,
+              borderWidth: 2,
+              borderColor: autoNextEnabled ? "#16a34a" : "#d1d5db",
+              backgroundColor: autoNextEnabled ? "#16a34a" : "#fff",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            {autoNextEnabled && (
+              <Text style={{ color: "#fff", fontSize: 14, fontWeight: "800" }}>✓</Text>
+            )}
+          </View>
+          <Text className="text-gray-600 text-sm" style={{ flex: 1 }}>
+            {t("dw.autoNextRow")}
+          </Text>
+        </TouchableOpacity>
+        {autoNextEnabled ? (
+          <View>
+            <Text className="text-gray-500 text-xs" style={{ marginBottom: 6 }}>
+              {t("dw.autoNextRowSub")}
+            </Text>
+            <View style={{ flexDirection: "row", gap: 8 }}>
+              {[
+                { key: "follow", label: t("dw.dirFollow") },
+                { key: "up", label: t("dw.dirUp") },
+                { key: "down", label: t("dw.dirDown") },
+              ].map((opt) => {
+                const active = nextDirection === opt.key;
+                return (
+                  <TouchableOpacity
+                    key={opt.key}
+                    activeOpacity={0.7}
+                    onPress={() => handleNextDirection(opt.key)}
+                    style={{
+                      paddingHorizontal: 10,
+                      paddingVertical: 6,
+                      borderRadius: 8,
+                      borderWidth: 1,
+                      borderColor: active ? "#16a34a" : "#d1d5db",
+                      backgroundColor: active ? "#dcfce7" : "#fff",
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 12,
+                        fontWeight: active ? "700" : "500",
+                        color: active ? "#15803d" : "#6b7280",
+                      }}
+                    >
+                      {opt.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+        ) : null}
         <FeedbackBanner type="error" message={blocksState.error || rowsState.error} />
       </SectionCard>
 
@@ -370,51 +445,6 @@ export default function DayWorkScreen({ sharedState, offlineQueue }) {
           onPress={handleCheckin}
           disabled={
             submitting || !sharedState.selectedBlock || !sharedState.selectedRow || !checkinForm.workerID
-          }
-        />
-        <FeedbackBanner
-          type={feedback.type === "error" ? "error" : "success"}
-          message={feedback.message}
-        />
-      </SectionCard>
-
-      <SectionCard
-        title={t("dw.regCheckout")}
-        subtitle={t("dw.regCheckinSub")}
-      >
-        <WorkerSuggestionInput
-          label={t("dw.workerIDOrName")}
-          workerID={checkoutForm.workerID}
-          workerName={checkoutForm.workerName}
-          onSelect={({ workerID, workerName }) =>
-            setCheckoutForm((current) => ({
-              ...current,
-              workerID,
-              workerName: workerName || current.workerName,
-            }))
-          }
-        />
-        <LabeledInput
-          label={t("dw.workerName")}
-          value={checkoutForm.workerName}
-          onChangeText={(value) => setCheckoutForm((current) => ({ ...current, workerName: value }))}
-          placeholder={t("dw.autoFilled")}
-          autoCapitalize="words"
-          readOnly
-        />
-        <LabeledInput
-          label={t("dw.stockCompleted")}
-          value={checkoutForm.stockCount}
-          onChangeText={(value) => setCheckoutForm((current) => ({ ...current, stockCount: value }))}
-          placeholder={t("dw.leaveBlank")}
-          keyboardType="numeric"
-        />
-        <ActionButton
-          label={submitting ? t("common.submitting") : t("dw.submitCheckout")}
-          tone="secondary"
-          onPress={handleCheckout}
-          disabled={
-            submitting || !sharedState.selectedBlock || !sharedState.selectedRow
           }
         />
         <FeedbackBanner

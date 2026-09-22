@@ -15,6 +15,7 @@ import SelectField from "../components/SelectField";
 import ActionButton from "../components/ActionButton";
 import FeedbackBanner from "../components/FeedbackBanner";
 import { useAsyncData } from "../hooks/useAsyncData";
+import { clearCache } from "../storage/cacheStorage";
 import { sortNamesNumerically } from "../utils/sortNames";
 import { useLanguage } from "../i18n";
 
@@ -349,6 +350,28 @@ export default function CheckedInScreen({ offlineQueue }) {
     }
   }
 
+  async function invalidateTotalsCache() {
+    await Promise.all([
+      clearCache("regular-totals"),
+      clearCache("fast-totals"),
+      clearCache("day-hours"),
+    ]);
+  }
+
+  function removeCheckinLocally(workerID, blockName, rowNumber) {
+    const current = Array.isArray(checkinsState.data) ? checkinsState.data : [];
+    checkinsState.setData(
+      current.filter(
+        (r) =>
+          !(
+            r.workerID === workerID &&
+            r.blockName === blockName &&
+            String(r.rowNumber) === String(rowNumber)
+          )
+      )
+    );
+  }
+
   async function handleCheckout() {
     if (!checkoutWorker) return;
     setCheckoutSubmitting(true);
@@ -365,6 +388,14 @@ export default function CheckedInScreen({ offlineQueue }) {
       };
 
       const result = await api.regularCheckout(payload);
+      if (!result.queued) {
+        removeCheckinLocally(
+          checkoutWorker.workerID,
+          checkoutWorker.blockName,
+          checkoutWorker.rowNumber
+        );
+        await invalidateTotalsCache();
+      }
       setCheckoutFeedback({ type: "success", message: result.message });
       setCheckoutWorker(null);
       setCheckoutStock("");
@@ -401,6 +432,14 @@ export default function CheckedInScreen({ offlineQueue }) {
       };
 
       const result = await api.regularCheckout(payload);
+      if (!result.queued) {
+        removeCheckinLocally(
+          expandedRecord.workerID,
+          expandedRecord.blockName,
+          expandedRecord.rowNumber
+        );
+        await invalidateTotalsCache();
+      }
       setInlineCheckoutFeedback({ type: "success", message: result.message });
       setInlineCheckoutStock("");
       setTimeout(() => setExpandedWorker(null), 800);
