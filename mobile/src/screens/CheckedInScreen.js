@@ -49,7 +49,11 @@ function isPreviousDay(isoString) {
   return Boolean(isoString) && dateKey(isoString) !== dateKey();
 }
 
-export default function CheckedInScreen({ offlineQueue, isAdmin = false }) {
+export default function CheckedInScreen({
+  offlineQueue,
+  isAdmin = false,
+  showBackdate = false,
+}) {
   const { t } = useLanguage();
   const checkinsState = useAsyncData(() => api.getCurrentCheckins(), [], {
     cacheKey: "checkins",
@@ -410,7 +414,12 @@ export default function CheckedInScreen({ offlineQueue, isAdmin = false }) {
   }
 
   function canSubmitCheckout(workDateValue, reasonValue) {
-    return !isAdmin || dateKey(workDateValue) === dateKey() || Boolean(String(reasonValue || "").trim());
+    return (
+      !isAdmin ||
+      !showBackdate ||
+      dateKey(workDateValue) === dateKey() ||
+      Boolean(String(reasonValue || "").trim())
+    );
   }
 
   async function handleCheckout(choiceOverride) {
@@ -429,7 +438,7 @@ export default function CheckedInScreen({ offlineQueue, isAdmin = false }) {
         jobType: checkoutWorker.job_type || "",
         stockCount: checkoutStock === "" ? undefined : Number(checkoutStock),
         keepCheckedIn: willKeep && choice === "keep",
-        ...(isAdmin
+        ...(isAdmin && showBackdate
           ? { workDate: checkoutWorkDate, checkoutReason: checkoutReason.trim() }
           : {}),
       };
@@ -489,7 +498,7 @@ export default function CheckedInScreen({ offlineQueue, isAdmin = false }) {
         jobType: expandedRecord.job_type || "",
         stockCount: inlineCheckoutStock === "" ? undefined : Number(inlineCheckoutStock),
         keepCheckedIn: willKeep && choice === "keep",
-        ...(isAdmin
+        ...(isAdmin && showBackdate
           ? {
               workDate: inlineCheckoutWorkDate,
               checkoutReason: inlineCheckoutReason.trim(),
@@ -873,7 +882,7 @@ export default function CheckedInScreen({ offlineQueue, isAdmin = false }) {
                                 keyboardType="numeric"
                               />
                             </View>
-                            {isAdmin ? (
+                            {isAdmin && showBackdate ? (
                               <View className="gap-1.5 rounded-xl bg-amber-50 border border-amber-200 p-3">
                                 <Text className="text-amber-800 text-xs font-bold">Work date</Text>
                                 <TextInput
@@ -1224,7 +1233,7 @@ export default function CheckedInScreen({ offlineQueue, isAdmin = false }) {
                         elapsed: elapsedSince(w.startTime),
                       })}
                     </Text>
-                    {isPreviousDay(w.startTime) ? (
+                    {showBackdate && isPreviousDay(w.startTime) ? (
                       <Text style={{ marginTop: 4, fontSize: 12, fontWeight: "800", color: active ? "#fef3c7" : "#b45309" }}>
                         Previous work day: {dateKey(w.startTime)}
                       </Text>
@@ -1538,7 +1547,7 @@ export default function CheckedInScreen({ offlineQueue, isAdmin = false }) {
                         />
                       </View>
 
-                      {isAdmin ? (
+                      {isAdmin && showBackdate ? (
                         <View className="gap-1.5 rounded-xl bg-amber-50 border border-amber-200 p-3">
                           <Text className="text-amber-800 text-xs font-bold">Work date</Text>
                           <TextInput

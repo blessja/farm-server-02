@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { StatusBar, Text, TouchableOpacity, View } from "react-native";
+import { Modal, StatusBar, Text, TouchableOpacity, View } from "react-native";
 import { StatusBar as ExpoStatusBar } from "expo-status-bar";
 import "./global.css";
 import {
@@ -58,6 +58,7 @@ function AppContent() {
   const [selectedBlock, setSelectedBlock] = useState("");
   const [selectedRow, setSelectedRow] = useState("");
   const [jobType, setJobType] = useState("");
+  const [activeWorkersOpen, setActiveWorkersOpen] = useState(false);
   const [bootState, setBootState] = useState({
     loading: true,
     authRequired: false,
@@ -208,7 +209,13 @@ function AppContent() {
           />
         );
       case "working":
-        return <CheckedInScreen offlineQueue={offlineQueue} isAdmin={bootState.isAdmin} />;
+        return (
+          <CheckedInScreen
+            offlineQueue={offlineQueue}
+            isAdmin={bootState.isAdmin}
+            showBackdate={false}
+          />
+        );
       case "move":
         return (
           <MoveWorkersScreen
@@ -235,6 +242,7 @@ function AppContent() {
           <DashboardScreen
             sharedState={sharedState}
             offlineQueue={offlineQueue}
+            onOpenActiveWorkers={() => setActiveWorkersOpen(true)}
           />
         );
     }
@@ -298,6 +306,29 @@ function AppContent() {
         <View className="flex-1" key={cacheEpoch}>
           {renderContent()}
         </View>
+
+        <Modal visible={activeWorkersOpen} animationType="slide">
+          <SafeAreaView style={{ flex: 1, backgroundColor: "#f9fafb" }}>
+            <View className="flex-row items-center justify-between px-4 pt-3 pb-2">
+              <View>
+                <Text className="text-gray-900 text-lg font-extrabold">Active workers</Text>
+                <Text className="text-gray-400 text-xs mt-1">Checkout, continue, or backdate work</Text>
+              </View>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                style={{ borderRadius: 12, backgroundColor: "#fff", borderWidth: 1, borderColor: "#e5e7eb", paddingHorizontal: 14, paddingVertical: 10 }}
+                onPress={() => setActiveWorkersOpen(false)}
+              >
+                <Text style={{ color: "#374151", fontSize: 13, fontWeight: "800" }}>Close</Text>
+              </TouchableOpacity>
+            </View>
+            <CheckedInScreen
+              offlineQueue={offlineQueue}
+              isAdmin={bootState.isAdmin}
+              showBackdate
+            />
+          </SafeAreaView>
+        </Modal>
 
         {bootState.loading || !bootState.authenticated ? null : (
           <SafeAreaView className="bg-gray-50" edges={["bottom"]}>

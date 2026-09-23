@@ -18,7 +18,7 @@ import { useAsyncData } from "../hooks/useAsyncData";
 import { LANGUAGES, useLanguage } from "../i18n";
 import { addServerWorker, resolveWorkerInput } from "../workers/workerRegistry";
 
-export default function DashboardScreen({ sharedState, offlineQueue }) {
+export default function DashboardScreen({ sharedState, offlineQueue, onOpenActiveWorkers }) {
   const { language, setLanguage, t } = useLanguage();
   const blocksState = useAsyncData(() => api.getBlocks(), [], {
     cacheKey: "blocks",
@@ -137,6 +137,17 @@ export default function DashboardScreen({ sharedState, offlineQueue }) {
           {offlineQueue.lastSyncMessage || t("dash.autoSync")}
         </Text>
         <ActionButton label={t("dash.syncNow")} onPress={offlineQueue.syncQueue} />
+      </SectionCard>
+
+      <SectionCard
+        title="Active workers"
+        subtitle="Open the current active list for checkout and previous-day work."
+      >
+        <ActionButton
+          label="View active workers"
+          onPress={onOpenActiveWorkers}
+          tone="secondary"
+        />
       </SectionCard>
 
       <SectionCard
