@@ -58,8 +58,8 @@ function makeRes() {
   return res;
 }
 
-async function call(fn, body) {
-  const req = { body, params: {}, query: {} };
+async function call(fn, body, mobileAuth) {
+  const req = { body, params: {}, query: {}, mobileAuth };
   const res = makeRes();
   await fn(req, res);
   return { status: res.statusCode, body: res.body };
@@ -75,7 +75,7 @@ const checkin = (workerID, workerName, rowNumber, jobType, allowMultipleWorkers)
     allowMultipleWorkers,
   });
 
-const checkout = (workerID, workerName, rowNumber, jobType, stockCount, keepCheckedIn) =>
+const checkout = (workerID, workerName, rowNumber, jobType, stockCount, keepCheckedIn, options = {}) =>
   call(rowController.checkOutWorker, {
     workerID,
     workerName,
@@ -84,7 +84,9 @@ const checkout = (workerID, workerName, rowNumber, jobType, stockCount, keepChec
     jobType,
     stockCount,
     keepCheckedIn,
-  });
+    workDate: options.workDate,
+    checkoutReason: options.checkoutReason,
+  }, options.mobileAuth);
 
 async function rowState(rowNumber) {
   const block = await Block.findOne({ block_name: BLOCK });
@@ -302,4 +304,28 @@ test("T9: zero-vine checkout frees the worker but preserves the row remainder", 
   const next = await checkin("W011", "Kai", "5", "PRUNING");
   assert.equal(next.status, 200);
   assert.equal(next.body.remainingStock, 100);
+});
+
+test("T10: backdated checkout requires admin permission and records the selected work date", async () => {
+  await checkin("W012", "Lebo", "1", "PRUNING");
+
+  let r = await checkout("W012", "Lebo", "1", "PRUNING", 10, false, {
+    workDate: "2026-09-22",
+    checkoutReason: "Rain prevented checkout",
+  });
+  assert.equal(r.status, 403);
+
+  r = await checkout("W012", "Lebo", "1", "PRUNING", 10, false, {
+    workDate: "2026-09-22",
+    checkoutReason: "Rain prevented checkout",
+    mobileAuth: { supervisorName: "Jackson", isAdmin: true },
+  });
+  assert.equal(r.status, 200);
+
+  const worker = await workerState("W012");
+  const row = worker.blocks.find((block) => block.block_name === BLOCK).rows[0];
+  assert.equal(row.stock_count, 10);
+  assert.equal(row.checkout_reason, "Rain prevented checkout");
+  assert.equal(row.backdated_by, "Jackson");
+  assert.equal(row.date.toISOString().slice(0, 10), "2026-09-22");
 });

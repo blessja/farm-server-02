@@ -21,6 +21,20 @@ function findWorkerJobIndex(row, workerID, jobType) {
   return activeJobs.findIndex((job) => job.worker_id === workerID);
 }
 
+function localDateKey(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function parseWorkDate(value) {
+  if (!value) return new Date();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value))) return null;
+  const date = new Date(`${value}T12:00:00`);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
 // Debug version of checkInWorker with detailed logging
 exports.checkInWorker = async (req, res) => {
   console.log("=== CHECK-IN REQUEST RECEIVED ===");
@@ -501,6 +515,8 @@ exports.checkOutWorker = async (req, res) => {
     stockCount,
     jobType,
     keepCheckedIn,
+    workDate,
+    checkoutReason,
   } = req.body;
 
   try {
@@ -516,6 +532,25 @@ exports.checkOutWorker = async (req, res) => {
     const row = block.rows.find((row) => row.row_number === rowNumber);
     if (!row) {
       return res.status(404).send({ message: "Row not found" });
+    }
+
+    const selectedWorkDate = parseWorkDate(workDate);
+    if (!selectedWorkDate) {
+      return res.status(400).send({ message: "Work date must use YYYY-MM-DD format." });
+    }
+    const requestedWorkDate = workDate ? String(workDate) : localDateKey();
+    const isBackdated = requestedWorkDate !== localDateKey();
+    if (isBackdated && !req.mobileAuth?.isAdmin) {
+      return res.status(403).send({
+        message: "Only an authorized admin can backdate a checkout.",
+        requiresAdmin: true,
+      });
+    }
+    if (isBackdated && !String(checkoutReason || "").trim()) {
+      return res.status(400).send({
+        message: "A reason is required for a backdated checkout.",
+        requiresReason: true,
+      });
     }
 
     let job = null;
@@ -660,7 +695,9 @@ exports.checkOutWorker = async (req, res) => {
     const blockIndex = worker.blocks.findIndex(
       (b) => b.block_name === blockName
     );
-    const currentDate = new Date();
+    const currentDate = selectedWorkDate;
+    const checkoutRecordedAt = new Date();
+    const recordedBy = req.mobileAuth?.supervisorName || "System";
 
     if (blockIndex === -1) {
       worker.blocks.push({
@@ -675,6 +712,9 @@ exports.checkOutWorker = async (req, res) => {
             day_of_week: currentDate.toLocaleDateString("en-US", {
               weekday: "long",
             }),
+            checkout_recorded_at: checkoutRecordedAt,
+            checkout_reason: String(checkoutReason || "").trim(),
+            backdated_by: isBackdated ? recordedBy : "",
           },
         ],
       });
@@ -692,6 +732,9 @@ exports.checkOutWorker = async (req, res) => {
           day_of_week: currentDate.toLocaleDateString("en-US", {
             weekday: "long",
           }),
+          checkout_recorded_at: checkoutRecordedAt,
+          checkout_reason: String(checkoutReason || "").trim(),
+          backdated_by: isBackdated ? recordedBy : "",
         });
       } else {
         worker.blocks[blockIndex].rows[rowIndex].stock_count += stockCompleted;
@@ -700,6 +743,9 @@ exports.checkOutWorker = async (req, res) => {
         worker.blocks[blockIndex].rows[rowIndex].date = currentDate;
         worker.blocks[blockIndex].rows[rowIndex].day_of_week =
           currentDate.toLocaleDateString("en-US", { weekday: "long" });
+        worker.blocks[blockIndex].rows[rowIndex].checkout_recorded_at = checkoutRecordedAt;
+        worker.blocks[blockIndex].rows[rowIndex].checkout_reason = String(checkoutReason || "").trim();
+        worker.blocks[blockIndex].rows[rowIndex].backdated_by = isBackdated ? recordedBy : "";
       }
     }
 
@@ -723,6 +769,10 @@ exports.checkOutWorker = async (req, res) => {
       remainingStocks,
       keptCheckedIn,
       jobType: usedJobType,
+      workDate: localDateKey(selectedWorkDate),
+      checkoutRecordedAt: checkoutRecordedAt.toISOString(),
+      backdated: isBackdated,
+      backdatedBy: isBackdated ? recordedBy : null,
     });
   } catch (error) {
     console.error("Error during worker check-out:", error);

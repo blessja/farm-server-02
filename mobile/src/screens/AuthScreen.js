@@ -48,6 +48,7 @@ export default function AuthScreen({ onAuthenticated, initialSupervisorName = ""
         onAuthenticated({
           supervisorName: trimmedSupervisorName,
           authEnabled: false,
+          isAdmin: false,
         });
       } else {
         setFeedback({
@@ -57,6 +58,7 @@ export default function AuthScreen({ onAuthenticated, initialSupervisorName = ""
         onAuthenticated({
           supervisorName: result.supervisorName,
           authEnabled: true,
+          isAdmin: result.isAdmin === true,
         });
       }
     } catch (error) {

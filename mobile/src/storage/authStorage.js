@@ -61,6 +61,7 @@ export async function setSupervisorSession(session) {
     JSON.stringify({
       supervisorName: session?.supervisorName || "",
       authEnabled: Boolean(session?.authEnabled),
+      isAdmin: Boolean(session?.isAdmin),
       signedInAt: new Date().toISOString(),
     })
   );

@@ -38,7 +38,18 @@ function elapsedSince(isoString) {
   return `${m}m`;
 }
 
-export default function CheckedInScreen({ offlineQueue }) {
+function dateKey(dateValue = new Date()) {
+  const date = new Date(dateValue);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(
+    date.getDate()
+  ).padStart(2, "0")}`;
+}
+
+function isPreviousDay(isoString) {
+  return Boolean(isoString) && dateKey(isoString) !== dateKey();
+}
+
+export default function CheckedInScreen({ offlineQueue, isAdmin = false }) {
   const { t } = useLanguage();
   const checkinsState = useAsyncData(() => api.getCurrentCheckins(), [], {
     cacheKey: "checkins",
@@ -77,6 +88,8 @@ export default function CheckedInScreen({ offlineQueue }) {
   const [checkoutChoice, setCheckoutChoice] = useState("keep");
   const [checkoutFeedback, setCheckoutFeedback] = useState({ type: "info", message: "" });
   const [checkoutSubmitting, setCheckoutSubmitting] = useState(false);
+  const [checkoutWorkDate, setCheckoutWorkDate] = useState(dateKey());
+  const [checkoutReason, setCheckoutReason] = useState("");
 
   const [expandedWorker, setExpandedWorker] = useState(null);
   const [activeOperation, setActiveOperation] = useState(null);
@@ -88,6 +101,8 @@ export default function CheckedInScreen({ offlineQueue }) {
     message: "",
   });
   const [inlineCheckoutSubmitting, setInlineCheckoutSubmitting] = useState(false);
+  const [inlineCheckoutWorkDate, setInlineCheckoutWorkDate] = useState(dateKey());
+  const [inlineCheckoutReason, setInlineCheckoutReason] = useState("");
 
   const [inlineMoveTargetBlock, setInlineMoveTargetBlock] = useState("");
   const [inlineMoveTargetRow, setInlineMoveTargetRow] = useState("");
@@ -184,6 +199,8 @@ export default function CheckedInScreen({ offlineQueue }) {
     setActiveOperation(null);
     setInlineCheckoutStock("");
     setInlineCheckoutChoice("keep");
+    setInlineCheckoutWorkDate(dateKey(item.startTime));
+    setInlineCheckoutReason("");
     setInlineCheckoutFeedback({ type: "info", message: "" });
     setInlineMoveTargetBlock("");
     setInlineMoveTargetRow("");
@@ -205,6 +222,8 @@ export default function CheckedInScreen({ offlineQueue }) {
   function openCheckoutModal() {
     setCheckoutWorker(null);
     setCheckoutStock("");
+    setCheckoutWorkDate(dateKey());
+    setCheckoutReason("");
     setCheckoutFeedback({ type: "info", message: "" });
     setCheckoutOpen(true);
   }
@@ -390,6 +409,10 @@ export default function CheckedInScreen({ offlineQueue }) {
     return Number.isFinite(remaining) && Number.isFinite(total) && remaining > 0 && remaining < total;
   }
 
+  function canSubmitCheckout(workDateValue, reasonValue) {
+    return !isAdmin || dateKey(workDateValue) === dateKey() || Boolean(String(reasonValue || "").trim());
+  }
+
   async function handleCheckout(choiceOverride) {
     if (!checkoutWorker) return;
     const choice = choiceOverride ?? checkoutChoice;
@@ -406,6 +429,9 @@ export default function CheckedInScreen({ offlineQueue }) {
         jobType: checkoutWorker.job_type || "",
         stockCount: checkoutStock === "" ? undefined : Number(checkoutStock),
         keepCheckedIn: willKeep && choice === "keep",
+        ...(isAdmin
+          ? { workDate: checkoutWorkDate, checkoutReason: checkoutReason.trim() }
+          : {}),
       };
 
       const result = await api.regularCheckout(payload);
@@ -425,6 +451,8 @@ export default function CheckedInScreen({ offlineQueue }) {
       setCheckoutWorker(null);
       setCheckoutStock("");
       setCheckoutChoice("keep");
+      setCheckoutWorkDate(dateKey());
+      setCheckoutReason("");
       offlineQueue?.refreshQueueCount?.();
       checkinsState.refresh();
       setTimeout(() => setCheckoutOpen(false), 800);
@@ -461,6 +489,12 @@ export default function CheckedInScreen({ offlineQueue }) {
         jobType: expandedRecord.job_type || "",
         stockCount: inlineCheckoutStock === "" ? undefined : Number(inlineCheckoutStock),
         keepCheckedIn: willKeep && choice === "keep",
+        ...(isAdmin
+          ? {
+              workDate: inlineCheckoutWorkDate,
+              checkoutReason: inlineCheckoutReason.trim(),
+            }
+          : {}),
       };
 
       const result = await api.regularCheckout(payload);
@@ -481,6 +515,8 @@ export default function CheckedInScreen({ offlineQueue }) {
       setInlineCheckoutFeedback({ type: "success", message: result.message });
       setInlineCheckoutStock("");
       setInlineCheckoutChoice("keep");
+      setInlineCheckoutWorkDate(dateKey());
+      setInlineCheckoutReason("");
       setTimeout(() => setExpandedWorker(null), 800);
     } catch (error) {
       setInlineCheckoutFeedback({ type: "error", message: error.message });
@@ -737,7 +773,11 @@ export default function CheckedInScreen({ offlineQueue }) {
                               opacity:
                                 activeOperation === "checkout" && inlineCheckoutSubmitting ? 0.5 : 1,
                             }}
-                            disabled={activeOperation === "checkout" && inlineCheckoutSubmitting}
+                            disabled={
+                              activeOperation === "checkout" &&
+                              (inlineCheckoutSubmitting ||
+                                !canSubmitCheckout(inlineCheckoutWorkDate, inlineCheckoutReason))
+                            }
                             onPress={() => {
                               if (activeOperation === "checkout") {
                                 handleInlineCheckout();
@@ -833,6 +873,28 @@ export default function CheckedInScreen({ offlineQueue }) {
                                 keyboardType="numeric"
                               />
                             </View>
+                            {isAdmin ? (
+                              <View className="gap-1.5 rounded-xl bg-amber-50 border border-amber-200 p-3">
+                                <Text className="text-amber-800 text-xs font-bold">Work date</Text>
+                                <TextInput
+                                  className="rounded-xl border border-amber-200 bg-white px-3.5 py-3 text-gray-900 text-[15px]"
+                                  value={inlineCheckoutWorkDate}
+                                  onChangeText={setInlineCheckoutWorkDate}
+                                  placeholder="YYYY-MM-DD"
+                                  placeholderTextColor="#9ca3af"
+                                  autoCapitalize="none"
+                                />
+                                <Text className="text-amber-800 text-xs font-bold">Reason for previous-day checkout</Text>
+                                <TextInput
+                                  className="rounded-xl border border-amber-200 bg-white px-3.5 py-3 text-gray-900 text-[15px]"
+                                  value={inlineCheckoutReason}
+                                  onChangeText={setInlineCheckoutReason}
+                                  placeholder="Example: rain prevented checkout"
+                                  placeholderTextColor="#9ca3af"
+                                  multiline
+                                />
+                              </View>
+                            ) : null}
                             {checkoutWillKeepWorker(expandedRecord, inlineCheckoutStock) ? (
                               <View className="gap-1.5">
                                 <Text className="text-gray-600 text-xs font-bold">
@@ -1162,6 +1224,11 @@ export default function CheckedInScreen({ offlineQueue }) {
                         elapsed: elapsedSince(w.startTime),
                       })}
                     </Text>
+                    {isPreviousDay(w.startTime) ? (
+                      <Text style={{ marginTop: 4, fontSize: 12, fontWeight: "800", color: active ? "#fef3c7" : "#b45309" }}>
+                        Previous work day: {dateKey(w.startTime)}
+                      </Text>
+                    ) : null}
                   </TouchableOpacity>
 
                   {active ? (
@@ -1408,11 +1475,15 @@ export default function CheckedInScreen({ offlineQueue }) {
                         setCheckoutWorker(null);
                         setCheckoutStock("");
                         setCheckoutChoice("keep");
+                        setCheckoutWorkDate(dateKey(w.startTime));
+                        setCheckoutReason("");
                         setCheckoutFeedback({ type: "info", message: "" });
                       } else {
                         setCheckoutWorker(w);
                         setCheckoutStock("");
                         setCheckoutChoice("keep");
+                        setCheckoutWorkDate(dateKey(w.startTime));
+                        setCheckoutReason("");
                         setCheckoutFeedback({ type: "info", message: "" });
                       }
                     }}
@@ -1466,6 +1537,29 @@ export default function CheckedInScreen({ offlineQueue }) {
                           keyboardType="numeric"
                         />
                       </View>
+
+                      {isAdmin ? (
+                        <View className="gap-1.5 rounded-xl bg-amber-50 border border-amber-200 p-3">
+                          <Text className="text-amber-800 text-xs font-bold">Work date</Text>
+                          <TextInput
+                            className="rounded-xl border border-amber-200 bg-white px-3.5 py-3 text-gray-900 text-[15px]"
+                            value={checkoutWorkDate}
+                            onChangeText={setCheckoutWorkDate}
+                            placeholder="YYYY-MM-DD"
+                            placeholderTextColor="#9ca3af"
+                            autoCapitalize="none"
+                          />
+                          <Text className="text-amber-800 text-xs font-bold">Reason for previous-day checkout</Text>
+                          <TextInput
+                            className="rounded-xl border border-amber-200 bg-white px-3.5 py-3 text-gray-900 text-[15px]"
+                            value={checkoutReason}
+                            onChangeText={setCheckoutReason}
+                            placeholder="Example: rain prevented checkout"
+                            placeholderTextColor="#9ca3af"
+                            multiline
+                          />
+                        </View>
+                      ) : null}
 
                       {checkoutWillKeepWorker(w, checkoutStock) ? (
                         <View className="gap-2">
@@ -1536,7 +1630,7 @@ export default function CheckedInScreen({ offlineQueue }) {
                         label={checkoutSubmitting ? t("common.submitting") : t("ci.submitCheckout")}
                         tone="secondary"
                         onPress={handleCheckout}
-                        disabled={checkoutSubmitting}
+                        disabled={checkoutSubmitting || !canSubmitCheckout(checkoutWorkDate, checkoutReason)}
                       />
                       <FeedbackBanner
                         type={checkoutFeedback.type === "error" ? "error" : "success"}

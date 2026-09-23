@@ -7,6 +7,7 @@ const {
   getAuthConfigurationErrors,
   isSupervisorAllowed,
   isSupervisorPinValid,
+  isAdmin,
   normalizeSupervisorName,
   verifyToken,
 } = require("../utils/mobileAuth");
@@ -68,6 +69,7 @@ router.post("/login", (req, res) => {
     token,
     expiresAt: payload.exp,
     supervisorName: payload.supervisorName,
+    isAdmin: payload.isAdmin,
   });
 });
 

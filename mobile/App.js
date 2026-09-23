@@ -63,6 +63,7 @@ function AppContent() {
     authRequired: false,
     authenticated: false,
     supervisorName: "",
+    isAdmin: false,
     rememberedSupervisorName: "",
   });
   const offlineQueue = useOfflineQueue();
@@ -106,6 +107,7 @@ function AppContent() {
               authenticated,
               supervisorName:
                 verification?.payload?.supervisorName || "Supervisor",
+              isAdmin: verification?.payload?.isAdmin === true,
               rememberedSupervisorName:
                 verification?.payload?.supervisorName ||
                 lastSupervisorName ||
@@ -130,6 +132,7 @@ function AppContent() {
           supervisorName: authenticated
             ? supervisorSession?.supervisorName || "Supervisor"
             : "",
+          isAdmin: authenticated && supervisorSession?.isAdmin === true,
           rememberedSupervisorName:
             supervisorSession?.supervisorName || lastSupervisorName || "",
         });
@@ -139,6 +142,7 @@ function AppContent() {
           authRequired: false,
           authenticated: false,
           supervisorName: "",
+          isAdmin: false,
           rememberedSupervisorName: "",
         });
       }
@@ -163,6 +167,7 @@ function AppContent() {
       ...current,
       authenticated: false,
       supervisorName: "",
+      isAdmin: false,
     }));
   }
 
@@ -175,16 +180,18 @@ function AppContent() {
       return (
         <AuthScreen
           initialSupervisorName={bootState.rememberedSupervisorName}
-          onAuthenticated={async ({ supervisorName, authEnabled }) => {
+          onAuthenticated={async ({ supervisorName, authEnabled, isAdmin }) => {
             await setLastSupervisorName(supervisorName || "Supervisor");
             await setSupervisorSession({
               supervisorName: supervisorName || "Supervisor",
               authEnabled,
+              isAdmin: isAdmin === true,
             });
             setBootState((current) => ({
               ...current,
               authenticated: true,
               supervisorName: supervisorName || "Supervisor",
+              isAdmin: isAdmin === true,
               rememberedSupervisorName: supervisorName || "Supervisor",
             }));
           }}
@@ -201,7 +208,7 @@ function AppContent() {
           />
         );
       case "working":
-        return <CheckedInScreen offlineQueue={offlineQueue} />;
+        return <CheckedInScreen offlineQueue={offlineQueue} isAdmin={bootState.isAdmin} />;
       case "move":
         return (
           <MoveWorkersScreen

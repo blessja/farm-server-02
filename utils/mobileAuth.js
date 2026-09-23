@@ -12,6 +12,13 @@ function getPin() {
   return process.env.MOBILE_AUTH_PIN || "";
 }
 
+function getAdminNames() {
+  return String(process.env.MOBILE_AUTH_ADMINS || "")
+    .split(",")
+    .map((name) => normalizeSupervisorName(name))
+    .filter(Boolean);
+}
+
 function parseSupervisorPinMap() {
   const raw = process.env.MOBILE_AUTH_SUPERVISOR_PINS || "";
 
@@ -103,6 +110,11 @@ function isSupervisorPinValid(supervisorName, pin) {
   return String(pin || "").trim() === getPin();
 }
 
+function isAdmin(supervisorName) {
+  const normalized = normalizeSupervisorName(supervisorName).toLowerCase();
+  return getAdminNames().some((name) => name.toLowerCase() === normalized);
+}
+
 function base64UrlEncode(input) {
   return Buffer.from(input)
     .toString("base64")
@@ -168,6 +180,7 @@ function createLoginPayload(deviceName, supervisorName) {
     sub: "farm-mobile-user",
     deviceName: deviceName || "unknown-device",
     supervisorName: normalizedSupervisorName,
+    isAdmin: isAdmin(normalizedSupervisorName),
     iat: issuedAt,
     exp: expiresAt,
   };
@@ -178,6 +191,7 @@ module.exports = {
   getPin,
   getSupervisorPin,
   isSupervisorPinValid,
+  isAdmin,
   isSupervisorAllowed,
   normalizeSupervisorName,
   generateToken,
