@@ -155,6 +155,7 @@ export default function DayWorkScreen({ sharedState, offlineQueue }) {
     let delta = rowDirection;
     if (nextDirection === "up") delta = 1;
     else if (nextDirection === "down") delta = -1;
+
     const nextRow = String(currentNum + delta);
     if (availableRows.includes(nextRow)) {
       sharedState.setSelectedRow(nextRow);
@@ -162,6 +163,21 @@ export default function DayWorkScreen({ sharedState, offlineQueue }) {
         setRowDirection(delta);
       }
     }
+  }
+
+  function handleSuccessfulCheckinSelection() {
+    const selectedRow = sharedState.selectedRow;
+    if (!selectedRow || !Number.isFinite(Number(selectedRow))) {
+      sharedState.setSelectedRow("");
+      return;
+    }
+
+    if (autoNextEnabled) {
+      advanceToNextRow();
+      return;
+    }
+
+    sharedState.setSelectedRow(String(selectedRow));
   }
 
   function toggleAutoNext(value) {
@@ -192,7 +208,7 @@ export default function DayWorkScreen({ sharedState, offlineQueue }) {
       const result = await api.regularCheckin(payload);
       setFeedback({ type: "success", message: result.message });
       setCheckinForm(defaultCheckin);
-      advanceToNextRow();
+      handleSuccessfulCheckinSelection();
       setAllowMultipleWorkers(false);
       offlineQueue.refreshQueueCount();
       checkinsState.refresh();
@@ -228,9 +244,9 @@ export default function DayWorkScreen({ sharedState, offlineQueue }) {
       setConflictOccupants([]);
       setCheckinForm(defaultCheckin);
       if (autoNextEnabled) {
-        advanceToNextRow();
+        handleSuccessfulCheckinSelection();
       } else {
-        sharedState.setSelectedRow("");
+        sharedState.setSelectedRow(String(sharedState.selectedRow || ""));
       }
       setAllowMultipleWorkers(false);
       setFeedback({ type: "success", message: result.message });

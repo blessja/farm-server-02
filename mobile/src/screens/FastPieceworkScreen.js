@@ -210,6 +210,13 @@ export default function FastPieceworkScreen({ sharedState, offlineQueue }) {
       };
       const result = await api.fastCheckin(payload);
       setFeedback({ type: "success", message: result.message });
+      if (sharedState.selectedRow) {
+        const rowNumbers = sortNamesNumerically([...new Set(rows.map((rowNumber) => String(rowNumber)))]);
+        const currentRow = Number(sharedState.selectedRow);
+        const nextIndex = rowNumbers.findIndex((value) => Number(value) === currentRow) + 1;
+        const nextRow = rowNumbers[nextIndex];
+        if (nextRow) sharedState.setSelectedRow(nextRow);
+      }
       totalsState.refresh();
       blockDetailsState.refresh();
       await offlineQueue.refreshQueueCount();

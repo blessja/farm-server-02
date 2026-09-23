@@ -706,6 +706,7 @@ exports.getCurrentCheckin = async (req, res) => {
                 workerID: job.worker_id,
                 workerName: job.worker_name,
                 stockCount: job.remaining_stock,
+                vines: row.stock_count,
                 startTime: job.start_time,
                 remainingStocks: job.remaining_stock,
               });
@@ -727,6 +728,7 @@ exports.getCurrentCheckin = async (req, res) => {
             workerID: row.worker_id,
             workerName: row.worker_name,
             stockCount: row.remaining_stock_count || row.stock_count,
+            vines: row.stock_count,
             startTime: row.start_time,
             remainingStocks: row.remaining_stock_count || row.stock_count,
           });
@@ -762,6 +764,7 @@ exports.getCurrentCheckins = async (req, res) => {
               workerID: job.worker_id,
               workerName: job.worker_name,
               stockCount: job.remaining_stock,
+              vines: row.stock_count,
               startTime: job.start_time,
               remainingStocks: job.remaining_stock,
             });
@@ -781,6 +784,7 @@ exports.getCurrentCheckins = async (req, res) => {
             workerID: row.worker_id,
             workerName: row.worker_name,
             stockCount: row.stock_count,
+            vines: row.stock_count,
             startTime: row.start_time,
             remainingStocks: row.remaining_stock_count || row.stock_count,
           });
@@ -819,6 +823,7 @@ exports.getCurrentCheckin = async (req, res) => {
             workerID: row.worker_id,
             workerName: row.worker_name,
             stockCount: row.stock_count,
+            vines: row.stock_count,
             startTime: row.start_time,
             remainingStocks: row.remaining_stock_count || row.stock_count,
           });

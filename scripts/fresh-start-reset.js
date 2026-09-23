@@ -8,6 +8,7 @@ const Worker = require("../models/Worker");
 const WorkerClock = require("../models/WorkerClock");
 const PieceworkWorker = require("../models/PieceworkWorker");
 const WorkerActivity = require("../models/WorkerActivity");
+const { resolveMongoUri } = require("../config/db");
 
 async function countActiveAssignments() {
   const blocks = await Block.find({}, { rows: 1 }).lean();
@@ -22,11 +23,12 @@ async function countActiveAssignments() {
 }
 
 async function resetFreshStart() {
-  if (!process.env.MONGO_URI) {
+  const uri = resolveMongoUri();
+  if (!uri) {
     throw new Error("MONGO_URI is missing. Reset was not started.");
   }
 
-  await mongoose.connect(process.env.MONGO_URI, { serverSelectionTimeoutMS: 10000 });
+  await mongoose.connect(uri, { serverSelectionTimeoutMS: 10000 });
 
   const before = {
     workerProfiles: await Worker.countDocuments(),

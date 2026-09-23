@@ -38,6 +38,7 @@ export default function TotalsScreen() {
 
   const [blockFilter, setBlockFilter] = useState("");
   const [jobFilter, setJobFilter] = useState("");
+  const [rowFilter, setRowFilter] = useState("");
   const [exporting, setExporting] = useState(false);
   const [exportMessage, setExportMessage] = useState(null);
 
@@ -115,15 +116,26 @@ export default function TotalsScreen() {
     return types.map((t) => ({ label: t, value: t }));
   }, [allRows]);
 
+  const rowOptions = useMemo(() => {
+    const scopeRows = blockFilter
+      ? allRows.filter((r) => r.blockName === blockFilter)
+      : allRows;
+    const numbers = [
+      ...new Set(scopeRows.map((r) => String(r.rowNumber)).filter(Boolean)),
+    ].sort((a, b) => Number(a) - Number(b));
+    return numbers.map((n) => ({ label: n, value: n }));
+  }, [allRows, blockFilter]);
+
   const filteredRows = useMemo(() => {
     return allRows.filter((r) => {
       if (blockFilter && r.blockName !== blockFilter) return false;
       if (jobFilter && r.jobType !== jobFilter) return false;
+      if (rowFilter && String(r.rowNumber) !== String(rowFilter)) return false;
       return true;
     });
-  }, [allRows, blockFilter, jobFilter]);
+  }, [allRows, blockFilter, jobFilter, rowFilter]);
 
-  const isFiltered = blockFilter || jobFilter;
+  const isFiltered = blockFilter || jobFilter || rowFilter;
   const hasData = filteredRows.length > 0;
 
   async function handleExport() {
@@ -136,6 +148,7 @@ export default function TotalsScreen() {
         hours: dayHours,
         blockFilter,
         jobFilter,
+        rowFilter,
       });
       setExportMessage({ text: t("totals.pdfCreated"), ok: true });
     } catch (error) {
@@ -194,6 +207,22 @@ export default function TotalsScreen() {
             style={{ color: "#16a34a", fontSize: 13, fontWeight: "700", marginTop: -4, marginBottom: 4 }}
           >
             {t("totals.clearJobFilter")}
+          </Text>
+        ) : null}
+        <SelectField
+          label={t("dw.row")}
+          value={rowFilter}
+          placeholder={t("totals.allRows")}
+          options={rowOptions}
+          onSelect={(v) => setRowFilter(v)}
+          emptyMessage={t("totals.noRowsFound")}
+        />
+        {rowFilter ? (
+          <Text
+            onPress={() => setRowFilter("")}
+            style={{ color: "#16a34a", fontSize: 13, fontWeight: "700", marginTop: -4, marginBottom: 4 }}
+          >
+            {t("totals.clearRowFilter")}
           </Text>
         ) : null}
       </SectionCard>

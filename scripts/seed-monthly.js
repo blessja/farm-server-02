@@ -13,8 +13,9 @@ const mongoose = require("mongoose");
 const Worker = require("../models/Worker");
 const PieceworkWorker = require("../models/PieceworkWorker");
 const WorkerDayHours = require("../models/WorkerDayHours");
+const { resolveMongoUri } = require("../config/db");
 
-const MONGO_URI = process.env.MONGO_URI;
+const MONGO_URI = resolveMongoUri();
 
 const FIRST_NAMES = [
   "Amahle", "Bongani", "Thando", "Lungile", "Sipho", "Nompumelelo", "Khanyi",

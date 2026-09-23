@@ -1,10 +1,13 @@
 // migration-script.js
+const dotenv = require("dotenv");
+dotenv.config({ path: "./.env" });
 const mongoose = require("mongoose");
 const Block = require("./models/Block"); // Adjust path to your Block model
+const { resolveMongoUri } = require("./config/db");
 
-// MongoDB connection string
-const MONGO_URI =
-  "mongodb+srv://admin-Jackson:jaydenjackson1@cluster0.bnu3c.mongodb.net/farm-managment?retryWrites=true&w=majority";
+// Uses the same database routing as the server: MONGO_DB=development -> Glen-Oak,
+// otherwise (default) -> farm-managment.
+const MONGO_URI = resolveMongoUri();
 
 async function migrateToActiveJobs() {
   try {

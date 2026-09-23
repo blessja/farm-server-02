@@ -93,7 +93,7 @@ function formatSheetNumber(value) {
  * Build a print-ready HTML report (worker x day matrix) from the exact rows
  * and hours currently shown on screen, so exports stay correct under filters.
  */
-export function buildTotalsHtml({ rows = [], hours = {}, blockFilter = "", jobFilter = "", title = "" }) {
+export function buildTotalsHtml({ rows = [], hours = {}, blockFilter = "", jobFilter = "", rowFilter = "", title = "" }) {
   const rankedRows = buildRankedRows(rows, hours);
   const grandVines = rankedRows.reduce((sum, worker) => sum + worker.vines, 0);
   const grandHours = rankedRows.reduce((sum, worker) => sum + worker.hours, 0);
@@ -101,6 +101,7 @@ export function buildTotalsHtml({ rows = [], hours = {}, blockFilter = "", jobFi
   const filterText = [
     blockFilter ? `Block: ${blockFilter}` : "",
     jobFilter ? `Job: ${jobFilter}` : "",
+    rowFilter ? `Row: ${rowFilter}` : "",
   ]
     .filter(Boolean)
     .join(" · ") || "All blocks · All jobs";
@@ -201,7 +202,7 @@ function escapePdfText(text) {
   return out;
 }
 
-function buildMatrixPdf({ rows = [], hours = {}, blockFilter = "", jobFilter = "", title = "" }) {
+function buildMatrixPdf({ rows = [], hours = {}, blockFilter = "", jobFilter = "", rowFilter = "", title = "" }) {
   const PAGE_W = 842;
   const PAGE_H = 595;
   const M = 30;
@@ -268,6 +269,7 @@ function buildMatrixPdf({ rows = [], hours = {}, blockFilter = "", jobFilter = "
   const filterText = [
     blockFilter ? `Block: ${blockFilter}` : "",
     jobFilter ? `Job: ${jobFilter}` : "",
+    rowFilter ? `Row: ${rowFilter}` : "",
   ]
     .filter(Boolean)
     .join(" · ") || "All blocks · All jobs";
@@ -439,7 +441,7 @@ function buildMatrixPdf({ rows = [], hours = {}, blockFilter = "", jobFilter = "
   return pdf;
 }
 
-function buildTotalsPdf({ rows = [], hours = {}, blockFilter = "", jobFilter = "", title = "" }) {
+function buildTotalsPdf({ rows = [], hours = {}, blockFilter = "", jobFilter = "", rowFilter = "", title = "" }) {
   const PAGE_W = 842;
   const PAGE_H = 595;
   const M = 30;
@@ -467,6 +469,7 @@ function buildTotalsPdf({ rows = [], hours = {}, blockFilter = "", jobFilter = "
   const filterText = [
     blockFilter ? `Block: ${blockFilter}` : "",
     jobFilter ? `Job: ${jobFilter}` : "",
+    rowFilter ? `Row: ${rowFilter}` : "",
   ].filter(Boolean).join(" · ") || "All blocks · All jobs";
   const summaryText = `Workers: ${rankedRows.length}   Vines: ${grandVines}   Hours: ${formatHours(grandHours) || "0h"}`;
   const R = [];

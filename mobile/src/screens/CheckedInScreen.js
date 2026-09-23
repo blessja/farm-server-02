@@ -661,6 +661,9 @@ export default function CheckedInScreen({ offlineQueue }) {
                           <Text className="text-gray-400 text-xs mt-0.5">
                             {t("ci.row", { row: item.rowNumber })}
                           </Text>
+                          <Text className="text-gray-400 text-xs mt-0.5">
+                            {t("ci.vinesLine", { count: item.vines ?? "—" })}
+                          </Text>
                         </View>
                       </View>
                       <View className="flex-row items-center justify-between mt-2 pt-2 border-t border-gray-100">
@@ -1064,6 +1067,10 @@ export default function CheckedInScreen({ offlineQueue }) {
                           <Text className="text-gray-500 text-xs font-bold">{t("ci.fromRow")}</Text>
                           <Text className="text-gray-900 text-sm font-extrabold">{w.rowNumber}</Text>
                         </View>
+                        <View className="flex-row items-center justify-between">
+                          <Text className="text-gray-500 text-xs font-bold">{t("ci.vines")}</Text>
+                          <Text className="text-gray-900 text-sm font-extrabold">{w.vines ?? "—"}</Text>
+                        </View>
                       </View>
 
                       <SelectField
@@ -1319,6 +1326,10 @@ export default function CheckedInScreen({ offlineQueue }) {
                         <View className="flex-row items-center justify-between">
                           <Text className="text-gray-500 text-xs font-bold">{t("ci.row")}</Text>
                           <Text className="text-gray-900 text-sm font-extrabold">{w.rowNumber}</Text>
+                        </View>
+                        <View className="flex-row items-center justify-between">
+                          <Text className="text-gray-500 text-xs font-bold">{t("ci.vines")}</Text>
+                          <Text className="text-gray-900 text-sm font-extrabold">{w.vines ?? "—"}</Text>
                         </View>
                         <View className="flex-row items-center justify-between">
                           <Text className="text-gray-500 text-xs font-bold">{t("ci.job")}</Text>
