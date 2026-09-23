@@ -390,8 +390,9 @@ export default function CheckedInScreen({ offlineQueue }) {
     return Number.isFinite(remaining) && Number.isFinite(total) && remaining > 0 && remaining < total;
   }
 
-  async function handleCheckout() {
+  async function handleCheckout(choiceOverride) {
     if (!checkoutWorker) return;
+    const choice = choiceOverride ?? checkoutChoice;
     setCheckoutSubmitting(true);
     setCheckoutFeedback({ type: "info", message: "" });
 
@@ -404,13 +405,13 @@ export default function CheckedInScreen({ offlineQueue }) {
         rowNumber: checkoutWorker.rowNumber,
         jobType: checkoutWorker.job_type || "",
         stockCount: checkoutStock === "" ? undefined : Number(checkoutStock),
-        keepCheckedIn: willKeep && checkoutChoice === "keep",
+        keepCheckedIn: willKeep && choice === "keep",
       };
 
       const result = await api.regularCheckout(payload);
       const kept =
         result?.queued
-          ? willKeep && checkoutChoice === "keep"
+          ? willKeep && choice === "keep"
           : result?.keptCheckedIn === true;
       if (!kept) {
         removeCheckinLocally(
@@ -441,8 +442,9 @@ export default function CheckedInScreen({ offlineQueue }) {
     setInlinePendingOverride(null);
   };
 
-  async function handleInlineCheckout() {
+  async function handleInlineCheckout(choiceOverride) {
     if (!expandedRecord) return;
+    const choice = choiceOverride ?? inlineCheckoutChoice;
     setInlineCheckoutSubmitting(true);
     setInlineCheckoutFeedback({ type: "info", message: "" });
 
@@ -458,13 +460,13 @@ export default function CheckedInScreen({ offlineQueue }) {
         rowNumber: expandedRecord.rowNumber,
         jobType: expandedRecord.job_type || "",
         stockCount: inlineCheckoutStock === "" ? undefined : Number(inlineCheckoutStock),
-        keepCheckedIn: willKeep && inlineCheckoutChoice === "keep",
+        keepCheckedIn: willKeep && choice === "keep",
       };
 
       const result = await api.regularCheckout(payload);
       const kept =
         result?.queued
-          ? willKeep && inlineCheckoutChoice === "keep"
+          ? willKeep && choice === "keep"
           : result?.keptCheckedIn === true;
       if (!kept) {
         removeCheckinLocally(
@@ -850,8 +852,10 @@ export default function CheckedInScreen({ offlineQueue }) {
                                       backgroundColor: inlineCheckoutChoice === "keep" ? "#2D7A55" : "#E5ECE4",
                                       borderWidth: inlineCheckoutChoice === "keep" ? 0 : 1,
                                       borderColor: "#D4DFD3",
+                                      opacity: inlineCheckoutSubmitting ? 0.5 : 1,
                                     }}
-                                    onPress={() => setInlineCheckoutChoice("keep")}
+                                    disabled={inlineCheckoutSubmitting}
+                                    onPress={() => handleInlineCheckout("keep")}
                                   >
                                     <Text
                                       style={{
@@ -876,8 +880,10 @@ export default function CheckedInScreen({ offlineQueue }) {
                                       backgroundColor: inlineCheckoutChoice === "free" ? "#b91c1c" : "#E5ECE4",
                                       borderWidth: inlineCheckoutChoice === "free" ? 0 : 1,
                                       borderColor: "#D4DFD3",
+                                      opacity: inlineCheckoutSubmitting ? 0.5 : 1,
                                     }}
-                                    onPress={() => setInlineCheckoutChoice("free")}
+                                    disabled={inlineCheckoutSubmitting}
+                                    onPress={() => handleInlineCheckout("free")}
                                   >
                                     <Text
                                       style={{
@@ -1480,8 +1486,10 @@ export default function CheckedInScreen({ offlineQueue }) {
                                 backgroundColor: checkoutChoice === "keep" ? "#2D7A55" : "#E5ECE4",
                                 borderWidth: checkoutChoice === "keep" ? 0 : 1,
                                 borderColor: "#D4DFD3",
+                                opacity: checkoutSubmitting ? 0.5 : 1,
                               }}
-                              onPress={() => setCheckoutChoice("keep")}
+                              disabled={checkoutSubmitting}
+                              onPress={() => handleCheckout("keep")}
                             >
                               <Text
                                 style={{
@@ -1504,8 +1512,10 @@ export default function CheckedInScreen({ offlineQueue }) {
                                 backgroundColor: checkoutChoice === "free" ? "#b91c1c" : "#E5ECE4",
                                 borderWidth: checkoutChoice === "free" ? 0 : 1,
                                 borderColor: "#D4DFD3",
+                                opacity: checkoutSubmitting ? 0.5 : 1,
                               }}
-                              onPress={() => setCheckoutChoice("free")}
+                              disabled={checkoutSubmitting}
+                              onPress={() => handleCheckout("free")}
                             >
                               <Text
                                 style={{
