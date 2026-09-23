@@ -275,6 +275,9 @@ const en = {
   "ci.fromRow": "From row",
   "ci.job": "Job",
   "ci.stocksPlaceholder": "Leave blank to complete remaining",
+  "ci.partialPrompt": "Row still has {remaining} vines. Keep {name} checked in with the remaining vines, or free the row for someone else?",
+  "ci.keepChoice": "Keep checked in\n({remaining} vines left)",
+  "ci.freeChoice": "Check out\n& free row",
 
   // MoveWorkers
   "mw.title": "Move workers",

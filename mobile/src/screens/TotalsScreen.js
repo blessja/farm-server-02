@@ -8,6 +8,7 @@ import ActionButton from "../components/ActionButton";
 import TotalsGrid from "../components/TotalsGrid";
 import TotalsSummary from "../components/TotalsSummary";
 import { exportTotalsPdf } from "../utils/totalsExport";
+import { sortNamesNumerically } from "../utils/sortNames";
 import { useAsyncData } from "../hooks/useAsyncData";
 import { useLanguage } from "../i18n";
 
@@ -120,9 +121,9 @@ export default function TotalsScreen() {
     const scopeRows = blockFilter
       ? allRows.filter((r) => r.blockName === blockFilter)
       : allRows;
-    const numbers = [
+    const numbers = sortNamesNumerically([
       ...new Set(scopeRows.map((r) => String(r.rowNumber)).filter(Boolean)),
-    ].sort((a, b) => Number(a) - Number(b));
+    ]);
     return numbers.map((n) => ({ label: n, value: n }));
   }, [allRows, blockFilter]);
 

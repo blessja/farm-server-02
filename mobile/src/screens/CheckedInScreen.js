@@ -74,6 +74,7 @@ export default function CheckedInScreen({ offlineQueue }) {
 
   const [checkoutWorker, setCheckoutWorker] = useState(null);
   const [checkoutStock, setCheckoutStock] = useState("");
+  const [checkoutChoice, setCheckoutChoice] = useState("keep");
   const [checkoutFeedback, setCheckoutFeedback] = useState({ type: "info", message: "" });
   const [checkoutSubmitting, setCheckoutSubmitting] = useState(false);
 
@@ -81,6 +82,7 @@ export default function CheckedInScreen({ offlineQueue }) {
   const [activeOperation, setActiveOperation] = useState(null);
 
   const [inlineCheckoutStock, setInlineCheckoutStock] = useState("");
+  const [inlineCheckoutChoice, setInlineCheckoutChoice] = useState("keep");
   const [inlineCheckoutFeedback, setInlineCheckoutFeedback] = useState({
     type: "info",
     message: "",
@@ -181,6 +183,7 @@ export default function CheckedInScreen({ offlineQueue }) {
     setExpandedWorker(expandedWorker === key ? null : key);
     setActiveOperation(null);
     setInlineCheckoutStock("");
+    setInlineCheckoutChoice("keep");
     setInlineCheckoutFeedback({ type: "info", message: "" });
     setInlineMoveTargetBlock("");
     setInlineMoveTargetRow("");
@@ -372,12 +375,22 @@ export default function CheckedInScreen({ offlineQueue }) {
     );
   }
 
+  function checkoutWillKeepWorker(record, stockStr) {
+    const remaining = Number(record?.remainingStocks);
+    if (!remaining || remaining <= 0) return false;
+    if (stockStr === "" || stockStr == null) return false;
+    const stock = Number(stockStr);
+    if (isNaN(stock)) return false;
+    return stock < remaining;
+  }
+
   async function handleCheckout() {
     if (!checkoutWorker) return;
     setCheckoutSubmitting(true);
     setCheckoutFeedback({ type: "info", message: "" });
 
     try {
+      const willKeep = checkoutWillKeepWorker(checkoutWorker, checkoutStock);
       const payload = {
         workerID: checkoutWorker.workerID,
         workerName: checkoutWorker.workerName,
@@ -385,18 +398,26 @@ export default function CheckedInScreen({ offlineQueue }) {
         rowNumber: checkoutWorker.rowNumber,
         jobType: checkoutWorker.job_type || "",
         stockCount: checkoutStock === "" ? undefined : Number(checkoutStock),
+        keepCheckedIn: willKeep && checkoutChoice === "keep",
       };
 
       const result = await api.regularCheckout(payload);
-      removeCheckinLocally(
-        checkoutWorker.workerID,
-        checkoutWorker.blockName,
-        checkoutWorker.rowNumber
-      );
+      const kept =
+        result?.queued
+          ? willKeep && checkoutChoice === "keep"
+          : result?.keptCheckedIn === true;
+      if (!kept) {
+        removeCheckinLocally(
+          checkoutWorker.workerID,
+          checkoutWorker.blockName,
+          checkoutWorker.rowNumber
+        );
+      }
       await invalidateTotalsCache();
       setCheckoutFeedback({ type: "success", message: result.message });
       setCheckoutWorker(null);
       setCheckoutStock("");
+      setCheckoutChoice("keep");
       offlineQueue?.refreshQueueCount?.();
       checkinsState.refresh();
       setTimeout(() => setCheckoutOpen(false), 800);
@@ -420,6 +441,10 @@ export default function CheckedInScreen({ offlineQueue }) {
     setInlineCheckoutFeedback({ type: "info", message: "" });
 
     try {
+      const willKeep = checkoutWillKeepWorker(
+        expandedRecord,
+        inlineCheckoutStock
+      );
       const payload = {
         workerID: expandedRecord.workerID,
         workerName: expandedRecord.workerName,
@@ -427,19 +452,27 @@ export default function CheckedInScreen({ offlineQueue }) {
         rowNumber: expandedRecord.rowNumber,
         jobType: expandedRecord.job_type || "",
         stockCount: inlineCheckoutStock === "" ? undefined : Number(inlineCheckoutStock),
+        keepCheckedIn: willKeep && inlineCheckoutChoice === "keep",
       };
 
       const result = await api.regularCheckout(payload);
-      removeCheckinLocally(
-        expandedRecord.workerID,
-        expandedRecord.blockName,
-        expandedRecord.rowNumber
-      );
+      const kept =
+        result?.queued
+          ? willKeep && inlineCheckoutChoice === "keep"
+          : result?.keptCheckedIn === true;
+      if (!kept) {
+        removeCheckinLocally(
+          expandedRecord.workerID,
+          expandedRecord.blockName,
+          expandedRecord.rowNumber
+        );
+      }
       await invalidateTotalsCache();
       offlineQueue?.refreshQueueCount?.();
       checkinsState.refresh();
       setInlineCheckoutFeedback({ type: "success", message: result.message });
       setInlineCheckoutStock("");
+      setInlineCheckoutChoice("keep");
       setTimeout(() => setExpandedWorker(null), 800);
     } catch (error) {
       setInlineCheckoutFeedback({ type: "error", message: error.message });
@@ -697,6 +730,7 @@ export default function CheckedInScreen({ offlineQueue }) {
                               } else {
                                 setActiveOperation("checkout");
                                 setInlineCheckoutStock("");
+                                setInlineCheckoutChoice("keep");
                                 setInlineCheckoutFeedback({ type: "info", message: "" });
                                 resetInlineMove();
                               }
@@ -785,6 +819,68 @@ export default function CheckedInScreen({ offlineQueue }) {
                                 keyboardType="numeric"
                               />
                             </View>
+                            {checkoutWillKeepWorker(expandedRecord, inlineCheckoutStock) ? (
+                              <View className="gap-1.5">
+                                <Text className="text-gray-600 text-xs font-bold">
+                                  {t("ci.partialPrompt", {
+                                    remaining: String(expandedRecord.remainingStocks ?? ""),
+                                    name: expandedRecord.workerName,
+                                  })}
+                                </Text>
+                                <View className="flex-row gap-2">
+                                  <TouchableOpacity
+                                    activeOpacity={0.7}
+                                    style={{
+                                      flex: 1,
+                                      borderRadius: 12,
+                                      paddingVertical: 10,
+                                      alignItems: "center",
+                                      backgroundColor: inlineCheckoutChoice === "keep" ? "#2D7A55" : "#E5ECE4",
+                                      borderWidth: inlineCheckoutChoice === "keep" ? 0 : 1,
+                                      borderColor: "#D4DFD3",
+                                    }}
+                                    onPress={() => setInlineCheckoutChoice("keep")}
+                                  >
+                                    <Text
+                                      style={{
+                                        color: inlineCheckoutChoice === "keep" ? "#fff" : "#374151",
+                                        fontSize: 12,
+                                        fontWeight: "800",
+                                        textAlign: "center",
+                                      }}
+                                    >
+                                      {t("ci.keepChoice", {
+                                        remaining: String(expandedRecord.remainingStocks ?? ""),
+                                      })}
+                                    </Text>
+                                  </TouchableOpacity>
+                                  <TouchableOpacity
+                                    activeOpacity={0.7}
+                                    style={{
+                                      flex: 1,
+                                      borderRadius: 12,
+                                      paddingVertical: 10,
+                                      alignItems: "center",
+                                      backgroundColor: inlineCheckoutChoice === "free" ? "#b91c1c" : "#E5ECE4",
+                                      borderWidth: inlineCheckoutChoice === "free" ? 0 : 1,
+                                      borderColor: "#D4DFD3",
+                                    }}
+                                    onPress={() => setInlineCheckoutChoice("free")}
+                                  >
+                                    <Text
+                                      style={{
+                                        color: inlineCheckoutChoice === "free" ? "#fff" : "#374151",
+                                        fontSize: 12,
+                                        fontWeight: "800",
+                                        textAlign: "center",
+                                      }}
+                                    >
+                                      {t("ci.freeChoice")}
+                                    </Text>
+                                  </TouchableOpacity>
+                                </View>
+                              </View>
+                            ) : null}
                             <FeedbackBanner
                               type={inlineCheckoutFeedback.type === "error" ? "error" : "success"}
                               message={inlineCheckoutFeedback.message}
@@ -1293,10 +1389,12 @@ export default function CheckedInScreen({ offlineQueue }) {
                       if (active) {
                         setCheckoutWorker(null);
                         setCheckoutStock("");
+                        setCheckoutChoice("keep");
                         setCheckoutFeedback({ type: "info", message: "" });
                       } else {
                         setCheckoutWorker(w);
                         setCheckoutStock("");
+                        setCheckoutChoice("keep");
                         setCheckoutFeedback({ type: "info", message: "" });
                       }
                     }}
@@ -1350,6 +1448,67 @@ export default function CheckedInScreen({ offlineQueue }) {
                           keyboardType="numeric"
                         />
                       </View>
+
+                      {checkoutWillKeepWorker(w, checkoutStock) ? (
+                        <View className="gap-2">
+                          <Text className="text-gray-600 text-xs font-bold">
+                            {t("ci.partialPrompt", {
+                              remaining: String(w.remainingStocks ?? ""),
+                              name: w.workerName,
+                            })}
+                          </Text>
+                          <View className="flex-row gap-2">
+                            <TouchableOpacity
+                              activeOpacity={0.7}
+                              style={{
+                                flex: 1,
+                                borderRadius: 12,
+                                paddingVertical: 10,
+                                alignItems: "center",
+                                backgroundColor: checkoutChoice === "keep" ? "#2D7A55" : "#E5ECE4",
+                                borderWidth: checkoutChoice === "keep" ? 0 : 1,
+                                borderColor: "#D4DFD3",
+                              }}
+                              onPress={() => setCheckoutChoice("keep")}
+                            >
+                              <Text
+                                style={{
+                                  color: checkoutChoice === "keep" ? "#fff" : "#374151",
+                                  fontSize: 12,
+                                  fontWeight: "800",
+                                  textAlign: "center",
+                                }}
+                              >
+                                {t("ci.keepChoice", { remaining: String(w.remainingStocks ?? "") })}
+                              </Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              activeOpacity={0.7}
+                              style={{
+                                flex: 1,
+                                borderRadius: 12,
+                                paddingVertical: 10,
+                                alignItems: "center",
+                                backgroundColor: checkoutChoice === "free" ? "#b91c1c" : "#E5ECE4",
+                                borderWidth: checkoutChoice === "free" ? 0 : 1,
+                                borderColor: "#D4DFD3",
+                              }}
+                              onPress={() => setCheckoutChoice("free")}
+                            >
+                              <Text
+                                style={{
+                                  color: checkoutChoice === "free" ? "#fff" : "#374151",
+                                  fontSize: 12,
+                                  fontWeight: "800",
+                                  textAlign: "center",
+                                }}
+                              >
+                                {t("ci.freeChoice")}
+                              </Text>
+                            </TouchableOpacity>
+                          </View>
+                        </View>
+                      ) : null}
 
                       <ActionButton
                         label={checkoutSubmitting ? t("common.submitting") : t("ci.submitCheckout")}

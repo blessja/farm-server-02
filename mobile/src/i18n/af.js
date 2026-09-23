@@ -275,6 +275,9 @@ const af = {
   "ci.fromRow": "Van ry",
   "ci.job": "Werk",
   "ci.stocksPlaceholder": "Los leeg om die res te voltooi",
+  "ci.partialPrompt": "Ry het nog {remaining} stokke oor. Hou {name} aangeteken met die oorblywende stokke, of maak die ry vry vir iemand anders?",
+  "ci.keepChoice": "Bly aangeteken\n({remaining} stokke oor)",
+  "ci.freeChoice": "Teken uit\n& maak ry vry",
 
   // MoveWorkers
   "mw.title": "Skuif werkers",

@@ -493,8 +493,15 @@ exports.swapWorkersBetweenRows = async (req, res) => {
 
 // Check-out a worker
 exports.checkOutWorker = async (req, res) => {
-  const { workerID, workerName, rowNumber, blockName, stockCount, jobType } =
-    req.body;
+  const {
+    workerID,
+    workerName,
+    rowNumber,
+    blockName,
+    stockCount,
+    jobType,
+    keepCheckedIn,
+  } = req.body;
 
   try {
     if (!workerID || !rowNumber || !blockName) {
@@ -595,18 +602,38 @@ exports.checkOutWorker = async (req, res) => {
     // Update based on format
     if (job) {
       // NEW FORMAT
-      job.remaining_stock = currentRemaining - stockCompleted;
-      row.active_jobs.splice(jobIndex, 1);
+      const leftover = currentRemaining - stockCompleted;
+      job.remaining_stock = leftover;
 
-      // Clear the legacy worker fields too. Otherwise the Working tab keeps
-      // showing this worker as active, and a second checkout of the same row
-      // would count the stock twice.
-      if (row.worker_id === workerID) {
-        row.worker_id = "";
-        row.worker_name = "";
-        row.start_time = null;
-        row.time_spent = null;
-        row.job_type = "";
+      if (keepCheckedIn && leftover > 0) {
+        // Keep the worker checked in with the remaining vines so the row can be
+        // continued today or tomorrow. Reset the start time so a later checkout
+        // of the same continuation does not double-count the elapsed time.
+        job.start_time = new Date();
+        job.time_spent = null;
+        row.start_time = job.start_time;
+        if (row.active_jobs.length === 1) {
+          row.remaining_stock_count = leftover;
+        }
+      } else {
+        // Normal checkout: remove the job. If vines remain, persist the leftover
+        // on the row so the next worker checked into this row starts from the
+        // remaining count instead of the full stock count.
+        row.active_jobs.splice(jobIndex, 1);
+        if (row.active_jobs.length === 0) {
+          row.remaining_stock_count = leftover;
+        }
+
+        // Clear the legacy worker fields too. Otherwise the Working tab keeps
+        // showing this worker as active, and a second checkout of the same row
+        // would count the stock twice.
+        if (row.worker_id === workerID) {
+          row.worker_id = "";
+          row.worker_name = "";
+          row.start_time = null;
+          row.time_spent = null;
+          row.job_type = "";
+        }
       }
     } else {
       // OLD FORMAT
@@ -679,14 +706,19 @@ exports.checkOutWorker = async (req, res) => {
     worker.total_stock_count += stockCompleted;
     await worker.save();
 
+    const keptCheckedIn = Boolean(job) && keepCheckedIn && job.remaining_stock > 0;
+
     res.send({
-      message: "Check-out successful",
+      message: keptCheckedIn
+        ? `Check-out saved. ${workerName} stays checked in with ${job.remaining_stock} vines left on Row ${rowNumber}.`
+        : "Check-out successful",
       stockCompleted: stockCompleted,
       timeSpent: `${Math.floor(timeSpentInMinutes / 60)}hr ${Math.round(
         timeSpentInMinutes % 60
       )}min`,
       rowNumber: row.row_number,
-      remainingStocks: job ? job.remaining_stock : row.remaining_stock_count,
+      remainingStocks: job ? job.remaining_stock : (row.remaining_stock_count ?? 0),
+      keptCheckedIn,
       jobType: usedJobType,
     });
   } catch (error) {
