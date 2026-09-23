@@ -594,7 +594,7 @@ exports.checkOutWorker = async (req, res) => {
       }
       if (stockCompleted > currentRemaining) {
         return res.status(400).send({
-          message: `Invalid stock count: cannot complete ${stockCompleted} trees when only ${currentRemaining} remain.`,
+          message: `Invalid stock count: cannot complete ${stockCompleted} vines when only ${currentRemaining} remain.`,
         });
       }
     }
@@ -706,18 +706,21 @@ exports.checkOutWorker = async (req, res) => {
     worker.total_stock_count += stockCompleted;
     await worker.save();
 
-    const keptCheckedIn = Boolean(job) && keepCheckedIn && job.remaining_stock > 0;
+    const remainingStocks = job
+      ? job.remaining_stock
+      : row.remaining_stock_count ?? 0;
+    const keptCheckedIn = Boolean(job) && keepCheckedIn && remainingStocks > 0;
 
     res.send({
       message: keptCheckedIn
-        ? `Check-out saved. ${workerName} stays checked in with ${job.remaining_stock} vines left on Row ${rowNumber}.`
+        ? `Check-out saved. ${workerName} stays checked in with ${remainingStocks} vines left on Row ${rowNumber}.`
         : "Check-out successful",
       stockCompleted: stockCompleted,
       timeSpent: `${Math.floor(timeSpentInMinutes / 60)}hr ${Math.round(
         timeSpentInMinutes % 60
       )}min`,
       rowNumber: row.row_number,
-      remainingStocks: job ? job.remaining_stock : (row.remaining_stock_count ?? 0),
+      remainingStocks,
       keptCheckedIn,
       jobType: usedJobType,
     });

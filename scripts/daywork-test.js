@@ -46,10 +46,12 @@ function makeRes() {
     return this;
   };
   res.json = function (body) {
+    if (this.statusCode === null) this.statusCode = 200;
     this.body = body;
     return this;
   };
   res.send = function (body) {
+    if (this.statusCode === null) this.statusCode = 200;
     this.body = body;
     return this;
   };
@@ -73,7 +75,7 @@ const checkin = (workerID, workerName, rowNumber, jobType, allowMultipleWorkers)
     allowMultipleWorkers,
   });
 
-const checkout = (workerID, workerName, rowNumber, jobType, stockCount) =>
+const checkout = (workerID, workerName, rowNumber, jobType, stockCount, keepCheckedIn) =>
   call(rowController.checkOutWorker, {
     workerID,
     workerName,
@@ -81,6 +83,7 @@ const checkout = (workerID, workerName, rowNumber, jobType, stockCount) =>
     blockName: BLOCK,
     jobType,
     stockCount,
+    keepCheckedIn,
   });
 
 async function rowState(rowNumber) {
@@ -271,4 +274,32 @@ test("T7: another worker continues HALF a row the next day", async () => {
   const i = await workerState("W009");
   assert.equal(h.total_stock_count, 50, "Hannah's total should be 50");
   assert.equal(i.total_stock_count, 50, "Isaac's total should be 50");
+});
+
+test("T8: partial checkout can keep the same worker checked in with the remainder", async () => {
+  await checkin("W009", "Isaac", "4", "PRUNING");
+  const r = await checkout("W009", "Isaac", "4", "PRUNING", 25, true);
+
+  assert.equal(r.status, 200);
+  assert.equal(r.body.stockCompleted, 25);
+  assert.equal(r.body.remainingStocks, 75);
+  assert.equal(r.body.keptCheckedIn, true);
+
+  const active = await currentCheckinsFor("W009");
+  assert.equal(active.length, 1);
+  assert.equal(active[0].remainingStocks, 75);
+});
+
+test("T9: zero-vine checkout frees the worker but preserves the row remainder", async () => {
+  await checkin("W010", "Jade", "5", "PRUNING");
+  const r = await checkout("W010", "Jade", "5", "PRUNING", 0);
+
+  assert.equal(r.status, 200);
+  assert.equal(r.body.stockCompleted, 0);
+  assert.equal(r.body.remainingStocks, 100);
+  assert.deepEqual(await currentCheckinsFor("W010"), []);
+
+  const next = await checkin("W011", "Kai", "5", "PRUNING");
+  assert.equal(next.status, 200);
+  assert.equal(next.body.remainingStock, 100);
 });

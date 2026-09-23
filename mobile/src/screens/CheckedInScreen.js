@@ -384,6 +384,12 @@ export default function CheckedInScreen({ offlineQueue }) {
     return stock < remaining;
   }
 
+  function isKeptCheckedIn(record) {
+    const remaining = Number(record?.remainingStocks);
+    const total = Number(record?.vines);
+    return Number.isFinite(remaining) && Number.isFinite(total) && remaining > 0 && remaining < total;
+  }
+
   async function handleCheckout() {
     if (!checkoutWorker) return;
     setCheckoutSubmitting(true);
@@ -670,7 +676,11 @@ export default function CheckedInScreen({ offlineQueue }) {
                 return (
                   <View
                     key={`${item.workerID}-${item.rowNumber}-${index}`}
-                    className="rounded-xl bg-gray-50 border border-gray-100 p-3.5"
+                    className={`rounded-xl border p-3.5 ${
+                      isKeptCheckedIn(item)
+                        ? "bg-emerald-50 border-emerald-300"
+                        : "bg-gray-50 border-gray-100"
+                    }`}
                   >
                     <TouchableOpacity
                       activeOpacity={0.7}
@@ -692,8 +702,10 @@ export default function CheckedInScreen({ offlineQueue }) {
                           <Text className="text-gray-400 text-xs mt-0.5">
                             {t("ci.row", { row: item.rowNumber })}
                           </Text>
-                          <Text className="text-gray-400 text-xs mt-0.5">
-                            {t("ci.vinesLine", { count: item.vines ?? "—" })}
+                          <Text className={isKeptCheckedIn(item) ? "text-emerald-700 text-xs mt-0.5 font-bold" : "text-gray-400 text-xs mt-0.5"}>
+                            {isKeptCheckedIn(item)
+                              ? `${item.remainingStocks} left / ${item.vines ?? "—"} vines`
+                              : t("ci.vinesLine", { count: item.vines ?? "—" })}
                           </Text>
                         </View>
                       </View>
