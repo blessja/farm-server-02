@@ -561,8 +561,18 @@ exports.checkOutWorker = async (req, res) => {
     }
 
     if (!job && row.worker_id !== workerID) {
-      return res.status(404).send({
-        message: `No active job found for ${workerName} on Row ${rowNumber}.`,
+      // Idempotent checkout: this worker has nothing active on this row. If a
+      // previous request already checked them out (e.g. the app timed out but
+      // the server processed it, and the retry was queued), report success so
+      // queued retries flush instead of getting stuck in the offline queue.
+      return res.status(200).send({
+        message: "Worker is already checked out on this row.",
+        alreadyCheckedOut: true,
+        stockCompleted: 0,
+        timeSpent: "0min",
+        rowNumber: row.row_number,
+        remainingStocks: 0,
+        jobType: usedJobType,
       });
     }
 

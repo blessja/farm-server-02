@@ -388,14 +388,12 @@ export default function CheckedInScreen({ offlineQueue }) {
       };
 
       const result = await api.regularCheckout(payload);
-      if (!result.queued) {
-        removeCheckinLocally(
-          checkoutWorker.workerID,
-          checkoutWorker.blockName,
-          checkoutWorker.rowNumber
-        );
-        await invalidateTotalsCache();
-      }
+      removeCheckinLocally(
+        checkoutWorker.workerID,
+        checkoutWorker.blockName,
+        checkoutWorker.rowNumber
+      );
+      await invalidateTotalsCache();
       setCheckoutFeedback({ type: "success", message: result.message });
       setCheckoutWorker(null);
       setCheckoutStock("");
@@ -432,14 +430,14 @@ export default function CheckedInScreen({ offlineQueue }) {
       };
 
       const result = await api.regularCheckout(payload);
-      if (!result.queued) {
-        removeCheckinLocally(
-          expandedRecord.workerID,
-          expandedRecord.blockName,
-          expandedRecord.rowNumber
-        );
-        await invalidateTotalsCache();
-      }
+      removeCheckinLocally(
+        expandedRecord.workerID,
+        expandedRecord.blockName,
+        expandedRecord.rowNumber
+      );
+      await invalidateTotalsCache();
+      offlineQueue?.refreshQueueCount?.();
+      checkinsState.refresh();
       setInlineCheckoutFeedback({ type: "success", message: result.message });
       setInlineCheckoutStock("");
       setTimeout(() => setExpandedWorker(null), 800);

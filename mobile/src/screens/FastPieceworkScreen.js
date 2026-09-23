@@ -212,9 +212,8 @@ export default function FastPieceworkScreen({ sharedState, offlineQueue }) {
       setFeedback({ type: "success", message: result.message });
       if (sharedState.selectedRow) {
         const rowNumbers = sortNamesNumerically([...new Set(rows.map((rowNumber) => String(rowNumber)))]);
-        const currentRow = Number(sharedState.selectedRow);
-        const nextIndex = rowNumbers.findIndex((value) => Number(value) === currentRow) + 1;
-        const nextRow = rowNumbers[nextIndex];
+        const currentIndex = rowNumbers.indexOf(String(sharedState.selectedRow));
+        const nextRow = currentIndex === -1 ? undefined : rowNumbers[currentIndex + 1];
         if (nextRow) sharedState.setSelectedRow(nextRow);
       }
       totalsState.refresh();

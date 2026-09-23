@@ -123,54 +123,56 @@ export default function DayWorkScreen({ sharedState, offlineQueue }) {
     );
   }
 
-  function selectedRowNumber() {
-    return Number(sharedState.selectedRow);
-  }
-
   function availableRowNumbers() {
     return sortNamesNumerically([
       ...new Set(rows.map((rowNumber) => String(rowNumber))),
     ]);
   }
 
+  function indexOfRow(rowValue) {
+    return availableRowNumbers().indexOf(String(rowValue));
+  }
+
   function handleRowSelect(value) {
-    const prevNum = selectedRowNumber();
-    const nextNum = Number(value);
-    if (Number.isFinite(prevNum) && Number.isFinite(nextNum)) {
-      if (nextNum > prevNum) setRowDirection(1);
-      else if (nextNum < prevNum) setRowDirection(-1);
+    const prevRow = sharedState.selectedRow;
+    const nextRow = String(value);
+    if (prevRow) {
+      const prevIndex = indexOfRow(prevRow);
+      const nextIndex = indexOfRow(nextRow);
+      if (prevIndex !== -1 && nextIndex !== -1) {
+        if (nextIndex > prevIndex) setRowDirection(1);
+        else if (nextIndex < prevIndex) setRowDirection(-1);
+      }
     }
-    sharedState.setSelectedRow(value);
+    sharedState.setSelectedRow(nextRow);
     setAllowMultipleWorkers(false);
   }
 
   function advanceToNextRow() {
     if (!autoNextEnabled) return;
     const availableRows = availableRowNumbers();
-    const currentNum = selectedRowNumber();
-    if (!Number.isFinite(currentNum) || availableRows.length === 0) {
-      sharedState.setSelectedRow("");
-      return;
-    }
-    let delta = rowDirection;
-    if (nextDirection === "up") delta = 1;
-    else if (nextDirection === "down") delta = -1;
+    const currentValue = String(sharedState.selectedRow || "");
+    if (!currentValue || availableRows.length === 0) return;
 
-    const nextRow = String(currentNum + delta);
-    if (availableRows.includes(nextRow)) {
+    const currentIndex = availableRows.indexOf(currentValue);
+    if (currentIndex === -1) return;
+
+    let step = rowDirection;
+    if (nextDirection === "up") step = 1;
+    else if (nextDirection === "down") step = -1;
+
+    const nextRow = availableRows[currentIndex + step];
+    if (nextRow) {
       sharedState.setSelectedRow(nextRow);
       if (nextDirection === "up" || nextDirection === "down") {
-        setRowDirection(delta);
+        setRowDirection(step);
       }
     }
   }
 
   function handleSuccessfulCheckinSelection() {
     const selectedRow = sharedState.selectedRow;
-    if (!selectedRow || !Number.isFinite(Number(selectedRow))) {
-      sharedState.setSelectedRow("");
-      return;
-    }
+    if (!selectedRow) return;
 
     if (autoNextEnabled) {
       advanceToNextRow();
