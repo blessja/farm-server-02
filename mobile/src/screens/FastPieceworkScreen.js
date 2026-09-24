@@ -213,7 +213,16 @@ export default function FastPieceworkScreen({ sharedState, offlineQueue }) {
       if (sharedState.selectedRow) {
         const rowNumbers = sortNamesNumerically([...new Set(rows.map((rowNumber) => String(rowNumber)))]);
         const currentIndex = rowNumbers.indexOf(String(sharedState.selectedRow));
-        const nextRow = currentIndex === -1 ? undefined : rowNumbers[currentIndex + 1];
+        const blockedRows = new Set(disabledRowValues.map(String));
+        let nextRow = null;
+        if (currentIndex !== -1) {
+          for (let i = currentIndex + 1; i < rowNumbers.length; i++) {
+            const candidate = rowNumbers[i];
+            if (blockedRows.has(candidate)) continue;
+            nextRow = candidate;
+            break;
+          }
+        }
         if (nextRow) sharedState.setSelectedRow(nextRow);
       }
       totalsState.refresh();

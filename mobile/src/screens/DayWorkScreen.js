@@ -161,7 +161,16 @@ export default function DayWorkScreen({ sharedState, offlineQueue }) {
     if (nextDirection === "up") step = 1;
     else if (nextDirection === "down") step = -1;
 
-    const nextRow = availableRows[currentIndex + step];
+    const blockedRows = new Set(disabledRowValues.map(String));
+    let nextRow = null;
+    for (let i = 1; i < availableRows.length; i++) {
+      const candidate = availableRows[currentIndex + step * i];
+      if (candidate === undefined) break;
+      if (blockedRows.has(candidate)) continue;
+      nextRow = candidate;
+      break;
+    }
+
     if (nextRow) {
       sharedState.setSelectedRow(nextRow);
       if (nextDirection === "up" || nextDirection === "down") {
