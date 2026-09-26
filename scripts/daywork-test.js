@@ -128,6 +128,7 @@ before(async () => {
       { row_number: "3", stock_count: 60, bunches: 12 },
       { row_number: "4", stock_count: 100, bunches: 20 },
       { row_number: "5", stock_count: 100, bunches: 20 },
+      { row_number: "6", stock_count: 100, bunches: 20 },
     ],
   });
   await block.save();
@@ -328,4 +329,80 @@ test("T10: backdated checkout requires admin permission and records the selected
   assert.equal(row.checkout_reason, "Rain prevented checkout");
   assert.equal(row.backdated_by, "Jackson");
   assert.equal(row.date.toISOString().slice(0, 10), "2026-09-22");
+});
+
+test("T11: same worker's partial row checkouts stay on their own work dates", async () => {
+  const admin = { supervisorName: "Jackson", isAdmin: true };
+
+  await checkin("W013", "Mia", "6", "PRUNING");
+  let r = await checkout("W013", "Mia", "6", "PRUNING", 30, false, {
+    workDate: "2026-09-23",
+    checkoutReason: "Rain stopped work",
+    mobileAuth: admin,
+  });
+  assert.equal(r.status, 200);
+  assert.equal(r.body.remainingStocks, 70);
+
+  r = await checkin("W013", "Mia", "6", "PRUNING");
+  assert.equal(r.status, 200);
+  assert.equal(r.body.remainingStock, 70);
+
+  r = await checkout("W013", "Mia", "6", "PRUNING", 20, false, {
+    workDate: "2026-09-24",
+    checkoutReason: "Second day continuation",
+    mobileAuth: admin,
+  });
+  assert.equal(r.status, 200);
+  assert.equal(r.body.remainingStocks, 50);
+
+  const worker = await workerState("W013");
+  const entries = worker.blocks
+    .find((block) => block.block_name === BLOCK)
+    .rows.filter((row) => row.row_number === "6" && row.job_type === "PRUNING");
+  assert.equal(entries.length, 2, "separate work dates must have separate totals entries");
+  assert.deepEqual(
+    entries.map((entry) => ({
+      date: entry.date.toISOString().slice(0, 10),
+      vines: entry.stock_count,
+    })).sort((a, b) => a.date.localeCompare(b.date)),
+    [
+      { date: "2026-09-23", vines: 30 },
+      { date: "2026-09-24", vines: 20 },
+    ]
+  );
+  const events = entries.flatMap((entry) => entry.checkout_events || []);
+  assert.equal(events.length, 2, "each checkout should have its own audit event");
+  assert.equal(new Set(events.map((event) => event.checkout_id)).size, 2);
+  assert.deepEqual(
+    events.map((event) => ({
+      workDate: event.work_date,
+      before: event.vines_before,
+      completed: event.vines_completed,
+      remaining: event.vines_remaining,
+      recordedBy: event.recorded_by,
+      reason: event.reason,
+      backdated: event.backdated,
+    })).sort((a, b) => a.workDate.localeCompare(b.workDate)),
+    [
+      {
+        workDate: "2026-09-23",
+        before: 100,
+        completed: 30,
+        remaining: 70,
+        recordedBy: "Jackson",
+        reason: "Rain stopped work",
+        backdated: true,
+      },
+      {
+        workDate: "2026-09-24",
+        before: 70,
+        completed: 20,
+        remaining: 50,
+        recordedBy: "Jackson",
+        reason: "Second day continuation",
+        backdated: true,
+      },
+    ]
+  );
+  assert.equal(worker.total_stock_count, 50);
 });

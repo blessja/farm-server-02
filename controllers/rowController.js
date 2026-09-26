@@ -1,5 +1,6 @@
 const Worker = require("../models/Worker");
 const Block = require("../models/Block");
+const { randomUUID } = require("crypto");
 
 function ensureActiveJobs(row) {
   if (!row.active_jobs) {
@@ -557,6 +558,7 @@ exports.checkOutWorker = async (req, res) => {
     let jobIndex = -1;
     let timeSpentInMinutes = 0;
     let currentRemaining = 0;
+    let checkinStartedAt = null;
     let usedJobType = jobType ? jobType.trim().toUpperCase() : "UNKNOWN";
 
     // Try NEW FORMAT first (active_jobs). Prefer a worker-plus-job match, but
@@ -582,6 +584,7 @@ exports.checkOutWorker = async (req, res) => {
         const endTime = new Date();
         timeSpentInMinutes = (endTime - job.start_time) / 1000 / 60;
         currentRemaining = job.remaining_stock;
+        checkinStartedAt = job.start_time;
       }
     }
 
@@ -600,6 +603,7 @@ exports.checkOutWorker = async (req, res) => {
       const endTime = new Date();
       timeSpentInMinutes = (endTime - row.start_time) / 1000 / 60;
       currentRemaining = row.remaining_stock_count || row.stock_count;
+      checkinStartedAt = row.start_time;
     }
 
     if (!job && row.worker_id !== workerID) {
@@ -698,6 +702,23 @@ exports.checkOutWorker = async (req, res) => {
     const currentDate = selectedWorkDate;
     const checkoutRecordedAt = new Date();
     const recordedBy = req.mobileAuth?.supervisorName || "System";
+    const vinesRemainingAfterCheckout = currentRemaining - stockCompleted;
+    const keptCheckedIn = Boolean(job) && keepCheckedIn && vinesRemainingAfterCheckout > 0;
+    const checkoutID = randomUUID();
+    const checkoutEvent = {
+      checkout_id: checkoutID,
+      work_date: localDateKey(currentDate),
+      recorded_at: checkoutRecordedAt,
+      recorded_by: recordedBy,
+      reason: String(checkoutReason || "").trim(),
+      backdated: isBackdated,
+      vines_before: currentRemaining,
+      vines_completed: stockCompleted,
+      vines_remaining: vinesRemainingAfterCheckout,
+      minutes_worked: timeSpentInMinutes,
+      kept_checked_in: keptCheckedIn,
+      checkin_started_at: checkinStartedAt,
+    };
 
     if (blockIndex === -1) {
       worker.blocks.push({
@@ -715,12 +736,17 @@ exports.checkOutWorker = async (req, res) => {
             checkout_recorded_at: checkoutRecordedAt,
             checkout_reason: String(checkoutReason || "").trim(),
             backdated_by: isBackdated ? recordedBy : "",
+            checkout_events: [checkoutEvent],
           },
         ],
       });
     } else {
       const rowIndex = worker.blocks[blockIndex].rows.findIndex(
-        (r) => r.row_number === rowNumber && r.job_type === usedJobType
+        (r) =>
+          r.row_number === rowNumber &&
+          r.job_type === usedJobType &&
+          r.date &&
+          localDateKey(r.date) === localDateKey(currentDate)
       );
       if (rowIndex === -1) {
         worker.blocks[blockIndex].rows.push({
@@ -735,6 +761,7 @@ exports.checkOutWorker = async (req, res) => {
           checkout_recorded_at: checkoutRecordedAt,
           checkout_reason: String(checkoutReason || "").trim(),
           backdated_by: isBackdated ? recordedBy : "",
+          checkout_events: [checkoutEvent],
         });
       } else {
         worker.blocks[blockIndex].rows[rowIndex].stock_count += stockCompleted;
@@ -746,6 +773,7 @@ exports.checkOutWorker = async (req, res) => {
         worker.blocks[blockIndex].rows[rowIndex].checkout_recorded_at = checkoutRecordedAt;
         worker.blocks[blockIndex].rows[rowIndex].checkout_reason = String(checkoutReason || "").trim();
         worker.blocks[blockIndex].rows[rowIndex].backdated_by = isBackdated ? recordedBy : "";
+        worker.blocks[blockIndex].rows[rowIndex].checkout_events.push(checkoutEvent);
       }
     }
 
@@ -755,8 +783,6 @@ exports.checkOutWorker = async (req, res) => {
     const remainingStocks = job
       ? job.remaining_stock
       : row.remaining_stock_count ?? 0;
-    const keptCheckedIn = Boolean(job) && keepCheckedIn && remainingStocks > 0;
-
     res.send({
       message: keptCheckedIn
         ? `Check-out saved. ${workerName} stays checked in with ${remainingStocks} vines left on Row ${rowNumber}.`
@@ -771,6 +797,7 @@ exports.checkOutWorker = async (req, res) => {
       jobType: usedJobType,
       workDate: localDateKey(selectedWorkDate),
       checkoutRecordedAt: checkoutRecordedAt.toISOString(),
+      checkoutID,
       backdated: isBackdated,
       backdatedBy: isBackdated ? recordedBy : null,
     });
