@@ -227,7 +227,29 @@ export default function TotalsGrid({
     return totals;
   }, [rows]);
 
+  // Total hours per worker across the day columns in the current view. Sums
+  // per worker (not per day) because a worker's total spans every day they
+  // appear in, and only cells visible under the current filters are counted.
+  const workerHours = useMemo(() => {
+    const totals = {};
+    workerOrder.forEach((w) => {
+      totals[w.workerID] = 0;
+    });
+    Object.keys(hours).forEach((key) => {
+      if (!rowKeys.has(key)) return;
+      const wk = key.split("__")[0];
+      if (totals[wk] === undefined) return;
+      totals[wk] += Number(hours[key].hours) || 0;
+    });
+    return totals;
+  }, [hours, workerOrder, rowKeys]);
+
   const grandTotal = rows.reduce((s, r) => s + r.vines, 0);
+
+  const grandHours = useMemo(
+    () => workerOrder.reduce((sum, w) => sum + (workerHours[w.workerID] || 0), 0),
+    [workerOrder, workerHours]
+  );
 
   const hasData = workerOrder.length > 0 && dateOrder.length > 0;
 
@@ -605,6 +627,7 @@ export default function TotalsGrid({
               {workerOrder.map((w, idx) => {
                 const rowBg = idx % 2 === 0 ? "#fff" : "#f9fafb";
                 const wTotal = workerTotals[w.workerID] || 0;
+                const wHours = workerHours[w.workerID] || 0;
                 return (
                   <View
                     key={w.workerID}
@@ -663,10 +686,15 @@ export default function TotalsGrid({
                       );
                     })}
 
-                <DataCell width={TOTAL_COL_WIDTH} style={{ backgroundColor: "#f0fdf4", borderRightWidth: 0 }}>
+<DataCell width={TOTAL_COL_WIDTH} style={{ backgroundColor: "#f0fdf4", borderRightWidth: 0 }}>
                   <Text style={{ fontSize: 13, fontWeight: "800", color: "#16a34a" }}>
                     {wTotal}
                   </Text>
+                  {wHours > 0 ? (
+                    <Text style={{ fontSize: 10, fontWeight: "700", color: "#15803d", marginTop: 1 }}>
+                      {formatHours(wHours)}
+                    </Text>
+                  ) : null}
                 </DataCell>
                   </View>
                 );
@@ -695,10 +723,15 @@ export default function TotalsGrid({
                   </DataCell>
                 ))}
 
-                <DataCell width={TOTAL_COL_WIDTH} style={{ backgroundColor: "#dcfce7", borderRightWidth: 0 }}>
+<DataCell width={TOTAL_COL_WIDTH} style={{ backgroundColor: "#dcfce7", borderRightWidth: 0 }}>
                   <Text style={{ fontSize: 14, fontWeight: "800", color: "#15803d" }}>
                     {grandTotal}
                   </Text>
+                  {grandHours > 0 ? (
+                    <Text style={{ fontSize: 10, fontWeight: "700", color: "#15803d", marginTop: 1 }}>
+                      {formatHours(grandHours)}
+                    </Text>
+                  ) : null}
                 </DataCell>
               </View>
             </View>

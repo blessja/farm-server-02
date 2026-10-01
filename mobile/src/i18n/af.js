@@ -10,6 +10,8 @@ const af = {
   "header.glenOakFarm": "Glen Oak Plaas",
   "header.signedInAs": "Aangemeld as {name}",
   "header.clearCache": "Maak kas skoon",
+  "header.refresh": "Herlaai",
+  "header.refreshing": "Herlaai tans...",
   "header.logout": "Teken uit",
 
   // Splash

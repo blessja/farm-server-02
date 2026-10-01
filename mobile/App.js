@@ -29,6 +29,7 @@ import {
 } from "./src/storage/authStorage";
 import { clearAllCache } from "./src/storage/cacheStorage";
 import { useOfflineQueue } from "./src/hooks/useOfflineQueue";
+import { useLanguage } from "./src/i18n";
 
 const tabs = [
   { key: "dashboard", label: "Home" },
@@ -44,6 +45,8 @@ const tabs = [
 export default function App() {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [cacheEpoch, setCacheEpoch] = useState(0);
+  const [refreshEpoch, setRefreshEpoch] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
   const [selectedBlock, setSelectedBlock] = useState("");
   const [selectedRow, setSelectedRow] = useState("");
   const [jobType, setJobType] = useState("");
@@ -55,6 +58,7 @@ export default function App() {
     rememberedSupervisorName: "",
   });
   const offlineQueue = useOfflineQueue();
+  const { t } = useLanguage();
 
   const sharedState = useMemo(
     () => ({
@@ -134,6 +138,22 @@ export default function App() {
   async function handleClearCache() {
     await clearAllCache();
     setCacheEpoch((epoch) => epoch + 1);
+  }
+
+  // A refresh must bypass the per-screen cache, otherwise useAsyncData serves
+  // the stored copy while it is still inside its staleTime window and the user
+  // sees no change. Clearing the cache and remounting the active screen forces
+  // a real fetch. Queued offline writes are left alone so nothing is lost.
+  async function handleRefresh() {
+    if (refreshing) return;
+    setRefreshing(true);
+    try {
+      await clearAllCache();
+      setRefreshEpoch((epoch) => epoch + 1);
+      setCacheEpoch((epoch) => epoch + 1);
+    } finally {
+      setRefreshing(false);
+    }
   }
 
   async function handleLogout() {
@@ -247,7 +267,25 @@ export default function App() {
                     onPress={handleClearCache}
                   >
                     <Text style={{ color: "#627060", fontSize: 12, fontWeight: "700" }}>
-                      Clear Cache
+                      {t("header.clearCache")}
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    activeOpacity={0.7}
+                    disabled={refreshing}
+                    style={{
+                      borderRadius: 12,
+                      backgroundColor: "#EAF3FB",
+                      borderWidth: 1,
+                      borderColor: "#C7DBEE",
+                      paddingHorizontal: 14,
+                      paddingVertical: 8,
+                      opacity: refreshing ? 0.6 : 1,
+                    }}
+                    onPress={handleRefresh}
+                  >
+                    <Text style={{ color: "#2A5C87", fontSize: 12, fontWeight: "700" }}>
+                      {refreshing ? t("header.refreshing") : t("header.refresh")}
                     </Text>
                   </TouchableOpacity>
                   <TouchableOpacity
@@ -256,7 +294,7 @@ export default function App() {
                     onPress={handleLogout}
                   >
                     <Text style={{ color: "#374236", fontSize: 13, fontWeight: "800" }}>
-                      Logout
+                      {t("header.logout")}
                     </Text>
                   </TouchableOpacity>
                 </View>
@@ -265,7 +303,7 @@ export default function App() {
           </View>
         </SafeAreaView>
 
-        <View className="flex-1" key={cacheEpoch}>
+        <View className="flex-1" key={`${cacheEpoch}-${refreshEpoch}`}>
           {renderContent()}
         </View>
 

@@ -10,6 +10,8 @@ const en = {
   "header.glenOakFarm": "Glen Oak Farm",
   "header.signedInAs": "Signed in as {name}",
   "header.clearCache": "Clear Cache",
+  "header.refresh": "Refresh",
+  "header.refreshing": "Refreshing...",
   "header.logout": "Logout",
 
   // Splash
