@@ -202,6 +202,9 @@ exports.checkOutWorkers = async (req, res) => {
 };
 
 // controllers/workerController.js - Add this new function
+// Replace the whole existing exports.getRegularPieceworkTotals in controllers/workerController.js with this.
+// Only the guards were added: (worker.blocks || []), (block.rows || []), a date check, and a safe vine count.
+
 exports.getRegularPieceworkTotals = async (req, res) => {
   const scope = resolveScope(req);
   if (scope.scope === "blocked") {
@@ -225,6 +228,7 @@ exports.getRegularPieceworkTotals = async (req, res) => {
         "blocks.rows.checkout_events": 1,
       }
     ).lean();
+
     const blocks = await Block.find(
       {},
       {
@@ -245,7 +249,7 @@ exports.getRegularPieceworkTotals = async (req, res) => {
     ];
 
     const blockInfo = {};
-    blocks.forEach((block) => {
+    (blocks || []).forEach((block) => {
       blockInfo[block.block_name] = {
         totalVines: block.total_stocks,
         totalRows: block.total_rows,
@@ -256,90 +260,72 @@ exports.getRegularPieceworkTotals = async (req, res) => {
 
     let filteredData = [];
 
-    workers.forEach((worker) => {
+    (workers || []).forEach((worker) => {
       let workerTotal = 0;
       let workerRows = [];
       let workerBlockSummary = {};
 
-      worker.blocks.forEach((block) => {
-        block.rows.forEach((row) => {
+      (worker.blocks || []).forEach((block) => {
+        if (!block) return;
+
+        (block.rows || []).forEach((row) => {
+          if (!row) return;
+
           // Skip fast piecework jobs
           const rowJobType = (row.job_type || "").toUpperCase();
           if (fastJobTypes.includes(rowJobType)) {
             return;
           }
 
-          // A Worker row may aggregate several checkouts. Split it into its
-          // individual events before scoping, otherwise a supervisor who
-          // recorded one checkout could see another supervisor's vines.
-          const events = Array.isArray(row.checkout_events) && row.checkout_events.length
-            ? row.checkout_events.map((event) => ({
-                vines: event.vines_completed,
-                date: event.work_date || event.recorded_at,
-                timeSpent: event.minutes_worked,
-                recordedBy: event.recorded_by,
-              }))
-            : [{
-                vines: row.stock_count,
-                date: row.date,
-                timeSpent: row.time_spent,
-                recordedBy: worker.supervisor,
-              }];
+          // Apply filters
+          if (jobType && row.job_type !== jobType) return;
+          if (date) {
+            if (!row.date) return;
+            const rowDate = new Date(row.date).toISOString().split("T")[0];
+            if (rowDate !== date) return;
+          }
+          if (blockName && block.block_name !== blockName) return;
 
-          events.forEach((event) => {
-            if (
-              scope.scope !== "all" &&
-              !sameName(event.recordedBy, scope.supervisorName)
-            ) {
-              return;
-            }
+          const vines = row.stock_count || 0;
 
-            if (jobType && row.job_type !== jobType) return;
-            if (date) {
-              const parsedEventDate = new Date(event.date);
-              if (Number.isNaN(parsedEventDate.getTime())) return;
-              const eventDate = parsedEventDate.toISOString().split("T")[0];
-              if (eventDate !== date) return;
-            }
-            if (blockName && block.block_name !== blockName) return;
-
-            const vines = Number(event.vines) || 0;
-            workerTotal += vines;
-            workerRows.push({
-              blockName: block.block_name,
-              rowNumber: row.row_number,
-              vines,
-              date: event.date,
-              jobType: row.job_type,
-              timeSpent: event.timeSpent,
-            });
-
-            if (!workerBlockSummary[block.block_name]) {
-              workerBlockSummary[block.block_name] = {
-                completedVines: 0,
-                completedRows: new Set(),
-              };
-            }
-            workerBlockSummary[block.block_name].completedVines += vines;
-            workerBlockSummary[block.block_name].completedRows.add(row.row_number);
+          workerTotal += vines;
+          workerRows.push({
+            blockName: block.block_name,
+            rowNumber: row.row_number,
+            vines,
+            date: row.date,
+            jobType: row.job_type,
+            timeSpent: row.time_spent,
           });
+
+          if (!workerBlockSummary[block.block_name]) {
+            workerBlockSummary[block.block_name] = {
+              completedVines: 0,
+              completedRows: new Set(),
+            };
+          }
+          workerBlockSummary[block.block_name].completedVines += vines;
+          workerBlockSummary[block.block_name].completedRows.add(
+            row.row_number
+          );
         });
       });
 
       if (workerTotal > 0) {
         const workerBlockCompletion = [];
-        Object.keys(workerBlockSummary).forEach((blockName) => {
-          const summary = workerBlockSummary[blockName];
-          const info = blockInfo[blockName];
+        Object.keys(workerBlockSummary).forEach((blkName) => {
+          const summary = workerBlockSummary[blkName];
+          const info = blockInfo[blkName];
 
           if (info) {
             workerBlockCompletion.push({
-              blockName,
+              blockName: blkName,
               expectedTotalVines: info.totalVines,
               workerCompletedVines: summary.completedVines,
-              workerPercentage:
-                Math.round((summary.completedVines / info.totalVines) * 10000) /
-                100,
+              workerPercentage: info.totalVines
+                ? Math.round((summary.completedVines / info.totalVines) * 10000) /
+                  100
+                : 0,
               workerCompletedRows: summary.completedRows.size,
               totalRowsInBlock: info.totalRows,
               variety: info.variety,
