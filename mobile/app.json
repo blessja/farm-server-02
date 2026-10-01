@@ -2,7 +2,7 @@
   "expo": {
     "name": "Glen Oak",
     "slug": "glen-oak",
-    "version": "2.0.0",
+    "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "plugins": [
@@ -18,19 +18,13 @@
           "configureAndroidBackup": true,
           "faceIDPermission": "Allow Glen Oak to securely access saved sign-in credentials."
         }
-      ],
-      [
-        "expo-splash-screen",
-        {
-          "backgroundColor": "#1a5f4a",
-          "image": "./assets/splash-icon.png",
-          "imageWidth": 220,
-          "resizeMode": "contain"
-        }
-      ],
-      "expo-sharing",
-      "expo-audio"
+      ]
     ],
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#1a5f4a"
+    },
     "icon": "./assets/icon.png",
     "assetBundlePatterns": [
       "**/*"
@@ -50,17 +44,10 @@
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO"
       ],
-      "package": "com.anonymous.glenoaksupplements",
-      "versionCode": 2
+      "package": "com.anonymous.glenoaksupplements"
     },
     "web": {
       "bundler": "metro"
-    },
-    "extra": {
-      "eas": {
-        "projectId": "e09eb6fd-369c-4006-a6e7-7705d9e32b34"
-      }
-    },
-    "owner": "bjackson2"
+    }
   }
 }
