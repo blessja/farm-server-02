@@ -226,6 +226,10 @@ const af = {
   "totals.gridTitle": "Stokke en ure per werker en dag",
   "totals.gridSub": "Rol horisontaal om al die datums te sien. Raak 'n sel aan om gewerkte ure aan te teken.",
 
+  // Per-supervisor scoping
+  "scope.title": "Aanmelding vereis",
+  "scope.signInRequired": "Meld aan as toesighouer om te sien wie werk en jou totale te sien.",
+
   // CheckedIn
   "ci.actions": "Aksies",
   "ci.actionsSub": "Skuif 'n werker na 'n ander ry of teken 'n werker uit.",

@@ -1,6 +1,27 @@
 const Worker = require("../models/Worker");
 const Block = require("../models/Block");
 const { randomUUID } = require("crypto");
+const { resolveScope, rejectBlockedScope, sameName, visibleWorkerIDs } = require("../utils/supervisorScope");
+
+// Name of the supervisor responsible for a record. Empty when auth is off or
+// no identity is attached, which is stored rather than skipped so the scoping
+// rules can tell "no supervisor recorded this" from "recorded by a supervisor".
+function recorderName(req) {
+  return resolveScope(req).supervisorName || "";
+}
+
+// Workers the request's supervisor is allowed to see. Admins get null, meaning
+// "no restriction".
+async function scopedWorkerIDs(req) {
+  const scope = resolveScope(req);
+  if (scope.scope === "all") return null;
+  return visibleWorkerIDs(scope.supervisorName);
+}
+
+function isVisibleWorker(visibleIDs, workerID) {
+  if (visibleIDs === null) return true;
+  return visibleIDs.has(String(workerID || "").trim());
+}
 
 function ensureActiveJobs(row) {
   if (!row.active_jobs) {
@@ -150,6 +171,7 @@ exports.checkInWorker = async (req, res) => {
     }
 
     // Add new job to active_jobs
+    const recorder = recorderName(req);
     row.active_jobs.push({
       worker_name: workerName,
       worker_id: workerID,
@@ -157,6 +179,7 @@ exports.checkInWorker = async (req, res) => {
       start_time: new Date(),
       remaining_stock: actualRemainingStock,
       time_spent: null,
+      recorded_by: recorder,
     });
 
     // Update legacy fields
@@ -164,6 +187,7 @@ exports.checkInWorker = async (req, res) => {
     row.worker_id = workerID;
     row.start_time = new Date();
     row.job_type = normalizedJobType;
+    row.checkin_recorded_by = recorder;
 
     console.log("=== ROW DATA AFTER CHECK-IN (before save) ===");
     console.log("active_jobs:", JSON.stringify(row.active_jobs, null, 2));
@@ -171,7 +195,7 @@ exports.checkInWorker = async (req, res) => {
 
     await block.save();
 
-    console.log("✅ Check-in successful");
+    console.log("�o. Check-in successful");
 
     // Ensure worker record exists
     let worker = await Worker.findOne({ workerID });
@@ -182,8 +206,16 @@ exports.checkInWorker = async (req, res) => {
         total_stock_count: 0,
         blocks: [],
       });
-      await worker.save();
     }
+
+    // Record the supervisor on the worker so the Totals tab can scope to the
+    // crew even before the first checkout of this shift is saved.
+    if (recorder && !sameName(worker.supervisor, recorder)) {
+      worker.supervisor = recorder;
+    }
+
+    await worker.save();
+
 
     res.json({
       message: allowMultipleWorkers
@@ -702,6 +734,7 @@ exports.checkOutWorker = async (req, res) => {
     const currentDate = selectedWorkDate;
     const checkoutRecordedAt = new Date();
     const recordedBy = req.mobileAuth?.supervisorName || "System";
+    const supervisor = recorderName(req);
     const vinesRemainingAfterCheckout = currentRemaining - stockCompleted;
     const keptCheckedIn = Boolean(job) && keepCheckedIn && vinesRemainingAfterCheckout > 0;
     const checkoutID = randomUUID();
@@ -778,6 +811,9 @@ exports.checkOutWorker = async (req, res) => {
     }
 
     worker.total_stock_count += stockCompleted;
+    if (supervisor && !sameName(worker.supervisor, supervisor)) {
+      worker.supervisor = supervisor;
+    }
     await worker.save();
 
     const remainingStocks = job
@@ -871,6 +907,11 @@ exports.getCurrentCheckin = async (req, res) => {
 };
 // Get the worker's current check-in
 exports.getCurrentCheckins = async (req, res) => {
+  const scope = resolveScope(req);
+  if (scope.scope === "blocked") {
+    return rejectBlockedScope(res, scope);
+  }
+
   try {
     const blocks = await Block.find();
     let activeCheckins = [];
@@ -879,6 +920,12 @@ exports.getCurrentCheckins = async (req, res) => {
       block.rows.forEach((row) => {
         if (row.active_jobs && row.active_jobs.length > 0) {
           row.active_jobs.forEach((job) => {
+            if (
+              scope.scope !== "all" &&
+              !sameName(job.recorded_by, scope.supervisorName)
+            ) {
+              return;
+            }
             activeCheckins.push({
               blockName: block.block_name,
               job_type: (job.job_type || "").trim().toUpperCase(),
@@ -899,6 +946,12 @@ exports.getCurrentCheckins = async (req, res) => {
           row.start_time &&
           !row.time_spent
         ) {
+          if (
+            scope.scope !== "all" &&
+            !sameName(row.checkin_recorded_by, scope.supervisorName)
+          ) {
+            return;
+          }
           activeCheckins.push({
             blockName: block.block_name,
             job_type: (row.job_type || "").trim().toUpperCase(),

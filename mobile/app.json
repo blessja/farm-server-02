@@ -28,7 +28,8 @@
           "resizeMode": "contain"
         }
       ],
-      "expo-sharing"
+      "expo-sharing",
+      "expo-audio"
     ],
     "icon": "./assets/icon.png",
     "assetBundlePatterns": [

@@ -214,6 +214,7 @@ function AppContent() {
             offlineQueue={offlineQueue}
             isAdmin={bootState.isAdmin}
             showBackdate={false}
+            supervisorName={bootState.supervisorName}
           />
         );
       case "move":
@@ -233,7 +234,7 @@ function AppContent() {
           />
         );
       case "totals":
-        return <TotalsScreen />;
+        return <TotalsScreen supervisorName={bootState.supervisorName} />;
       case "queue":
         return <QueueScreen offlineQueue={offlineQueue} />;
       case "dashboard":

@@ -226,6 +226,10 @@ const en = {
   "totals.gridTitle": "Vines and hours by worker and day",
   "totals.gridSub": "Scroll horizontally to see all dates. Tap a cell to record hours worked.",
 
+  // Per-supervisor scoping
+  "scope.title": "Sign in required",
+  "scope.signInRequired": "Sign in as a supervisor to see who is working and your totals.",
+
   // CheckedIn
   "ci.actions": "Actions",
   "ci.actionsSub": "Move a worker to another row or check out a worker.",

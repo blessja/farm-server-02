@@ -18,22 +18,30 @@ function dateKey(dateStr) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-export default function TotalsScreen() {
+export default function TotalsScreen({ supervisorName = "" }) {
   const { t } = useLanguage();
   const regularState = useAsyncData(() => api.getRegularTotals(), [], {
-    cacheKey: "regular-totals",
+    cacheKey: `regular-totals:${supervisorName}`,
     staleTime: 5 * 60 * 1000,
   });
 
   const fastState = useAsyncData(() => api.getFastTotals(), [], {
-    cacheKey: "fast-totals",
+    cacheKey: `fast-totals:${supervisorName}`,
     staleTime: 5 * 60 * 1000,
   });
 
   const hoursState = useAsyncData(() => api.getDayHours(), [], {
-    cacheKey: "day-hours",
+    cacheKey: `day-hours:${supervisorName}`,
     staleTime: 2 * 60 * 1000,
   });
+
+  // The server refuses to answer without a supervisor identity. Cached rows from
+  // an earlier session must not stay on screen in that case, so the blocked
+  // state replaces the list instead of sitting under it.
+  const isBlocked =
+    regularState.errorStatus === 403 ||
+    fastState.errorStatus === 403 ||
+    hoursState.errorStatus === 403;
 
   const loading = regularState.loading && fastState.loading;
 
@@ -45,6 +53,7 @@ export default function TotalsScreen() {
 
   const allRows = useMemo(() => {
     const rows = [];
+    if (isBlocked) return rows;
 
     const regularWorkers = Array.isArray(regularState.data?.workers)
       ? regularState.data.workers
@@ -91,9 +100,10 @@ export default function TotalsScreen() {
     });
 
     return rows;
-  }, [regularState.data, fastState.data]);
+  }, [regularState.data, fastState.data, isBlocked]);
 
   const dayHours = useMemo(() => {
+    if (isBlocked) return {};
     const list = Array.isArray(hoursState.data) ? hoursState.data : [];
     const map = {};
     list.forEach((entry) => {
@@ -105,7 +115,7 @@ export default function TotalsScreen() {
       }
     });
     return map;
-  }, [hoursState.data]);
+  }, [hoursState.data, isBlocked]);
 
   const blockOptions = useMemo(() => {
     const names = [...new Set(allRows.map((r) => r.blockName).filter(Boolean))].sort();
@@ -166,17 +176,29 @@ export default function TotalsScreen() {
     <ScreenScroll
       refreshing={loading}
       onRefresh={() => {
+        if (isBlocked) return;
         regularState.refresh();
         fastState.refresh();
         hoursState.refresh();
       }}
     >
+      {isBlocked ? (
+        <SectionCard title={t("scope.title")}>
+          <Text style={{ color: "#6b7280", fontSize: 14 }}>
+            {t("scope.signInRequired")}
+          </Text>
+        </SectionCard>
+      ) : null}
+
+      {!isBlocked ? (
       <SectionCard title={t("totals.title")} subtitle={t("totals.subtitle")}>
         <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
           <TotalsSummary rows={filteredRows} hours={dayHours} />
         </View>
       </SectionCard>
+      ) : null}
 
+      {!isBlocked ? (
       <SectionCard title={t("totals.filters")}>
         <SelectField
           label={t("dw.block")}
@@ -227,7 +249,9 @@ export default function TotalsScreen() {
           </Text>
         ) : null}
       </SectionCard>
+      ) : null}
 
+      {!isBlocked ? (
       <SectionCard
         title={t("totals.export")}
         subtitle={t("totals.exportSub")}
@@ -255,8 +279,9 @@ export default function TotalsScreen() {
           </Text>
         ) : null}
       </SectionCard>
+      ) : null}
 
-      {!hasData && !loading ? (
+      {!isBlocked && !hasData && !loading ? (
         <SectionCard title={t("totals.noData")}>
           <Text style={{ color: "#9ca3af", fontSize: 14 }}>
             {isFiltered ? t("totals.noDataFiltered") : t("grid.noTotalsAvailable")}
@@ -264,7 +289,7 @@ export default function TotalsScreen() {
         </SectionCard>
       ) : null}
 
-      {hasData ? (
+      {!isBlocked && hasData ? (
         <SectionCard title={t("totals.gridTitle")} subtitle={t("totals.gridSub")}>
           <TotalsGrid
             rows={filteredRows}

@@ -1,17 +1,19 @@
 const Worker = require("../models/Worker");
+const { resolveScope } = require("../utils/supervisorScope");
 
 exports.syncClockIns = async (req, res) => {
   const syncPayload = req.body; // Expecting an array of clock-in entries
   const results = [];
+  const supervisor = resolveScope(req).supervisorName || "";
 
   for (const entry of syncPayload) {
     const { worker_id, blockId, row, jobType, clockInTime, deviceId, syncId } =
       entry;
-    const workerId = worker_id; // ✅ Fix: map incoming field
+    const workerId = worker_id; // �o. Fix: map incoming field
 
     try {
       const alreadyExists = await Worker.findOne({
-        workerID,
+        workerID: workerId,
         "syncLogs.syncId": syncId,
       });
 
@@ -20,29 +22,37 @@ exports.syncClockIns = async (req, res) => {
         continue;
       }
 
-      const updatedWorker = await Worker.findOneAndUpdate(
-        { workerID: workerId },
-        {
-          $set: {
-            isClockedIn: true,
-            currentBlock: blockId,
-            currentRow: row,
-            jobType,
-            clockInTime: new Date(clockInTime),
-          },
-          $push: {
-            syncLogs: {
-              syncId,
-              deviceId,
-              type: "clockIn",
-              time: new Date(clockInTime),
-            },
+      const update = {
+        $set: {
+          isClockedIn: true,
+          currentBlock: blockId,
+          currentRow: row,
+          jobType,
+          clockInTime: new Date(clockInTime),
+        },
+        $push: {
+          syncLogs: {
+            syncId,
+            deviceId,
+            type: "clockIn",
+            time: new Date(clockInTime),
           },
         },
+      };
+
+      // Record the supervisor so a replayed offline check-in still counts
+      // towards their crew.
+      if (supervisor) {
+        update.$set.supervisor = supervisor;
+      }
+
+      await Worker.findOneAndUpdate(
+        { workerID: workerId },
+        update,
         {
           upsert: true,
           new: true,
-          strict: false, // ✅ Allow saving fields not in schema
+          strict: false, // �o. Allow saving fields not in schema
         }
       );
 

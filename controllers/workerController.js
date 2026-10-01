@@ -5,6 +5,10 @@ const WorkerActivity = require("../models/WorkerActivity");
 const Worker = require("../models/Worker");
 const PieceworkWorker = require("../models/PieceworkWorker");
 const Block = require("../models/Block");
+const {
+  resolveScope,
+  rejectBlockedScope,
+} = require("../utils/supervisorScope");
 
 exports.checkInWorkers = async (req, res) => {
   const { workerID, workerName, rowNumber, blockName } = req.body;
@@ -30,9 +34,11 @@ exports.checkInWorkers = async (req, res) => {
     }
 
     // Assign the worker and set start time
+    const recorder = resolveScope(req).supervisorName || "";
     row.worker_name = workerName;
     row.worker_id = workerID;
     row.start_time = new Date();
+    row.checkin_recorded_by = recorder;
 
     await block.save();
 
@@ -44,6 +50,9 @@ exports.checkInWorkers = async (req, res) => {
         name: workerName,
         blocks: [],
       });
+      if (recorder) {
+        newWorker.supervisor = recorder;
+      }
       await newWorker.save();
     }
 
@@ -194,20 +203,26 @@ exports.checkOutWorkers = async (req, res) => {
 
 // controllers/workerController.js - Add this new function
 exports.getRegularPieceworkTotals = async (req, res) => {
+  const scope = resolveScope(req);
+  if (scope.scope === "blocked") {
+    return rejectBlockedScope(res, scope);
+  }
+
   try {
     const { jobType, date, blockName } = req.query;
-
     const workers = await Worker.find(
       {},
       {
         workerID: 1,
         name: 1,
+        supervisor: 1,
         "blocks.block_name": 1,
         "blocks.rows.row_number": 1,
         "blocks.rows.job_type": 1,
         "blocks.rows.stock_count": 1,
         "blocks.rows.date": 1,
         "blocks.rows.time_spent": 1,
+        "blocks.rows.checkout_events": 1,
       }
     ).lean();
     const blocks = await Block.find(
@@ -254,35 +269,60 @@ exports.getRegularPieceworkTotals = async (req, res) => {
             return;
           }
 
-          // Apply filters
-          if (jobType && row.job_type !== jobType) return;
-          if (date) {
-            const rowDate = new Date(row.date).toISOString().split("T")[0];
-            if (rowDate !== date) return;
-          }
-          if (blockName && block.block_name !== blockName) return;
+          // A Worker row may aggregate several checkouts. Split it into its
+          // individual events before scoping, otherwise a supervisor who
+          // recorded one checkout could see another supervisor's vines.
+          const events = Array.isArray(row.checkout_events) && row.checkout_events.length
+            ? row.checkout_events.map((event) => ({
+                vines: event.vines_completed,
+                date: event.work_date || event.recorded_at,
+                timeSpent: event.minutes_worked,
+                recordedBy: event.recorded_by,
+              }))
+            : [{
+                vines: row.stock_count,
+                date: row.date,
+                timeSpent: row.time_spent,
+                recordedBy: worker.supervisor,
+              }];
 
-          workerTotal += row.stock_count;
-          workerRows.push({
-            blockName: block.block_name,
-            rowNumber: row.row_number,
-            vines: row.stock_count,
-            date: row.date,
-            jobType: row.job_type,
-            timeSpent: row.time_spent,
+          events.forEach((event) => {
+            if (
+              scope.scope !== "all" &&
+              !sameName(event.recordedBy, scope.supervisorName)
+            ) {
+              return;
+            }
+
+            if (jobType && row.job_type !== jobType) return;
+            if (date) {
+              const parsedEventDate = new Date(event.date);
+              if (Number.isNaN(parsedEventDate.getTime())) return;
+              const eventDate = parsedEventDate.toISOString().split("T")[0];
+              if (eventDate !== date) return;
+            }
+            if (blockName && block.block_name !== blockName) return;
+
+            const vines = Number(event.vines) || 0;
+            workerTotal += vines;
+            workerRows.push({
+              blockName: block.block_name,
+              rowNumber: row.row_number,
+              vines,
+              date: event.date,
+              jobType: row.job_type,
+              timeSpent: event.timeSpent,
+            });
+
+            if (!workerBlockSummary[block.block_name]) {
+              workerBlockSummary[block.block_name] = {
+                completedVines: 0,
+                completedRows: new Set(),
+              };
+            }
+            workerBlockSummary[block.block_name].completedVines += vines;
+            workerBlockSummary[block.block_name].completedRows.add(row.row_number);
           });
-
-          if (!workerBlockSummary[block.block_name]) {
-            workerBlockSummary[block.block_name] = {
-              completedVines: 0,
-              completedRows: new Set(),
-            };
-          }
-          workerBlockSummary[block.block_name].completedVines +=
-            row.stock_count;
-          workerBlockSummary[block.block_name].completedRows.add(
-            row.row_number
-          );
         });
       });
 

@@ -14,6 +14,9 @@ const rowSchema = new mongoose.Schema({
       start_time: { type: Date, required: true },
       remaining_stock: { type: Number, required: true }, // Remaining for THIS job
       time_spent: { type: Number, default: null }, // Time in minutes
+      // Supervisor who checked this worker in. Drives per-supervisor scoping
+      // of the Working tab while the work is still in progress.
+      recorded_by: { type: String, default: "" },
     },
   ],
 
@@ -24,6 +27,7 @@ const rowSchema = new mongoose.Schema({
   job_type: { type: String, required: false },
   remaining_stock_count: Number,
   start_time: { type: Date, default: null },
+  checkin_recorded_by: { type: String, default: "" },
 });
 
 const Row = mongoose.model("Row", rowSchema);

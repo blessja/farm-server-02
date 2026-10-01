@@ -141,11 +141,27 @@ export default function TotalsGrid({
       matrix[key].timeSpent += r.timeSpent;
     });
 
-    const workerOrder = Object.values(wMap).sort((a, b) =>
-      a.workerName.localeCompare(b.workerName)
-    );
-
     const dateOrder = Object.keys(dMap).sort((a, b) => b.localeCompare(a));
+
+    // A table has one row order, so use the most recent visible work day as
+    // the primary ranking. This puts that day's highest vine totals first;
+    // the all-date total is only a tie-breaker.
+    const workerOrder = Object.values(wMap).sort((a, b) => {
+      const latestDate = dateOrder[0];
+      const latestDifference =
+        (matrix[`${b.workerID}__${latestDate}`]?.vines || 0) -
+        (matrix[`${a.workerID}__${latestDate}`]?.vines || 0);
+      if (latestDifference !== 0) return latestDifference;
+
+      const totalFor = (workerID) =>
+        dateOrder.reduce(
+          (sum, dk) => sum + (matrix[`${workerID}__${dk}`]?.vines || 0),
+          0
+        );
+      const totalDifference = totalFor(b.workerID) - totalFor(a.workerID);
+      if (totalDifference !== 0) return totalDifference;
+      return a.workerName.localeCompare(b.workerName);
+    });
 
     const dateLabels = {};
     dateOrder.forEach((dk) => {
@@ -177,16 +193,19 @@ export default function TotalsGrid({
   }, [rows]);
 
   const columnHours = useMemo(() => {
-    const totals = {};
+    const values = {};
     dateOrder.forEach((dk) => {
-      totals[dk] = 0;
+      values[dk] = null;
     });
     Object.keys(hours).forEach((key) => {
       if (!rowKeys.has(key)) return;
       const dk = key.split("__")[1];
-      if (totals[dk] !== undefined) totals[dk] += hours[key].hours;
+      const value = Number(hours[key].hours) || 0;
+      // The column control applies one day value to every worker. Show that
+      // value—not the sum of the copied values across all workers.
+      if (values[dk] === null) values[dk] = value;
     });
-    return totals;
+    return values;
   }, [hours, dateOrder, rowKeys]);
 
   // Workers that actually appear on each date column in the current view.
@@ -208,22 +227,7 @@ export default function TotalsGrid({
     return totals;
   }, [rows]);
 
-  const workerHoursTotals = useMemo(() => {
-    const totals = {};
-    Object.keys(hours).forEach((key) => {
-      if (!rowKeys.has(key)) return;
-      const workerID = key.split("__")[0];
-      if (!totals[workerID]) totals[workerID] = 0;
-      totals[workerID] += hours[key].hours;
-    });
-    return totals;
-  }, [hours, rowKeys]);
-
   const grandTotal = rows.reduce((s, r) => s + r.vines, 0);
-  const grandTotalHours = Array.from(rowKeys).reduce(
-    (s, key) => s + (hours[key]?.hours || 0),
-    0
-  );
 
   const hasData = workerOrder.length > 0 && dateOrder.length > 0;
 
@@ -601,8 +605,6 @@ export default function TotalsGrid({
               {workerOrder.map((w, idx) => {
                 const rowBg = idx % 2 === 0 ? "#fff" : "#f9fafb";
                 const wTotal = workerTotals[w.workerID] || 0;
-                const wHours = workerHoursTotals[w.workerID] || 0;
-
                 return (
                   <View
                     key={w.workerID}
@@ -661,15 +663,10 @@ export default function TotalsGrid({
                       );
                     })}
 
-<DataCell width={TOTAL_COL_WIDTH} style={{ backgroundColor: "#f0fdf4", borderRightWidth: 0 }}>
+                <DataCell width={TOTAL_COL_WIDTH} style={{ backgroundColor: "#f0fdf4", borderRightWidth: 0 }}>
                   <Text style={{ fontSize: 13, fontWeight: "800", color: "#16a34a" }}>
                     {wTotal}
                   </Text>
-                  {wHours > 0 ? (
-                    <Text style={{ fontSize: 10, fontWeight: "700", color: "#15803d", marginTop: 1 }}>
-                      {formatHours(wHours)}
-                    </Text>
-                  ) : null}
                 </DataCell>
                   </View>
                 );
@@ -702,11 +699,6 @@ export default function TotalsGrid({
                   <Text style={{ fontSize: 14, fontWeight: "800", color: "#15803d" }}>
                     {grandTotal}
                   </Text>
-                  {grandTotalHours > 0 ? (
-                    <Text style={{ fontSize: 10, fontWeight: "700", color: "#15803d", marginTop: 1 }}>
-                      {formatHours(grandTotalHours)}
-                    </Text>
-                  ) : null}
                 </DataCell>
               </View>
             </View>

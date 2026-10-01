@@ -8,6 +8,7 @@ export function useAsyncData(loader, deps = [], { cacheKey, staleTime } = {}) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [errorStatus, setErrorStatus] = useState(null);
   const didMount = useRef(false);
   const bgRefreshTimer = useRef(null);
 
@@ -17,6 +18,7 @@ export function useAsyncData(loader, deps = [], { cacheKey, staleTime } = {}) {
     async function load() {
       setLoading(true);
       setError("");
+      setErrorStatus(null);
 
       if (cacheKey) {
         const cached = await getCachedWithTimestamp(cacheKey);
@@ -58,7 +60,10 @@ export function useAsyncData(loader, deps = [], { cacheKey, staleTime } = {}) {
           if (cacheKey) setCache(cacheKey, result);
         }
       } catch (err) {
-        if (!cancelled) setError(err.message || "Could not load data");
+        if (!cancelled) {
+          setError(err.message || "Could not load data");
+          setErrorStatus(typeof err?.status === "number" ? err.status : null);
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -95,16 +100,18 @@ export function useAsyncData(loader, deps = [], { cacheKey, staleTime } = {}) {
     if (cacheKey) await clearCache(cacheKey);
     setLoading(true);
     setError("");
+    setErrorStatus(null);
     try {
       const result = await loader();
       setData(result);
       if (cacheKey) setCache(cacheKey, result);
     } catch (err) {
       setError(err.message || "Could not load data");
+      setErrorStatus(typeof err?.status === "number" ? err.status : null);
     } finally {
       setLoading(false);
     }
   }, deps);
 
-  return { data, loading, error, refresh, setData };
+  return { data, loading, error, errorStatus, refresh, setData };
 }

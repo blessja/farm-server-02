@@ -1,6 +1,11 @@
 // controllers/fastPieceworkController.js
 const PieceworkWorker = require("../models/PieceworkWorker");
 const Block = require("../models/Block");
+const {
+  resolveScope,
+  rejectBlockedScope,
+  sameName,
+} = require("../utils/supervisorScope");
 
 // Fast check-in - saves to PieceworkWorker collection
 exports.fastCheckIn = async (req, res) => {
@@ -54,6 +59,7 @@ exports.fastCheckIn = async (req, res) => {
     const stockCount = row.stock_count;
     const currentTime = new Date();
     const timeSpentInMinutes = 1;
+    const recorder = resolveScope(req).supervisorName || "";
 
     // Mark row as completed in Block collection
     if (!row.active_jobs) {
@@ -67,11 +73,12 @@ exports.fastCheckIn = async (req, res) => {
       start_time: currentTime,
       remaining_stock: 0,
       time_spent: timeSpentInMinutes,
+      recorded_by: recorder,
     });
 
     await block.save();
 
-    // ✅ Save to PieceworkWorker collection (NOT Worker collection)
+    // �o. Save to PieceworkWorker collection (NOT Worker collection)
     let pieceworkWorker = await PieceworkWorker.findOne({ workerID });
 
     if (!pieceworkWorker) {
@@ -82,6 +89,11 @@ exports.fastCheckIn = async (req, res) => {
         blocks: [],
       });
     }
+
+    if (recorder && !sameName(pieceworkWorker.supervisor, recorder)) {
+      pieceworkWorker.supervisor = recorder;
+    }
+
 
     const blockIndex = pieceworkWorker.blocks.findIndex(
       (b) => b.block_name === blockName
@@ -96,6 +108,7 @@ exports.fastCheckIn = async (req, res) => {
             job_type: jobType,
             stock_count: stockCount,
             date: currentTime,
+            recorded_by: recorder,
             day_of_week: currentTime.toLocaleDateString("en-US", {
               weekday: "long",
             }),
@@ -122,6 +135,7 @@ exports.fastCheckIn = async (req, res) => {
         pieceworkWorker.blocks[blockIndex].rows[rowIndex].stock_count +=
           stockCount;
         pieceworkWorker.blocks[blockIndex].rows[rowIndex].date = currentTime;
+        pieceworkWorker.blocks[blockIndex].rows[rowIndex].recorded_by = recorder;
         pieceworkWorker.blocks[blockIndex].rows[rowIndex].day_of_week =
           currentTime.toLocaleDateString("en-US", { weekday: "long" });
       }
@@ -148,10 +162,14 @@ exports.fastCheckIn = async (req, res) => {
 
 // Get fast piecework totals - reads from PieceworkWorker collection
 exports.getFastPieceworkTotals = async (req, res) => {
+  const scope = resolveScope(req);
+  if (scope.scope === "blocked") {
+    return rejectBlockedScope(res, scope);
+  }
+
   try {
     const { jobType, date } = req.query;
-
-    // ✅ Query PieceworkWorker collection instead of Worker
+    // �o. Query PieceworkWorker collection instead of Worker
     // Project only the fields needed (fast over large/slow DB links)
     const pieceworkWorkers = await PieceworkWorker.find(
       {},
@@ -164,6 +182,7 @@ exports.getFastPieceworkTotals = async (req, res) => {
         "blocks.rows.job_type": 1,
         "blocks.rows.stock_count": 1,
         "blocks.rows.date": 1,
+        "blocks.rows.recorded_by": 1,
       }
     ).lean();
     const blocks = await Block.find(
@@ -199,6 +218,14 @@ exports.getFastPieceworkTotals = async (req, res) => {
 
       worker.blocks.forEach((block) => {
         block.rows.forEach((row) => {
+          // New entries are owned per row. Old entries have no row owner, so
+          // use their document-level owner as a safe backwards-compatible
+          // fallback rather than showing them to every supervisor.
+          const rowOwner = row.recorded_by || worker.supervisor;
+          if (scope.scope !== "all" && !sameName(rowOwner, scope.supervisorName)) {
+            return;
+          }
+
           // Apply filters
           if (jobType && row.job_type !== jobType) return;
           if (date) {

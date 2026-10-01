@@ -7,6 +7,9 @@ const pieceworkWorkerSchema = new mongoose.Schema({
   piecework_stock_count: { type: Number, default: 0 }, // Fast piecework total
   total_stock_count: { type: Number, default: 0 },
   total_bunches_worked: { type: Number, default: 0 },
+  // Fast piecework is a single scan with no checkout, so the supervisor who
+  // recorded the latest scan owns the worker for scoping purposes.
+  supervisor: { type: String, default: "" },
   blocks: [
     {
       block_name: { type: String },
@@ -17,6 +20,9 @@ const pieceworkWorkerSchema = new mongoose.Schema({
           stock_count: { type: Number, default: 0 },
           date: { type: Date },
           day_of_week: { type: String },
+          // Unlike the document-level supervisor field, this keeps ownership
+          // when more than one supervisor records work for the same worker.
+          recorded_by: { type: String, default: "" },
           _id: { type: mongoose.Schema.Types.ObjectId, auto: true },
         },
       ],

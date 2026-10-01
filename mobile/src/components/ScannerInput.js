@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Modal, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { useLanguage } from "../i18n";
+import { useScanConfirmation } from "../hooks/useScanConfirmation";
 
 export default function ScannerInput({
   label,
@@ -16,6 +17,7 @@ export default function ScannerInput({
   const [isOpen, setIsOpen] = useState(false);
   const [permission, requestPermission] = useCameraPermissions();
   const [hasScanned, setHasScanned] = useState(false);
+  const confirmScan = useScanConfirmation();
 
   async function openScanner() {
     if (!permission?.granted) {
@@ -56,6 +58,7 @@ export default function ScannerInput({
   function handleScan(result) {
     if (hasScanned) return;
     setHasScanned(true);
+    confirmScan();
     const rawValue = typeof result?.data === "string" ? result.data : "";
     const workerData = parseWorkerPayload(rawValue);
 

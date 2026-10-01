@@ -6,6 +6,9 @@ const workerSchema = new mongoose.Schema({
   name: { type: String, required: true },
   total_stock_count: { type: Number, default: 0 }, // Regular piecework (check-in/out)
   piecework_stock_count: { type: Number, default: 0 }, // Fast piecework (single scan)
+  // Supervisor who most recently recorded work for this worker. Older rows also
+  // carry their own recorded_by history in checkout_events / backdated_by.
+  supervisor: { type: String, default: "" },
   blocks: [
     {
       block_name: { type: String },

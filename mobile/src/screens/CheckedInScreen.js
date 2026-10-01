@@ -53,13 +53,18 @@ export default function CheckedInScreen({
   offlineQueue,
   isAdmin = false,
   showBackdate = false,
+  supervisorName = "",
 }) {
   const { t } = useLanguage();
   const checkinsState = useAsyncData(() => api.getCurrentCheckins(), [], {
-    cacheKey: "checkins",
+    cacheKey: `checkins:${supervisorName}`,
     staleTime: 5 * 60 * 1000,
   });
-  const records = Array.isArray(checkinsState.data) ? checkinsState.data : [];
+  // The server refuses to answer without a supervisor identity. Drop any cached
+  // rows from an earlier session so another supervisor's work never lingers.
+  const isBlocked = checkinsState.errorStatus === 403;
+  const records =
+    !isBlocked && Array.isArray(checkinsState.data) ? checkinsState.data : [];
 
   const blocksState = useAsyncData(() => api.getBlocks(), [], {
     cacheKey: "blocks",
@@ -659,9 +664,16 @@ export default function CheckedInScreen({
 
   return (
     <ScreenScroll
-      refreshing={checkinsState.loading}
-      onRefresh={checkinsState.refresh}
+      refreshing={!isBlocked && checkinsState.loading}
+      onRefresh={isBlocked ? undefined : checkinsState.refresh}
     >
+      {isBlocked ? (
+        <SectionCard title={t("scope.title")}>
+          <Text className="text-gray-500 text-sm">{t("scope.signInRequired")}</Text>
+        </SectionCard>
+      ) : null}
+
+      {!isBlocked ? (
       <SectionCard
         title={t("ci.actions")}
         subtitle={t("ci.actionsSub")}
@@ -697,7 +709,9 @@ export default function CheckedInScreen({
           </TouchableOpacity>
         </View>
       </SectionCard>
+      ) : null}
 
+      {!isBlocked ? (
       <SectionCard
         title={t("ci.currentlyWorking")}
         subtitle={t("ci.currentlyWorkingSub", { count: records.length })}
@@ -1167,6 +1181,7 @@ export default function CheckedInScreen({
 
         <FeedbackBanner type="error" message={checkinsState.error} />
       </SectionCard>
+      ) : null}
 
       {/* ─── Move Worker Modal ─── */}
       <Modal visible={moveOpen} animationType="slide">

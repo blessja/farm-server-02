@@ -9,6 +9,7 @@ import {
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { useLanguage } from "../i18n";
 import { searchWorkers, getWorkerById, resolveWorkerInput, refreshServerWorkers } from "../workers/workerRegistry";
+import { useScanConfirmation } from "../hooks/useScanConfirmation";
 
 export default function WorkerSuggestionInput({
   label,
@@ -25,6 +26,7 @@ export default function WorkerSuggestionInput({
   const [scannerOpen, setScannerOpen] = useState(false);
   const [permission, requestPermission] = useCameraPermissions();
   const [hasScanned, setHasScanned] = useState(false);
+  const confirmScan = useScanConfirmation();
 
   useEffect(() => {
     if (workerID === "" || workerID == null) {
@@ -74,6 +76,7 @@ export default function WorkerSuggestionInput({
   function handleScan(result) {
     if (hasScanned) return;
     setHasScanned(true);
+    confirmScan();
     const rawValue = typeof result?.data === "string" ? result.data : "";
 
     let workerData = null;

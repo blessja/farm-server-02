@@ -1,5 +1,16 @@
 // controllers/hoursController.js
 const WorkerDayHours = require("../models/WorkerDayHours");
+const {
+  resolveScope,
+  rejectBlockedScope,
+  dayHoursScopeFilter,
+} = require("../utils/supervisorScope");
+
+// Supervisor entering the hours. Empty when auth is off, which keeps the
+// worker's crew unresolved rather than silently attributing it to someone.
+function recorderName(req) {
+  return resolveScope(req).supervisorName || "";
+}
 
 function normalizeDate(dateStr) {
   if (typeof dateStr !== "string") return "";
@@ -21,8 +32,16 @@ function parseHours(rawHours) {
 }
 
 exports.getDayHours = async (req, res) => {
+  const scope = resolveScope(req);
+  if (scope.scope === "blocked") {
+    return rejectBlockedScope(res, scope);
+  }
+
   try {
-    const hours = await WorkerDayHours.find({}).lean();
+    const hours = await WorkerDayHours.find(
+      scope.scope === "all" ? {} : dayHoursScopeFilter(scope.supervisorName)
+    ).lean();
+
     res.json(hours.map((entry) => ({
       workerID: entry.workerID,
       workerName: entry.workerName,
@@ -54,15 +73,22 @@ exports.saveDayHours = async (req, res) => {
       .json({ message: "Hours must be a valid number greater than or equal to 0." });
   }
 
+  const scope = resolveScope(req);
+  if (scope.scope === "blocked") {
+    return rejectBlockedScope(res, scope);
+  }
+  const recordedBy = recorderName(req);
+
   try {
     const entry = await WorkerDayHours.findOneAndUpdate(
-      { workerID: cleanID, date: cleanDate },
+      { workerID: cleanID, date: cleanDate, recordedBy },
       {
         $set: {
           workerID: cleanID,
           workerName: typeof workerName === "string" ? workerName.trim() : "",
           date: cleanDate,
           hours: parsedHours,
+          recordedBy,
         },
       },
       { new: true, upsert: true, setDefaultsOnInsert: true }
@@ -102,7 +128,13 @@ exports.saveDayHoursBulk = async (req, res) => {
       .json({ message: "No worker entries provided." });
   }
 
+  const scope = resolveScope(req);
+  if (scope.scope === "blocked") {
+    return rejectBlockedScope(res, scope);
+  }
+
   const ops = [];
+  const recordedBy = recorderName(req);
   for (const entry of entries) {
     const cleanID = typeof entry?.workerID === "string" ? entry.workerID.trim() : "";
     const workerName = typeof entry?.workerName === "string" ? entry.workerName.trim() : "";
@@ -122,13 +154,14 @@ exports.saveDayHoursBulk = async (req, res) => {
 
     ops.push({
       updateOne: {
-        filter: { workerID: cleanID, date: cleanDate },
+        filter: { workerID: cleanID, date: cleanDate, recordedBy },
         update: {
           $set: {
             workerID: cleanID,
             workerName,
             date: cleanDate,
             hours: parsedHours,
+            recordedBy,
           },
         },
         upsert: true,
@@ -164,8 +197,14 @@ exports.deleteDayHours = async (req, res) => {
       .json({ message: "Worker ID and a valid date are required." });
   }
 
+  const scope = resolveScope(req);
+  if (scope.scope === "blocked") {
+    return rejectBlockedScope(res, scope);
+  }
+
   try {
-    await WorkerDayHours.deleteOne({ workerID: cleanID, date: cleanDate });
+    const recordedBy = recorderName(req);
+    await WorkerDayHours.deleteOne({ workerID: cleanID, date: cleanDate, recordedBy });
     res.json({ message: "Day hours cleared." });
   } catch (error) {
     console.error("Error clearing day hours:", error);
