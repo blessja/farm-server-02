@@ -4,6 +4,14 @@ import { enqueueAction, removeQueuedAction } from "../storage/offlineQueue";
 
 const REQUEST_TIMEOUT_MS = 12000;
 
+// A free-tier Render instance idles out after ~15 minutes and then needs
+// 30-60s to boot on the next request. Sign-in is the one call that cannot fall
+// back to the offline queue, so it gets a longer budget and a single retry.
+// A read can sit in that window rather than being refused, which is why the
+// timeout matters more here than anywhere else.
+const AUTH_REQUEST_TIMEOUT_MS = 60000;
+const AUTH_RETRY_COUNT = 1;
+
 function isNetworkError(error) {
   const message = error?.message || "";
   return (
@@ -18,11 +26,11 @@ function isNetworkError(error) {
   );
 }
 
-async function request(path, options = {}) {
+async function performRequest(path, fetchOptions, timeoutMs) {
   const token = await getAuthToken();
 
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   let response;
   try {
@@ -30,9 +38,9 @@ async function request(path, options = {}) {
       headers: {
         "Content-Type": "application/json",
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        ...(options.headers || {}),
+        ...(fetchOptions.headers || {}),
       },
-      ...options,
+      ...fetchOptions,
       signal: controller.signal,
     });
   } catch (error) {
@@ -66,6 +74,41 @@ async function request(path, options = {}) {
   }
 
   return payload;
+}
+
+async function request(path, options = {}) {
+  const {
+    timeoutMs = REQUEST_TIMEOUT_MS,
+    retryCount = 0,
+    ...fetchOptions
+  } = options;
+
+  let lastError;
+
+  for (let attempt = 0; attempt <= retryCount; attempt += 1) {
+    try {
+      return await performRequest(path, fetchOptions, timeoutMs);
+    } catch (error) {
+      lastError = error;
+      // Only transport failures are worth repeating. A 401 or 500 will come
+      // back identically, and a timed-out POST may already have been applied.
+      if (attempt >= retryCount || !isNetworkError(error)) {
+        throw error;
+      }
+    }
+  }
+
+  throw lastError;
+}
+
+// Sign-in and the boot-time auth probes are safe to repeat and have no
+// offline fallback, so they get the cold-start budget.
+function authRequest(path, options = {}) {
+  return request(path, {
+    timeoutMs: AUTH_REQUEST_TIMEOUT_MS,
+    retryCount: AUTH_RETRY_COUNT,
+    ...options,
+  });
 }
 
 async function queuedMutation(path, body, queueLabel) {
@@ -117,10 +160,10 @@ async function queueAndPush(path, body, queueLabel) {
 }
 
 export const api = {
-  getAuthStatus: () => request("/auth/status"),
-  verifyAuth: () => request("/auth/verify"),
+  getAuthStatus: () => authRequest("/auth/status"),
+  verifyAuth: () => authRequest("/auth/verify"),
   login: async (body) => {
-    const result = await request("/auth/login", {
+    const result = await authRequest("/auth/login", {
       method: "POST",
       body: JSON.stringify(body),
     });

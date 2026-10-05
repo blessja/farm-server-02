@@ -80,12 +80,12 @@ exports.checkInWorker = async (req, res) => {
     const normalizedJobType = jobType.trim().toUpperCase();
 
     // Find block and row
-    const block = await Block.findOne({ block_name: blockName });
+    let block = await Block.findOne({ block_name: blockName });
     if (!block) {
       return res.status(404).json({ message: "Block not found" });
     }
 
-    const row = block.rows.find((row) => row.row_number === rowNumber);
+    let row = block.rows.find((row) => row.row_number === rowNumber);
     if (!row) {
       return res.status(404).json({ message: "Row not found" });
     }
@@ -141,6 +141,94 @@ exports.checkInWorker = async (req, res) => {
 
     if (sameJobType && allowMultipleWorkers) {
       console.log("OVERRIDE ALLOWED - Multiple workers permitted");
+    }
+
+    const allBlocks = await Block.find();
+    const previousAssignments = [];
+    for (const existingBlock of allBlocks) {
+      for (const existingRow of existingBlock.rows) {
+        if (
+          existingBlock.block_name === blockName &&
+          existingRow.row_number === rowNumber
+        ) {
+          continue;
+        }
+
+        if (existingRow.active_jobs && existingRow.active_jobs.length > 0) {
+          for (const activeJob of existingRow.active_jobs) {
+            if (activeJob.worker_id === workerID) {
+              previousAssignments.push({
+                blockName: existingBlock.block_name,
+                rowNumber: existingRow.row_number,
+                jobType: activeJob.job_type,
+                workerName: activeJob.worker_name,
+              });
+            }
+          }
+        } else if (
+          existingRow.worker_id === workerID &&
+          existingRow.start_time &&
+          !existingRow.time_spent
+        ) {
+          previousAssignments.push({
+            blockName: existingBlock.block_name,
+            rowNumber: existingRow.row_number,
+            jobType: existingRow.job_type,
+            workerName: existingRow.worker_name,
+          });
+        }
+      }
+    }
+
+    for (const assignment of previousAssignments) {
+      const checkoutResponse = {
+        statusCode: null,
+        body: null,
+        status(code) {
+          this.statusCode = code;
+          return this;
+        },
+        send(body) {
+          if (this.statusCode === null) this.statusCode = 200;
+          this.body = body;
+          return this;
+        },
+        json(body) {
+          if (this.statusCode === null) this.statusCode = 200;
+          this.body = body;
+          return this;
+        },
+      };
+
+      await exports.checkOutWorker(
+        {
+          body: {
+            workerID,
+            workerName: assignment.workerName || workerName,
+            blockName: assignment.blockName,
+            rowNumber: assignment.rowNumber,
+            jobType: assignment.jobType,
+            checkoutReason: `Automatically checked out when checking in to Row ${rowNumber}`,
+          },
+          mobileAuth: req.mobileAuth,
+        },
+        checkoutResponse
+      );
+
+      if (checkoutResponse.statusCode >= 400) {
+        return res.status(500).json({
+          message: `Could not automatically check out ${workerName} from Row ${assignment.rowNumber}.`,
+          error: checkoutResponse.body?.message,
+        });
+      }
+    }
+
+    if (previousAssignments.length > 0) {
+      block = await Block.findOne({ block_name: blockName });
+      row = block?.rows.find((candidate) => candidate.row_number === rowNumber);
+      if (!row) {
+        return res.status(404).json({ message: "Row not found after automatic checkout" });
+      }
     }
 
     // Determine actual remaining stock
@@ -217,14 +305,21 @@ exports.checkInWorker = async (req, res) => {
     await worker.save();
 
 
+    const autoCheckoutMessage = previousAssignments.length
+      ? ` Previous row${previousAssignments.length === 1 ? "" : "s"} checked out automatically.`
+      : "";
     res.json({
-      message: allowMultipleWorkers
+      message: `${allowMultipleWorkers
         ? "Check-in successful (multiple workers on same row)"
-        : "Check-in successful",
+        : "Check-in successful"}${autoCheckoutMessage}`,
       rowNumber: row.row_number,
       jobType: normalizedJobType,
       remainingStock: actualRemainingStock,
       multipleWorkersAllowed: allowMultipleWorkers || false,
+      autoCheckedOut: previousAssignments.map(({ blockName: previousBlock, rowNumber: previousRow }) => ({
+        blockName: previousBlock,
+        rowNumber: previousRow,
+      })),
     });
   } catch (error) {
     console.error("❌ Error during check-in:", error);

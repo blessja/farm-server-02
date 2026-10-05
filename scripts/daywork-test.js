@@ -98,7 +98,10 @@ async function workerState(workerID) {
 }
 
 async function currentCheckinsFor(workerID) {
-  const r = await call(rowController.getCurrentCheckins, {});
+  const r = await call(rowController.getCurrentCheckins, {}, {
+    supervisorName: "Daywork Test Admin",
+    isAdmin: true,
+  });
   if (r.status === 404 || !Array.isArray(r.body)) return [];
   return r.body.filter((c) => c.workerID === workerID);
 }
@@ -209,16 +212,23 @@ test("T4: different job on the same row is allowed without a conflict", async ()
   await checkout("W006", "Finn", "3", "SUCKERING");
 });
 
-test("T5: worker can check into two different rows concurrently", async () => {
+test("T5: checking into another row automatically checks out the previous row", async () => {
   await checkin("W001", "Alice", "1", "PRUNING");
   const r = await checkin("W001", "Alice", "3", "SUCKERING");
   assert.equal(r.status, 200);
+  assert.deepEqual(r.body.autoCheckedOut, [{ blockName: BLOCK, rowNumber: "1" }]);
 
   const state1 = await rowState("1");
-  assert.equal(state1.active_jobs.length, 1);
+  assert.equal(state1.active_jobs.length, 0);
+  assert.equal(state1.remaining_stock_count, 0);
 
-  await checkout("W001", "Alice", "1", "PRUNING");
+  const active = await currentCheckinsFor("W001");
+  assert.equal(active.length, 1);
+  assert.equal(active[0].rowNumber, "3");
+
   await checkout("W001", "Alice", "3", "SUCKERING");
+  const worker = await workerState("W001");
+  assert.equal(worker.total_stock_count, 260, "both row checkouts should be credited to Alice's cumulative total");
 });
 
 test("T6: partial checkout then resume the SAME row (remaining vines carry over)", async () => {
