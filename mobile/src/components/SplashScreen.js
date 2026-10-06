@@ -1,10 +1,7 @@
 import React, { useEffect, useRef } from "react";
-import { View, Text, Animated, Dimensions } from "react-native";
+import { View, Text, Animated } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import GlenOakLogo from "./GlenOakLogo";
-
-const WINDOW_WIDTH = Dimensions.get("window").width;
-const WINDOW_HEIGHT = Dimensions.get("window").height;
 
 export default function SplashScreen() {
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
@@ -46,46 +43,54 @@ export default function SplashScreen() {
       colors={["#10b981", "#059669", "#047857"]}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
-      className="flex-1 justify-center items-center"
+      style={{ flex: 1 }}
     >
-      <View className="flex-1 justify-center items-center w-full">
-        {/* Logo Container */}
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
         <Animated.View
           style={{
             transform: [{ scale: scaleAnim }],
             opacity: opacityAnim,
+            position: "absolute",
+            alignItems: "center",
+            justifyContent: "center",
           }}
-          className="items-center mb-8"
         >
-          {/* Glen Oak Logo */}
           <GlenOakLogo width={160} height={160} />
 
-          {/* Animated spinner */}
           <Animated.View
             style={{
               transform: [{ rotate: spin }],
+              position: "absolute",
+              width: 192,
+              height: 192,
+              borderRadius: 96,
+              borderWidth: 4,
+              borderColor: "transparent",
+              borderTopColor: "#fff",
+              borderRightColor: "#fff",
             }}
-            className="absolute w-48 h-48 rounded-full border-4 border-transparent border-t-white border-r-white"
           />
         </Animated.View>
 
-        {/* Loading Text */}
-        <View className="items-center mt-12">
-          <Text className="text-white text-2xl font-bold mb-2">Glen Oak</Text>
-          <Text className="text-white/80 text-sm">
+        <View style={{ position: "absolute", bottom: 48, alignItems: "center" }}>
+          <Text style={{ color: "#fff", fontSize: 24, fontWeight: "700", marginBottom: 8 }}>Glen Oak</Text>
+          <Text style={{ color: "rgba(255,255,255,0.8)", fontSize: 14 }}>
             Preparing mobile workspace...
           </Text>
 
-          {/* Loading dots animation */}
-          <View className="flex-row items-center mt-4">
+          <View style={{ flexDirection: "row", alignItems: "center", marginTop: 16 }}>
             <Animated.View
               style={{
                 opacity: spinAnim.interpolate({
                   inputRange: [0, 0.3, 0.6, 1],
                   outputRange: [0.3, 1, 0.3, 0.3],
                 }),
+                width: 8,
+                height: 8,
+                borderRadius: 4,
+                backgroundColor: "#fff",
+                marginHorizontal: 4,
               }}
-              className="w-2 h-2 bg-white rounded-full mx-1"
             />
             <Animated.View
               style={{
@@ -93,8 +98,12 @@ export default function SplashScreen() {
                   inputRange: [0, 0.3, 0.6, 1],
                   outputRange: [0.3, 0.3, 1, 0.3],
                 }),
+                width: 8,
+                height: 8,
+                borderRadius: 4,
+                backgroundColor: "#fff",
+                marginHorizontal: 4,
               }}
-              className="w-2 h-2 bg-white rounded-full mx-1"
             />
             <Animated.View
               style={{
@@ -102,8 +111,12 @@ export default function SplashScreen() {
                   inputRange: [0, 0.3, 0.6, 1],
                   outputRange: [0.3, 0.3, 0.3, 1],
                 }),
+                width: 8,
+                height: 8,
+                borderRadius: 4,
+                backgroundColor: "#fff",
+                marginHorizontal: 4,
               }}
-              className="w-2 h-2 bg-white rounded-full mx-1"
             />
           </View>
         </View>

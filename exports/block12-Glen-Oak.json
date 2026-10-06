@@ -1,0 +1,2187 @@
+{
+  "exported_at": "2026-10-06T17:50:24.738Z",
+  "database": "Glen-Oak",
+  "block_name": "Block 12",
+  "variety": " Crimson Seedless ",
+  "year_planted": 2023,
+  "rootstock": "Ramsey",
+  "size_ha": 2.77,
+  "__v": 0,
+  "summary": {
+    "declared_total_stocks": 9620,
+    "declared_total_rows": 83,
+    "row_count": 166,
+    "expected_row_count": 166,
+    "rows_sum": 9888,
+    "gap_rows_sum_minus_total_stocks": 268,
+    "vines_per_ha_declared": 3472.9,
+    "vines_per_ha_rows": 3569.7,
+    "missing_labels": [],
+    "a_b_mismatches": [],
+    "malformed_rows": []
+  },
+  "bases": [
+    {
+      "base": 1,
+      "A": 86,
+      "B": 86,
+      "pair_sum": 172,
+      "status": "ok",
+      "A_worker": "",
+      "B_worker": ""
+    },
+    {
+      "base": 2,
+      "A": 86,
+      "B": 86,
+      "pair_sum": 172,
+      "status": "ok",
+      "A_worker": "",
+      "B_worker": ""
+    },
+    {
+      "base": 3,
+      "A": 85,
+      "B": 85,
+      "pair_sum": 170,
+      "status": "ok",
+      "A_worker": "",
+      "B_worker": ""
+    },
+    {
+      "base": 4,
+      "A": 85,
+      "B": 85,
+      "pair_sum": 170,
+      "status": "ok",
+      "A_worker": "",
+      "B_worker": ""
+    },
+    {
+      "base": 5,
+      "A": 84,
+      "B": 84,
+      "pair_sum": 168,
+      "status": "ok",
+      "A_worker": "",
+      "B_worker": ""
+    },
+    {
+      "base": 6,
+      "A": 83,
+      "B": 83,
+      "pair_sum": 166,
+      "status": "ok",
+      "A_worker": "",
+      "B_worker": ""
+    },
+    {
+      "base": 7,
+      "A": 82,
+      "B": 82,
+      "pair_sum": 164,
+      "status": "ok",
+      "A_worker": "",
+      "B_worker": ""
+    },
+    {
+      "base": 8,
+      "A": 81,
+      "B": 81,
+      "pair_sum": 162,
+      "status": "ok",
+      "A_worker": "",
+      "B_worker": ""
+    },
+    {
+      "base": 9,
+      "A": 80,
+      "B": 80,
+      "pair_sum": 160,
+      "status": "ok",
+      "A_worker": "",
+      "B_worker": ""
+    },
+    {
+      "base": 10,
+      "A": 79,
+      "B": 79,
+      "pair_sum": 158,
+      "status": "ok",
+      "A_worker": "",
+      "B_worker": ""
+    },
+    {
+      "base": 11,
+      "A": 78,
+      "B": 78,
+      "pair_sum": 156,
+      "status": "ok",
+      "A_worker": "",
+      "B_worker": ""
+    },
+    {
+      "base": 12,
+      "A": 77,
+      "B": 77,
+      "pair_sum": 154,
+      "status": "ok",
+      "A_worker": "",
+      "B_worker": ""
+    },
+    {
+      "base": 13,
+      "A": 76,
+      "B": 76,
+      "pair_sum": 152,
+      "status": "ok",
+      "A_worker": "",
+      "B_worker": ""
+    },
+    {
+      "base": 14,
+      "A": 75,
+      "B": 75,
+      "pair_sum": 150,
+      "status": "ok",
+      "A_worker": "",
+      "B_worker": ""
+    },
+    {
+      "base": 15,
+      "A": 74,
+      "B": 74,
+      "pair_sum": 148,
+      "status": "ok",
+      "A_worker": "",
+      "B_worker": ""
+    },
+    {
+      "base": 16,
+      "A": 73,
+      "B": 73,
+      "pair_sum": 146,
+      "status": "ok",
+      "A_worker": "",
+      "B_worker": ""
+    },
+    {
+      "base": 17,
+      "A": 72,
+      "B": 72,
+      "pair_sum": 144,
+      "status": "ok",
+      "A_worker": "",
+      "B_worker": ""
+    },
+    {
+      "base": 18,
+      "A": 71,
+      "B": 71,
+      "pair_sum": 142,
+      "status": "ok",
+      "A_worker": "",
+      "B_worker": ""
+    },
+    {
+      "base": 19,
+      "A": 70,
+      "B": 70,
+      "pair_sum": 140,
+      "status": "ok",
+      "A_worker": "",
+      "B_worker": ""
+    },
+    {
+      "base": 20,
+      "A": 69,
+      "B": 69,
+      "pair_sum": 138,
+      "status": "ok",
+      "A_worker": "",
+      "B_worker": ""
+    },
+    {
+      "base": 21,
+      "A": 68,
+      "B": 68,
+      "pair_sum": 136,
+      "status": "ok",
+      "A_worker": "",
+      "B_worker": ""
+    },
+    {
+      "base": 22,
+      "A": 67,
+      "B": 67,
+      "pair_sum": 134,
+      "status": "ok",
+      "A_worker": "",
+      "B_worker": ""
+    },
+    {
+      "base": 23,
+      "A": 66,
+      "B": 66,
+      "pair_sum": 132,
+      "status": "ok",
+      "A_worker": "",
+      "B_worker": ""
+    },
+    {
+      "base": 24,
+      "A": 65,
+      "B": 65,
+      "pair_sum": 130,
+      "status": "ok",
+      "A_worker": "",
+      "B_worker": ""
+    },
+    {
+      "base": 25,
+      "A": 64,
+      "B": 64,
+      "pair_sum": 128,
+      "status": "ok",
+      "A_worker": "",
+      "B_worker": ""
+    },
+    {
+      "base": 26,
+      "A": 62,
+      "B": 62,
+      "pair_sum": 124,
+      "status": "ok",
+      "A_worker": "",
+      "B_worker": ""
+    },
+    {
+      "base": 27,
+      "A": 66,
+      "B": 66,
+      "pair_sum": 132,
+      "status": "ok",
+      "A_worker": "",
+      "B_worker": ""
+    },
+    {
+      "base": 28,
+      "A": 68,
+      "B": 68,
+      "pair_sum": 136,
+      "status": "ok",
+      "A_worker": "",
+      "B_worker": ""
+    },
+    {
+      "base": 29,
+      "A": 70,
+      "B": 70,
+      "pair_sum": 140,
+      "status": "ok",
+      "A_worker": "",
+      "B_worker": ""
+    },
+    {
+      "base": 30,
+      "A": 71,
+      "B": 71,
+      "pair_sum": 142,
+      "status": "ok",
+      "A_worker": "",
+      "B_worker": ""
+    },
+    {
+      "base": 31,
+      "A": 73,
+      "B": 73,
+      "pair_sum": 146,
+      "status": "ok",
+      "A_worker": "",
+      "B_worker": ""
+    },
+    {
+      "base": 32,
+      "A": 75,
+      "B": 75,
+      "pair_sum": 150,
+      "status": "ok",
+      "A_worker": "",
+      "B_worker": ""
+    },
+    {
+      "base": 33,
+      "A": 75,
+      "B": 75,
+      "pair_sum": 150,
+      "status": "ok",
+      "A_worker": "",
+      "B_worker": ""
+    },
+    {
+      "base": 34,
+      "A": 76,
+      "B": 76,
+      "pair_sum": 152,
+      "status": "ok",
+      "A_worker": "",
+      "B_worker": ""
+    },
+    {
+      "base": 35,
+      "A": 75,
+      "B": 75,
+      "pair_sum": 150,
+      "status": "ok",
+      "A_worker": "",
+      "B_worker": ""
+    },
+    {
+      "base": 36,
+      "A": 74,
+      "B": 74,
+      "pair_sum": 148,
+      "status": "ok",
+      "A_worker": "",
+      "B_worker": ""
+    },
+    {
+      "base": 37,
+      "A": 73,
+      "B": 73,
+      "pair_sum": 146,
+      "status": "ok",
+      "A_worker": "",
+      "B_worker": ""
+    },
+    {
+      "base": 38,
+      "A": 72,
+      "B": 72,
+      "pair_sum": 144,
+      "status": "ok",
+      "A_worker": "",
+      "B_worker": ""
+    },
+    {
+      "base": 39,
+      "A": 71,
+      "B": 71,
+      "pair_sum": 142,
+      "status": "ok",
+      "A_worker": "",
+      "B_worker": ""
+    },
+    {
+      "base": 40,
+      "A": 70,
+      "B": 70,
+      "pair_sum": 140,
+      "status": "ok",
+      "A_worker": "",
+      "B_worker": ""
+    },
+    {
+      "base": 41,
+      "A": 69,
+      "B": 69,
+      "pair_sum": 138,
+      "status": "ok",
+      "A_worker": "",
+      "B_worker": ""
+    },
+    {
+      "base": 42,
+      "A": 68,
+      "B": 68,
+      "pair_sum": 136,
+      "status": "ok",
+      "A_worker": "",
+      "B_worker": ""
+    },
+    {
+      "base": 43,
+      "A": 67,
+      "B": 67,
+      "pair_sum": 134,
+      "status": "ok",
+      "A_worker": "",
+      "B_worker": ""
+    },
+    {
+      "base": 44,
+      "A": 66,
+      "B": 66,
+      "pair_sum": 132,
+      "status": "ok",
+      "A_worker": "",
+      "B_worker": ""
+    },
+    {
+      "base": 45,
+      "A": 65,
+      "B": 65,
+      "pair_sum": 130,
+      "status": "ok",
+      "A_worker": "",
+      "B_worker": ""
+    },
+    {
+      "base": 46,
+      "A": 64,
+      "B": 64,
+      "pair_sum": 128,
+      "status": "ok",
+      "A_worker": "",
+      "B_worker": ""
+    },
+    {
+      "base": 47,
+      "A": 63,
+      "B": 63,
+      "pair_sum": 126,
+      "status": "ok",
+      "A_worker": "",
+      "B_worker": ""
+    },
+    {
+      "base": 48,
+      "A": 62,
+      "B": 62,
+      "pair_sum": 124,
+      "status": "ok",
+      "A_worker": "",
+      "B_worker": ""
+    },
+    {
+      "base": 49,
+      "A": 61,
+      "B": 61,
+      "pair_sum": 122,
+      "status": "ok",
+      "A_worker": "",
+      "B_worker": ""
+    },
+    {
+      "base": 50,
+      "A": 60,
+      "B": 60,
+      "pair_sum": 120,
+      "status": "ok",
+      "A_worker": "",
+      "B_worker": ""
+    },
+    {
+      "base": 51,
+      "A": 59,
+      "B": 59,
+      "pair_sum": 118,
+      "status": "ok",
+      "A_worker": "",
+      "B_worker": ""
+    },
+    {
+      "base": 52,
+      "A": 58,
+      "B": 58,
+      "pair_sum": 116,
+      "status": "ok",
+      "A_worker": "",
+      "B_worker": ""
+    },
+    {
+      "base": 53,
+      "A": 57,
+      "B": 57,
+      "pair_sum": 114,
+      "status": "ok",
+      "A_worker": "",
+      "B_worker": ""
+    },
+    {
+      "base": 54,
+      "A": 56,
+      "B": 56,
+      "pair_sum": 112,
+      "status": "ok",
+      "A_worker": "",
+      "B_worker": ""
+    },
+    {
+      "base": 55,
+      "A": 55,
+      "B": 55,
+      "pair_sum": 110,
+      "status": "ok",
+      "A_worker": "",
+      "B_worker": ""
+    },
+    {
+      "base": 56,
+      "A": 54,
+      "B": 54,
+      "pair_sum": 108,
+      "status": "ok",
+      "A_worker": "",
+      "B_worker": ""
+    },
+    {
+      "base": 57,
+      "A": 53,
+      "B": 53,
+      "pair_sum": 106,
+      "status": "ok",
+      "A_worker": "",
+      "B_worker": ""
+    },
+    {
+      "base": 58,
+      "A": 52,
+      "B": 52,
+      "pair_sum": 104,
+      "status": "ok",
+      "A_worker": "",
+      "B_worker": ""
+    },
+    {
+      "base": 59,
+      "A": 51,
+      "B": 51,
+      "pair_sum": 102,
+      "status": "ok",
+      "A_worker": "",
+      "B_worker": ""
+    },
+    {
+      "base": 60,
+      "A": 50,
+      "B": 50,
+      "pair_sum": 100,
+      "status": "ok",
+      "A_worker": "",
+      "B_worker": ""
+    },
+    {
+      "base": 61,
+      "A": 49,
+      "B": 49,
+      "pair_sum": 98,
+      "status": "ok",
+      "A_worker": "",
+      "B_worker": ""
+    },
+    {
+      "base": 62,
+      "A": 47,
+      "B": 47,
+      "pair_sum": 94,
+      "status": "ok",
+      "A_worker": "",
+      "B_worker": ""
+    },
+    {
+      "base": 63,
+      "A": 47,
+      "B": 47,
+      "pair_sum": 94,
+      "status": "ok",
+      "A_worker": "",
+      "B_worker": ""
+    },
+    {
+      "base": 64,
+      "A": 46,
+      "B": 46,
+      "pair_sum": 92,
+      "status": "ok",
+      "A_worker": "",
+      "B_worker": ""
+    },
+    {
+      "base": 65,
+      "A": 45,
+      "B": 45,
+      "pair_sum": 90,
+      "status": "ok",
+      "A_worker": "",
+      "B_worker": ""
+    },
+    {
+      "base": 66,
+      "A": 43,
+      "B": 43,
+      "pair_sum": 86,
+      "status": "ok",
+      "A_worker": "",
+      "B_worker": ""
+    },
+    {
+      "base": 67,
+      "A": 43,
+      "B": 43,
+      "pair_sum": 86,
+      "status": "ok",
+      "A_worker": "",
+      "B_worker": ""
+    },
+    {
+      "base": 68,
+      "A": 42,
+      "B": 42,
+      "pair_sum": 84,
+      "status": "ok",
+      "A_worker": "",
+      "B_worker": ""
+    },
+    {
+      "base": 69,
+      "A": 41,
+      "B": 41,
+      "pair_sum": 82,
+      "status": "ok",
+      "A_worker": "",
+      "B_worker": ""
+    },
+    {
+      "base": 70,
+      "A": 39,
+      "B": 39,
+      "pair_sum": 78,
+      "status": "ok",
+      "A_worker": "",
+      "B_worker": ""
+    },
+    {
+      "base": 71,
+      "A": 39,
+      "B": 39,
+      "pair_sum": 78,
+      "status": "ok",
+      "A_worker": "",
+      "B_worker": ""
+    },
+    {
+      "base": 72,
+      "A": 37,
+      "B": 37,
+      "pair_sum": 74,
+      "status": "ok",
+      "A_worker": "",
+      "B_worker": ""
+    },
+    {
+      "base": 73,
+      "A": 37,
+      "B": 37,
+      "pair_sum": 74,
+      "status": "ok",
+      "A_worker": "",
+      "B_worker": ""
+    },
+    {
+      "base": 74,
+      "A": 36,
+      "B": 36,
+      "pair_sum": 72,
+      "status": "ok",
+      "A_worker": "",
+      "B_worker": ""
+    },
+    {
+      "base": 75,
+      "A": 35,
+      "B": 35,
+      "pair_sum": 70,
+      "status": "ok",
+      "A_worker": "",
+      "B_worker": ""
+    },
+    {
+      "base": 76,
+      "A": 33,
+      "B": 33,
+      "pair_sum": 66,
+      "status": "ok",
+      "A_worker": "",
+      "B_worker": ""
+    },
+    {
+      "base": 77,
+      "A": 30,
+      "B": 30,
+      "pair_sum": 60,
+      "status": "ok",
+      "A_worker": "",
+      "B_worker": ""
+    },
+    {
+      "base": 78,
+      "A": 26,
+      "B": 26,
+      "pair_sum": 52,
+      "status": "ok",
+      "A_worker": "",
+      "B_worker": ""
+    },
+    {
+      "base": 79,
+      "A": 22,
+      "B": 22,
+      "pair_sum": 44,
+      "status": "ok",
+      "A_worker": "",
+      "B_worker": ""
+    },
+    {
+      "base": 80,
+      "A": 18,
+      "B": 18,
+      "pair_sum": 36,
+      "status": "ok",
+      "A_worker": "",
+      "B_worker": ""
+    },
+    {
+      "base": 81,
+      "A": 14,
+      "B": 14,
+      "pair_sum": 28,
+      "status": "ok",
+      "A_worker": "",
+      "B_worker": ""
+    },
+    {
+      "base": 82,
+      "A": 11,
+      "B": 11,
+      "pair_sum": 22,
+      "status": "ok",
+      "A_worker": "",
+      "B_worker": ""
+    },
+    {
+      "base": 83,
+      "A": 7,
+      "B": 7,
+      "pair_sum": 14,
+      "status": "ok",
+      "A_worker": "",
+      "B_worker": ""
+    }
+  ],
+  "bases_compact": [
+    [
+      1,
+      86,
+      86
+    ],
+    [
+      2,
+      86,
+      86
+    ],
+    [
+      3,
+      85,
+      85
+    ],
+    [
+      4,
+      85,
+      85
+    ],
+    [
+      5,
+      84,
+      84
+    ],
+    [
+      6,
+      83,
+      83
+    ],
+    [
+      7,
+      82,
+      82
+    ],
+    [
+      8,
+      81,
+      81
+    ],
+    [
+      9,
+      80,
+      80
+    ],
+    [
+      10,
+      79,
+      79
+    ],
+    [
+      11,
+      78,
+      78
+    ],
+    [
+      12,
+      77,
+      77
+    ],
+    [
+      13,
+      76,
+      76
+    ],
+    [
+      14,
+      75,
+      75
+    ],
+    [
+      15,
+      74,
+      74
+    ],
+    [
+      16,
+      73,
+      73
+    ],
+    [
+      17,
+      72,
+      72
+    ],
+    [
+      18,
+      71,
+      71
+    ],
+    [
+      19,
+      70,
+      70
+    ],
+    [
+      20,
+      69,
+      69
+    ],
+    [
+      21,
+      68,
+      68
+    ],
+    [
+      22,
+      67,
+      67
+    ],
+    [
+      23,
+      66,
+      66
+    ],
+    [
+      24,
+      65,
+      65
+    ],
+    [
+      25,
+      64,
+      64
+    ],
+    [
+      26,
+      62,
+      62
+    ],
+    [
+      27,
+      66,
+      66
+    ],
+    [
+      28,
+      68,
+      68
+    ],
+    [
+      29,
+      70,
+      70
+    ],
+    [
+      30,
+      71,
+      71
+    ],
+    [
+      31,
+      73,
+      73
+    ],
+    [
+      32,
+      75,
+      75
+    ],
+    [
+      33,
+      75,
+      75
+    ],
+    [
+      34,
+      76,
+      76
+    ],
+    [
+      35,
+      75,
+      75
+    ],
+    [
+      36,
+      74,
+      74
+    ],
+    [
+      37,
+      73,
+      73
+    ],
+    [
+      38,
+      72,
+      72
+    ],
+    [
+      39,
+      71,
+      71
+    ],
+    [
+      40,
+      70,
+      70
+    ],
+    [
+      41,
+      69,
+      69
+    ],
+    [
+      42,
+      68,
+      68
+    ],
+    [
+      43,
+      67,
+      67
+    ],
+    [
+      44,
+      66,
+      66
+    ],
+    [
+      45,
+      65,
+      65
+    ],
+    [
+      46,
+      64,
+      64
+    ],
+    [
+      47,
+      63,
+      63
+    ],
+    [
+      48,
+      62,
+      62
+    ],
+    [
+      49,
+      61,
+      61
+    ],
+    [
+      50,
+      60,
+      60
+    ],
+    [
+      51,
+      59,
+      59
+    ],
+    [
+      52,
+      58,
+      58
+    ],
+    [
+      53,
+      57,
+      57
+    ],
+    [
+      54,
+      56,
+      56
+    ],
+    [
+      55,
+      55,
+      55
+    ],
+    [
+      56,
+      54,
+      54
+    ],
+    [
+      57,
+      53,
+      53
+    ],
+    [
+      58,
+      52,
+      52
+    ],
+    [
+      59,
+      51,
+      51
+    ],
+    [
+      60,
+      50,
+      50
+    ],
+    [
+      61,
+      49,
+      49
+    ],
+    [
+      62,
+      47,
+      47
+    ],
+    [
+      63,
+      47,
+      47
+    ],
+    [
+      64,
+      46,
+      46
+    ],
+    [
+      65,
+      45,
+      45
+    ],
+    [
+      66,
+      43,
+      43
+    ],
+    [
+      67,
+      43,
+      43
+    ],
+    [
+      68,
+      42,
+      42
+    ],
+    [
+      69,
+      41,
+      41
+    ],
+    [
+      70,
+      39,
+      39
+    ],
+    [
+      71,
+      39,
+      39
+    ],
+    [
+      72,
+      37,
+      37
+    ],
+    [
+      73,
+      37,
+      37
+    ],
+    [
+      74,
+      36,
+      36
+    ],
+    [
+      75,
+      35,
+      35
+    ],
+    [
+      76,
+      33,
+      33
+    ],
+    [
+      77,
+      30,
+      30
+    ],
+    [
+      78,
+      26,
+      26
+    ],
+    [
+      79,
+      22,
+      22
+    ],
+    [
+      80,
+      18,
+      18
+    ],
+    [
+      81,
+      14,
+      14
+    ],
+    [
+      82,
+      11,
+      11
+    ],
+    [
+      83,
+      7,
+      7
+    ]
+  ],
+  "rows_raw": [
+    {
+      "row_number": "1A",
+      "stock_count": 86,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "1B",
+      "stock_count": 86,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "2A",
+      "stock_count": 86,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "2B",
+      "stock_count": 86,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "3A",
+      "stock_count": 85,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "3B",
+      "stock_count": 85,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "4A",
+      "stock_count": 85,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "4B",
+      "stock_count": 85,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "5A",
+      "stock_count": 84,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "5B",
+      "stock_count": 84,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "6A",
+      "stock_count": 83,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "6B",
+      "stock_count": 83,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "7A",
+      "stock_count": 82,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "7B",
+      "stock_count": 82,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "8A",
+      "stock_count": 81,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "8B",
+      "stock_count": 81,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "9A",
+      "stock_count": 80,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "9B",
+      "stock_count": 80,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "10A",
+      "stock_count": 79,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "10B",
+      "stock_count": 79,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "11A",
+      "stock_count": 78,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "11B",
+      "stock_count": 78,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "12A",
+      "stock_count": 77,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "12B",
+      "stock_count": 77,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "13A",
+      "stock_count": 76,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "13B",
+      "stock_count": 76,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "14A",
+      "stock_count": 75,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "14B",
+      "stock_count": 75,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "15A",
+      "stock_count": 74,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "15B",
+      "stock_count": 74,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "16A",
+      "stock_count": 73,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "16B",
+      "stock_count": 73,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "17A",
+      "stock_count": 72,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "17B",
+      "stock_count": 72,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "18A",
+      "stock_count": 71,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "18B",
+      "stock_count": 71,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "19A",
+      "stock_count": 70,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "19B",
+      "stock_count": 70,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "20A",
+      "stock_count": 69,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "20B",
+      "stock_count": 69,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "21A",
+      "stock_count": 68,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "21B",
+      "stock_count": 68,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "22A",
+      "stock_count": 67,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "22B",
+      "stock_count": 67,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "23A",
+      "stock_count": 66,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "23B",
+      "stock_count": 66,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "24A",
+      "stock_count": 65,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "24B",
+      "stock_count": 65,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "25A",
+      "stock_count": 64,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "25B",
+      "stock_count": 64,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "26A",
+      "stock_count": 62,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "26B",
+      "stock_count": 62,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "27A",
+      "stock_count": 66,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "27B",
+      "stock_count": 66,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "28A",
+      "stock_count": 68,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "28B",
+      "stock_count": 68,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "29A",
+      "stock_count": 70,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "29B",
+      "stock_count": 70,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "30A",
+      "stock_count": 71,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "30B",
+      "stock_count": 71,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "31A",
+      "stock_count": 73,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "31B",
+      "stock_count": 73,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "32A",
+      "stock_count": 75,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "32B",
+      "stock_count": 75,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "33A",
+      "stock_count": 75,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "33B",
+      "stock_count": 75,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "34A",
+      "stock_count": 76,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "34B",
+      "stock_count": 76,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "35A",
+      "stock_count": 75,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "35B",
+      "stock_count": 75,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "36A",
+      "stock_count": 74,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "36B",
+      "stock_count": 74,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "37A",
+      "stock_count": 73,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "37B",
+      "stock_count": 73,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "38A",
+      "stock_count": 72,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "38B",
+      "stock_count": 72,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "39A",
+      "stock_count": 71,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "39B",
+      "stock_count": 71,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "40A",
+      "stock_count": 70,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "40B",
+      "stock_count": 70,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "41A",
+      "stock_count": 69,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "41B",
+      "stock_count": 69,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "42A",
+      "stock_count": 68,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "42B",
+      "stock_count": 68,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "43A",
+      "stock_count": 67,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "43B",
+      "stock_count": 67,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "44A",
+      "stock_count": 66,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "44B",
+      "stock_count": 66,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "45A",
+      "stock_count": 65,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "45B",
+      "stock_count": 65,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "46A",
+      "stock_count": 64,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "46B",
+      "stock_count": 64,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "47A",
+      "stock_count": 63,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "47B",
+      "stock_count": 63,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "48A",
+      "stock_count": 62,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "48B",
+      "stock_count": 62,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "49A",
+      "stock_count": 61,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "49B",
+      "stock_count": 61,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "50A",
+      "stock_count": 60,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "50B",
+      "stock_count": 60,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "51A",
+      "stock_count": 59,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "51B",
+      "stock_count": 59,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "52A",
+      "stock_count": 58,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "52B",
+      "stock_count": 58,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "53A",
+      "stock_count": 57,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "53B",
+      "stock_count": 57,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "54A",
+      "stock_count": 56,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "54B",
+      "stock_count": 56,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "55A",
+      "stock_count": 55,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "55B",
+      "stock_count": 55,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "56A",
+      "stock_count": 54,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "56B",
+      "stock_count": 54,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "57A",
+      "stock_count": 53,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "57B",
+      "stock_count": 53,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "58A",
+      "stock_count": 52,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "58B",
+      "stock_count": 52,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "59A",
+      "stock_count": 51,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "59B",
+      "stock_count": 51,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "60A",
+      "stock_count": 50,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "60B",
+      "stock_count": 50,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "61A",
+      "stock_count": 49,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "61B",
+      "stock_count": 49,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "62A",
+      "stock_count": 47,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "62B",
+      "stock_count": 47,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "63A",
+      "stock_count": 47,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "63B",
+      "stock_count": 47,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "64A",
+      "stock_count": 46,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "64B",
+      "stock_count": 46,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "65A",
+      "stock_count": 45,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "65B",
+      "stock_count": 45,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "66A",
+      "stock_count": 43,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "66B",
+      "stock_count": 43,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "67A",
+      "stock_count": 43,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "67B",
+      "stock_count": 43,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "68A",
+      "stock_count": 42,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "68B",
+      "stock_count": 42,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "69A",
+      "stock_count": 41,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "69B",
+      "stock_count": 41,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "70A",
+      "stock_count": 39,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "70B",
+      "stock_count": 39,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "71A",
+      "stock_count": 39,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "71B",
+      "stock_count": 39,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "72A",
+      "stock_count": 37,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "72B",
+      "stock_count": 37,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "73A",
+      "stock_count": 37,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "73B",
+      "stock_count": 37,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "74A",
+      "stock_count": 36,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "74B",
+      "stock_count": 36,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "75A",
+      "stock_count": 35,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "75B",
+      "stock_count": 35,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "76A",
+      "stock_count": 33,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "76B",
+      "stock_count": 33,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "77A",
+      "stock_count": 30,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "77B",
+      "stock_count": 30,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "78A",
+      "stock_count": 26,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "78B",
+      "stock_count": 26,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "79A",
+      "stock_count": 22,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "79B",
+      "stock_count": 22,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "80A",
+      "stock_count": 18,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "80B",
+      "stock_count": 18,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "81A",
+      "stock_count": 14,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "81B",
+      "stock_count": 14,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "82A",
+      "stock_count": 11,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "82B",
+      "stock_count": 11,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "83A",
+      "stock_count": 7,
+      "worker_name": "",
+      "remaining_stock_count": null
+    },
+    {
+      "row_number": "83B",
+      "stock_count": 7,
+      "worker_name": "",
+      "remaining_stock_count": null
+    }
+  ]
+}

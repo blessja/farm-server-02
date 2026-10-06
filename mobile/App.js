@@ -237,6 +237,16 @@ export default function App() {
     }
   };
 
+  if (bootState.loading) {
+    return (
+      <SafeAreaProvider>
+        <ExpoStatusBar style="light" />
+        <StatusBar barStyle="light-content" backgroundColor="#047857" />
+        <SplashScreen />
+      </SafeAreaProvider>
+    );
+  }
+
   return (
     <SafeAreaProvider>
       <ExpoStatusBar style="dark" />
