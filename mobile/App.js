@@ -232,6 +232,7 @@ export default function App() {
           <DashboardScreen
             sharedState={sharedState}
             offlineQueue={offlineQueue}
+            onOpenActiveWorkers={() => setActiveTab("working")}
           />
         );
     }

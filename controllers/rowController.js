@@ -258,6 +258,16 @@ exports.checkInWorker = async (req, res) => {
       );
     }
 
+    // Every worker on the same row shares one remaining-vine balance. This
+    // prevents two workers from independently receiving the full row stock.
+    row.remaining_stock_count = actualRemainingStock;
+    if (row.active_jobs.length > 0) {
+      row.shared_row = true;
+    }
+    row.active_jobs.forEach((job) => {
+      job.remaining_stock = actualRemainingStock;
+    });
+
     // Add new job to active_jobs
     const recorder = recorderName(req);
     row.active_jobs.push({
@@ -710,7 +720,7 @@ exports.checkOutWorker = async (req, res) => {
         usedJobType = job.job_type; // Use the actual job type from the record
         const endTime = new Date();
         timeSpentInMinutes = (endTime - job.start_time) / 1000 / 60;
-        currentRemaining = job.remaining_stock;
+        currentRemaining = row.remaining_stock_count ?? job.remaining_stock;
         checkinStartedAt = job.start_time;
       }
     }
@@ -729,7 +739,7 @@ exports.checkOutWorker = async (req, res) => {
       usedJobType = row.job_type || "UNKNOWN";
       const endTime = new Date();
       timeSpentInMinutes = (endTime - row.start_time) / 1000 / 60;
-      currentRemaining = row.remaining_stock_count || row.stock_count;
+      currentRemaining = row.remaining_stock_count ?? row.stock_count;
       checkinStartedAt = row.start_time;
     }
 
@@ -769,6 +779,10 @@ exports.checkOutWorker = async (req, res) => {
     if (job) {
       // NEW FORMAT
       const leftover = currentRemaining - stockCompleted;
+      row.remaining_stock_count = leftover;
+      row.active_jobs.forEach((activeJob) => {
+        activeJob.remaining_stock = leftover;
+      });
       job.remaining_stock = leftover;
 
       if (keepCheckedIn && leftover > 0) {
@@ -778,16 +792,16 @@ exports.checkOutWorker = async (req, res) => {
         job.start_time = new Date();
         job.time_spent = null;
         row.start_time = job.start_time;
-        if (row.active_jobs.length === 1) {
-          row.remaining_stock_count = leftover;
-        }
       } else {
-        // Normal checkout: remove the job. If vines remain, persist the leftover
-        // on the row so the next worker checked into this row starts from the
-        // remaining count instead of the full stock count.
+        // Normal checkout: remove the job. The shared row balance remains the
+        // source of truth for every other worker still working this row.
+        if (row.active_jobs.length > 1) {
+          row.shared_row = true;
+        }
         row.active_jobs.splice(jobIndex, 1);
         if (row.active_jobs.length === 0) {
           row.remaining_stock_count = leftover;
+          row.shared_row = false;
         }
 
         // Clear the legacy worker fields too. Otherwise the Working tab keeps
@@ -911,9 +925,7 @@ exports.checkOutWorker = async (req, res) => {
     }
     await worker.save();
 
-    const remainingStocks = job
-      ? job.remaining_stock
-      : row.remaining_stock_count ?? 0;
+    const remainingStocks = row.remaining_stock_count ?? 0;
     res.send({
       message: keptCheckedIn
         ? `Check-out saved. ${workerName} stays checked in with ${remainingStocks} vines left on Row ${rowNumber}.`
@@ -924,6 +936,7 @@ exports.checkOutWorker = async (req, res) => {
       )}min`,
       rowNumber: row.row_number,
       remainingStocks,
+      rowRemainingStocks: remainingStocks,
       keptCheckedIn,
       jobType: usedJobType,
       workDate: localDateKey(selectedWorkDate),
@@ -958,10 +971,12 @@ exports.getCurrentCheckin = async (req, res) => {
                 rowNumber: row.row_number,
                 workerID: job.worker_id,
                 workerName: job.worker_name,
-                stockCount: job.remaining_stock,
+                stockCount: row.remaining_stock_count ?? job.remaining_stock,
                 vines: row.stock_count,
                 startTime: job.start_time,
-                remainingStocks: job.remaining_stock,
+                remainingStocks: row.remaining_stock_count ?? job.remaining_stock,
+                rowRemainingStocks: row.remaining_stock_count ?? row.stock_count,
+                sharedRow: Boolean(row.shared_row || row.active_jobs.length > 1),
               });
             }
           });
@@ -984,6 +999,7 @@ exports.getCurrentCheckin = async (req, res) => {
             vines: row.stock_count,
             startTime: row.start_time,
             remainingStocks: row.remaining_stock_count || row.stock_count,
+            sharedRow: Boolean(row.shared_row),
           });
         }
       });
@@ -1027,10 +1043,12 @@ exports.getCurrentCheckins = async (req, res) => {
               rowNumber: row.row_number,
               workerID: job.worker_id,
               workerName: job.worker_name,
-              stockCount: job.remaining_stock,
+              stockCount: row.remaining_stock_count ?? job.remaining_stock,
               vines: row.stock_count,
               startTime: job.start_time,
-              remainingStocks: job.remaining_stock,
+              remainingStocks: row.remaining_stock_count ?? job.remaining_stock,
+              rowRemainingStocks: row.remaining_stock_count ?? row.stock_count,
+              sharedRow: Boolean(row.shared_row || row.active_jobs.length > 1),
             });
           });
         }
@@ -1057,6 +1075,7 @@ exports.getCurrentCheckins = async (req, res) => {
             vines: row.stock_count,
             startTime: row.start_time,
             remainingStocks: row.remaining_stock_count || row.stock_count,
+            sharedRow: Boolean(row.shared_row),
           });
         }
       });

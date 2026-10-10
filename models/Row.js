@@ -21,6 +21,7 @@ const rowSchema = new mongoose.Schema({
   ],
 
   // Legacy fields - keep for backward compatibility during migration
+  shared_row: { type: Boolean, default: false },
   worker_name: { type: String, default: "" },
   worker_id: { type: String, default: "" },
   time_spent: { type: Number, default: 0 },
