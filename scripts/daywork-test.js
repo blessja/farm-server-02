@@ -284,7 +284,10 @@ test("T5: checking into another row automatically checks out the previous row", 
 
   await checkout("W001", "Alice", "3", "SUCKERING");
   const worker = await workerState("W001");
-  assert.equal(worker.total_stock_count, 260, "both row checkouts should be credited to Alice's cumulative total");
+  // Row 1 was already fully credited to Alice back in T1. Re-checking into it
+  // and moving away again must NOT credit the whole row a second time (the
+  // completed-row reset safeguard). Only row 3's 60 vines are added.
+  assert.equal(worker.total_stock_count, 160, "re-entering an already-completed row same-day must not double-credit");
 });
 
 test("T6: partial checkout then resume the SAME row (remaining vines carry over)", async () => {
@@ -471,4 +474,124 @@ test("T11: same worker's partial row checkouts stay on their own work dates", as
     ]
   );
   assert.equal(worker.total_stock_count, 50);
+});
+
+test("T12: re-checking into a row the same worker completed today does not double-credit", async () => {
+  // Reset row 1 back to a fresh first-use state so this test does not depend
+  // on the partial backdated work earlier tests left on that row.
+  const resetBlock = await Block.findOne({ block_name: BLOCK });
+  const freshRow = resetBlock.rows.find((r) => r.row_number === "1");
+  freshRow.remaining_stock_count = null;
+  freshRow.active_jobs = [];
+  freshRow.worker_id = "";
+  freshRow.worker_name = "";
+  freshRow.start_time = null;
+  freshRow.time_spent = null;
+  freshRow.job_type = "";
+  await resetBlock.save();
+
+  // Nina completes row 1 (base 100) fully.
+  await checkin("W030", "Nina", "1", "PRUNING");
+  let r = await checkout("W030", "Nina", "1", "PRUNING");
+  assert.equal(r.status, 200);
+  assert.equal(r.body.stockCompleted, 100);
+  assert.equal((await workerState("W030")).total_stock_count, 100);
+
+  // She is moved away for a moment, then lands back on the same completed row.
+  r = await checkin("W030", "Nina", "1", "PRUNING");
+  assert.equal(r.status, 200);
+  assert.equal(
+    r.body.remainingStock,
+    0,
+    "a completed row must not reset to full for the same worker on the same day"
+  );
+
+  // Moving to another row (row 7, base 100) auto-checks her out of row 1, which
+  // must credit 0 rather than the full 100 again.
+  r = await checkin("W030", "Nina", "7", "PRUNING");
+  assert.equal(r.status, 200);
+  assert.equal(
+    (await workerState("W030")).total_stock_count,
+    100,
+    "no second credit from the stale re-check-in"
+  );
+
+  // A replayed/stale explicit checkout of the completed row is a no-op.
+  r = await checkout("W030", "Nina", "1", "PRUNING");
+  assert.equal(r.status, 200);
+  assert.equal(r.body.stockCompleted, 0);
+
+  // Clean up Nina's active row-7 assignment (credits the 100 vines she did).
+  r = await checkout("W030", "Nina", "7", "PRUNING");
+  assert.equal(r.status, 200);
+  assert.equal(r.body.stockCompleted, 100);
+  assert.equal((await workerState("W030")).total_stock_count, 200);
+});
+
+test("T13: duplicate check-in/checkout with the same requestId is executed once", async () => {
+  const { idempotent } = require("../utils/idempotency");
+  const wrappedCheckin = idempotent(rowController.checkInWorker);
+  const wrappedCheckout = idempotent(rowController.checkOutWorker);
+
+  // Reset row 2 to a fresh first-use state for an isolated scenario.
+  const resetBlock = await Block.findOne({ block_name: BLOCK });
+  const freshRow = resetBlock.rows.find((r) => r.row_number === "2");
+  freshRow.remaining_stock_count = null;
+  freshRow.active_jobs = [];
+  freshRow.worker_id = "";
+  freshRow.worker_name = "";
+  freshRow.start_time = null;
+  freshRow.time_spent = null;
+  freshRow.job_type = "";
+  await resetBlock.save();
+
+  const body = {
+    workerID: "W040",
+    workerName: "Oscar",
+    rowNumber: "2",
+    blockName: BLOCK,
+    jobType: "PRUNING",
+    requestId: "req-t13-checkin-1",
+  };
+
+  const first = await call(wrappedCheckin, body);
+  assert.equal(first.status, 200);
+
+  // A replayed duplicate (same requestId) must NOT re-run: it returns the same
+  // stored response instead of re-processing the check-in.
+  const replay = await call(wrappedCheckin, body);
+  assert.equal(replay.status, 200);
+  assert.deepEqual(replay.body, first.body);
+
+  // A different requestId is a genuinely separate action and is still subject
+  // to the normal already-checked-in conflict rule.
+  const conflict = await call(wrappedCheckin, {
+    ...body,
+    requestId: "req-t13-checkin-2",
+  });
+  assert.equal(conflict.status, 409, "separate action still follows conflict rules");
+
+  // Idempotent checkout: execute once, duplicate returns the stored response
+  // and the worker is only credited a single row.
+  const checkoutBody = {
+    workerID: "W040",
+    workerName: "Oscar",
+    rowNumber: "2",
+    blockName: BLOCK,
+    jobType: "PRUNING",
+    requestId: "req-t13-checkout-1",
+  };
+  const co1 = await call(wrappedCheckout, checkoutBody);
+  assert.equal(co1.status, 200);
+  const co2 = await call(wrappedCheckout, checkoutBody);
+  assert.equal(co2.status, 200);
+  assert.equal(co2.body.stockCompleted, co1.body.stockCompleted);
+
+  const w = await workerState("W040");
+  assert.ok(w, "worker record should exist");
+  assert.equal(
+    w.total_stock_count,
+    80,
+    "checkout executed exactly once despite the duplicate"
+  );
 });

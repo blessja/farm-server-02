@@ -57,6 +57,49 @@ function parseWorkDate(value) {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
+// Did this worker fully complete (remaining 0) this row+job on the given work
+// date? A full completion is what makes a row's remaining_stock_count drop to
+// 0; resetting such a row to full for the same worker and re-crediting it is
+// the double-count bug, so this is the signal the check-in guard keys on.
+function completedRowFor(worker, blockName, rowNumber, jobType, dateKey) {
+  if (!worker || !Array.isArray(worker.blocks)) return false;
+  const block = worker.blocks.find((b) => b.block_name === blockName);
+  if (!block || !Array.isArray(block.rows)) return false;
+  return block.rows.some(
+    (row) =>
+      row.row_number === rowNumber &&
+      row.job_type === jobType &&
+      row.date &&
+      localDateKey(row.date) === dateKey &&
+      (Array.isArray(row.checkout_events) ? row.checkout_events : []).some((ev) => {
+        const completed = Number(ev.vines_completed) || 0;
+        return completed > 0 && Number(ev.vines_remaining) === 0;
+      })
+  );
+}
+
+// Total vines already credited to a worker for one row+job on a specific work
+// date. Used by two safeguards: keeping a completed row from being reset to
+// full for the same worker the same day, and capping a check-out credit so a
+// replayed/stale auto-check-out can never push a worker past one row's worth
+// of vines for that date.
+function creditedStockFor(worker, blockName, rowNumber, jobType, dateKey) {
+  if (!worker || !Array.isArray(worker.blocks)) return 0;
+  const block = worker.blocks.find((b) => b.block_name === blockName);
+  if (!block || !Array.isArray(block.rows)) return 0;
+  return block.rows.reduce((total, row) => {
+    if (
+      row.row_number === rowNumber &&
+      row.job_type === jobType &&
+      row.date &&
+      localDateKey(row.date) === dateKey
+    ) {
+      return total + (Number(row.stock_count) || 0);
+    }
+    return total;
+  }, 0);
+}
+
 // Debug version of checkInWorker with detailed logging
 exports.checkInWorker = async (req, res) => {
   console.log("=== CHECK-IN REQUEST RECEIVED ===");
@@ -231,10 +274,50 @@ exports.checkInWorker = async (req, res) => {
       }
     }
 
+    // Ensure worker record exists so we can tell whether this worker already
+    // completed this row today (which must NOT reset the row to full again).
+    let worker = await Worker.findOne({ workerID });
+    if (!worker) {
+      worker = new Worker({
+        workerID,
+        name: workerName,
+        total_stock_count: 0,
+        blocks: [],
+      });
+    }
+
     // Determine actual remaining stock
     let actualRemainingStock;
+    const rowBaseStock = Number(row.stock_count) || 0;
+    const alreadyCompletedToday = creditedStockFor(
+      worker,
+      blockName,
+      rowNumber,
+      normalizedJobType,
+      localDateKey()
+    );
+    const completedRowToday = completedRowFor(
+      worker,
+      blockName,
+      rowNumber,
+      normalizedJobType,
+      localDateKey()
+    );
 
     if (
+      row.remaining_stock_count === 0 &&
+      rowBaseStock > 0 &&
+      (completedRowToday || alreadyCompletedToday >= rowBaseStock)
+    ) {
+      // Safeguard: this worker already finished this row today. Keep the row
+      // completed instead of resetting it to full, otherwise the auto-checkout
+      // fired by their next check-in would credit the whole row a second time
+      // (the reported Block 12 / Neil James double count).
+      actualRemainingStock = 0;
+      console.log(
+        "Row already completed by this worker today; keeping it completed (no double credit)"
+      );
+    } else if (
       row.remaining_stock_count !== undefined &&
       row.remaining_stock_count !== null &&
       row.remaining_stock_count > 0
@@ -242,12 +325,6 @@ exports.checkInWorker = async (req, res) => {
       actualRemainingStock = row.remaining_stock_count;
       console.log(
         "Using remaining_stock_count from previous session:",
-        actualRemainingStock
-      );
-    } else if (row.remaining_stock_count === 0) {
-      actualRemainingStock = row.stock_count;
-      console.log(
-        "Row was completed, starting fresh with stock_count:",
         actualRemainingStock
       );
     } else {
@@ -294,17 +371,6 @@ exports.checkInWorker = async (req, res) => {
     await block.save();
 
     console.log("�o. Check-in successful");
-
-    // Ensure worker record exists
-    let worker = await Worker.findOne({ workerID });
-    if (!worker) {
-      worker = new Worker({
-        workerID,
-        name: workerName,
-        total_stock_count: 0,
-        blocks: [],
-      });
-    }
 
     // Record the supervisor on the worker so the Totals tab can scope to the
     // crew even before the first checkout of this shift is saved.
@@ -775,6 +841,39 @@ exports.checkOutWorker = async (req, res) => {
       }
     }
 
+    // Safeguard: cap cumulative credit for this worker/row/job/work-date at one
+    // row's worth of vines. A replayed check-in, a stale auto-check-out, or a
+    // completed row that briefly got reset to full cannot push the worker's
+    // total past the row's stock count.
+    let worker = await Worker.findOne({ workerID });
+    if (!worker) {
+      worker = new Worker({
+        workerID,
+        name: workerName,
+        blocks: [],
+        total_stock_count: 0,
+      });
+    }
+    const rowBaseStock = Number(row.stock_count) || 0;
+    const alreadyCredited = creditedStockFor(
+      worker,
+      blockName,
+      rowNumber,
+      usedJobType,
+      localDateKey(selectedWorkDate)
+    );
+    const creditAllowance = Math.max(0, rowBaseStock - alreadyCredited);
+    const requestedStockCompleted = stockCompleted;
+    let creditCapped = false;
+    if (rowBaseStock > 0 && stockCompleted > creditAllowance) {
+      stockCompleted = creditAllowance;
+      creditCapped = true;
+      console.warn(
+        `checkOutWorker capped ${workerName} (${workerID}) on ${blockName} Row ${rowNumber} ` +
+          `from ${requestedStockCompleted} to ${stockCompleted} vines (already credited ${alreadyCredited} of ${rowBaseStock})`
+      );
+    }
+
     // Update based on format
     if (job) {
       // NEW FORMAT
@@ -826,17 +925,7 @@ exports.checkOutWorker = async (req, res) => {
 
     await block.save();
 
-    // Update worker record
-    let worker = await Worker.findOne({ workerID });
-    if (!worker) {
-      worker = new Worker({
-        workerID,
-        name: workerName,
-        blocks: [],
-        total_stock_count: 0,
-      });
-    }
-
+    // Update worker record (worker was loaded earlier for the credit cap).
     const blockIndex = worker.blocks.findIndex(
       (b) => b.block_name === blockName
     );
@@ -944,6 +1033,8 @@ exports.checkOutWorker = async (req, res) => {
       checkoutID,
       backdated: isBackdated,
       backdatedBy: isBackdated ? recordedBy : null,
+      creditCapped,
+      requestedVinesCompleted: requestedStockCompleted,
     });
   } catch (error) {
     console.error("Error during worker check-out:", error);

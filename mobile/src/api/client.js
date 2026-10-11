@@ -111,11 +111,25 @@ function authRequest(path, options = {}) {
   });
 }
 
+// Give a write a stable identity that survives an offline-queue replay. The
+// server uses it to guarantee at-most-once execution: if the first attempt
+// times out but the server actually applied it, the re-sent copy is answered
+// with the stored response instead of moving/crediting the worker again.
+function withRequestId(body) {
+  if (body && typeof body.requestId === "string" && body.requestId) return body;
+  return {
+    ...(body || {}),
+    requestId: `m-${Date.now()}-${Math.random().toString(16).slice(2, 10)}`,
+  };
+}
+
 async function queuedMutation(path, body, queueLabel) {
+  const bodyWithId = withRequestId(body);
+
   try {
     return await request(path, {
       method: "POST",
-      body: JSON.stringify(body),
+      body: JSON.stringify(bodyWithId),
     });
   } catch (error) {
     if (!isNetworkError(error)) {
@@ -125,7 +139,7 @@ async function queuedMutation(path, body, queueLabel) {
     await enqueueAction({
       path,
       method: "POST",
-      body,
+      body: bodyWithId,
       queueLabel,
     });
 
@@ -137,17 +151,19 @@ async function queuedMutation(path, body, queueLabel) {
 }
 
 async function queueAndPush(path, body, queueLabel) {
+  const bodyWithId = withRequestId(body);
+
   const entry = await enqueueAction({
     path,
     method: "POST",
-    body,
+    body: bodyWithId,
     queueLabel,
   });
 
   try {
     const result = await request(path, {
       method: "POST",
-      body: JSON.stringify(body),
+      body: JSON.stringify(bodyWithId),
     });
     await removeQueuedAction(entry.id);
     return result;

@@ -2,12 +2,13 @@
 const express = require("express");
 const router = express.Router();
 const rowController = require("../controllers/rowController");
+const { idempotent } = require("../utils/idempotency");
 const Block = require("../models/Block");
 
-router.post("/checkin", rowController.checkInWorker);
-router.post("/move-worker", rowController.moveWorkerToRow);
-router.post("/swap-workers", rowController.swapWorkersBetweenRows);
-router.post("/checkout", rowController.checkOutWorker);
+router.post("/checkin", idempotent(rowController.checkInWorker));
+router.post("/move-worker", idempotent(rowController.moveWorkerToRow));
+router.post("/swap-workers", idempotent(rowController.swapWorkersBetweenRows));
+router.post("/checkout", idempotent(rowController.checkOutWorker));
 
 router.get("/block/:blockName/row/:rowNumber", rowController.getRowByNumber);
 router.get(
