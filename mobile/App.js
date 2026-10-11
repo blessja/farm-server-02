@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { StatusBar, Text, TouchableOpacity, View } from "react-native";
+import { Modal, StatusBar, Text, TouchableOpacity, View } from "react-native";
 import { StatusBar as ExpoStatusBar } from "expo-status-bar";
 import "./global.css";
 import {
@@ -50,11 +50,13 @@ export default function App() {
   const [selectedBlock, setSelectedBlock] = useState("");
   const [selectedRow, setSelectedRow] = useState("");
   const [jobType, setJobType] = useState("");
+  const [activeWorkersOpen, setActiveWorkersOpen] = useState(false);
   const [bootState, setBootState] = useState({
     loading: true,
     authRequired: false,
     authenticated: false,
     supervisorName: "",
+    isAdmin: false,
     rememberedSupervisorName: "",
   });
   const offlineQueue = useOfflineQueue();
@@ -94,6 +96,7 @@ export default function App() {
               authenticated,
               supervisorName:
                 verification?.payload?.supervisorName || "Supervisor",
+              isAdmin: verification?.payload?.isAdmin === true,
               rememberedSupervisorName:
                 verification?.payload?.supervisorName ||
                 lastSupervisorName ||
@@ -118,6 +121,7 @@ export default function App() {
           supervisorName: authenticated
             ? supervisorSession?.supervisorName || "Supervisor"
             : "",
+          isAdmin: authenticated && supervisorSession?.isAdmin === true,
           rememberedSupervisorName:
             supervisorSession?.supervisorName || lastSupervisorName || "",
         });
@@ -127,6 +131,7 @@ export default function App() {
           authRequired: false,
           authenticated: false,
           supervisorName: "",
+          isAdmin: false,
           rememberedSupervisorName: "",
         });
       }
@@ -167,6 +172,7 @@ export default function App() {
       ...current,
       authenticated: false,
       supervisorName: "",
+      isAdmin: false,
     }));
   }
 
@@ -179,16 +185,18 @@ export default function App() {
       return (
         <AuthScreen
           initialSupervisorName={bootState.rememberedSupervisorName}
-          onAuthenticated={async ({ supervisorName, authEnabled }) => {
+          onAuthenticated={async ({ supervisorName, authEnabled, isAdmin }) => {
             await setLastSupervisorName(supervisorName || "Supervisor");
             await setSupervisorSession({
               supervisorName: supervisorName || "Supervisor",
               authEnabled,
+              isAdmin: isAdmin === true,
             });
             setBootState((current) => ({
               ...current,
               authenticated: true,
               supervisorName: supervisorName || "Supervisor",
+              isAdmin: isAdmin === true,
               rememberedSupervisorName: supervisorName || "Supervisor",
             }));
           }}
@@ -205,7 +213,13 @@ export default function App() {
           />
         );
       case "working":
-        return <CheckedInScreen offlineQueue={offlineQueue} />;
+        return (
+          <CheckedInScreen
+            offlineQueue={offlineQueue}
+            isAdmin={bootState.isAdmin}
+            showBackdate={false}
+          />
+        );
       case "move":
         return (
           <MoveWorkersScreen
@@ -232,7 +246,7 @@ export default function App() {
           <DashboardScreen
             sharedState={sharedState}
             offlineQueue={offlineQueue}
-            onOpenActiveWorkers={() => setActiveTab("working")}
+            onOpenActiveWorkers={() => setActiveWorkersOpen(true)}
           />
         );
     }
@@ -317,6 +331,29 @@ export default function App() {
         <View className="flex-1" key={`${cacheEpoch}-${refreshEpoch}`}>
           {renderContent()}
         </View>
+
+        <Modal visible={activeWorkersOpen} animationType="slide">
+          <SafeAreaView style={{ flex: 1, backgroundColor: "#f9fafb" }} edges={["top", "bottom"]}>
+            <View className="flex-row items-center justify-between px-4 pt-3 pb-2">
+              <View>
+                <Text className="text-gray-900 text-lg font-extrabold">Active workers</Text>
+                <Text className="text-gray-400 text-xs mt-1">Checkout, continue, or backdate work</Text>
+              </View>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                style={{ borderRadius: 12, backgroundColor: "#fff", borderWidth: 1, borderColor: "#e5e7eb", paddingHorizontal: 14, paddingVertical: 10 }}
+                onPress={() => setActiveWorkersOpen(false)}
+              >
+                <Text style={{ color: "#374151", fontSize: 13, fontWeight: "800" }}>Close</Text>
+              </TouchableOpacity>
+            </View>
+            <CheckedInScreen
+              offlineQueue={offlineQueue}
+              isAdmin={bootState.isAdmin}
+              showBackdate
+            />
+          </SafeAreaView>
+        </Modal>
 
         {bootState.loading || !bootState.authenticated ? null : (
           <SafeAreaView className="bg-gray-50" edges={["bottom"]}>

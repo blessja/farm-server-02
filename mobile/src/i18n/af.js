@@ -284,6 +284,9 @@ const af = {
   "ci.partialPrompt": "Ry het nog {remaining} stokke oor. Hou {name} aangeteken met die oorblywende stokke, of maak die ry vry vir iemand anders?",
   "ci.keepChoice": "Bly aangeteken\n({remaining} stokke oor)",
   "ci.freeChoice": "Teken uit\n& maak ry vry",
+  "ci.sharedRowCheckoutNotice": "{count} werkers deel hierdie ry",
+  "ci.sharedRowCheckoutHint": "Dien in die gekose werk se uittekening. Die gedeelde stokke bly vir die ander werkers beskikbaar.",
+  "ci.sharedRowBadge": "Gedeelde ry",
 
   // MoveWorkers
   "mw.title": "Skuif werkers",

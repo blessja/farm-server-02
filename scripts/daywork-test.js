@@ -132,6 +132,7 @@ before(async () => {
       { row_number: "4", stock_count: 100, bunches: 20 },
       { row_number: "5", stock_count: 100, bunches: 20 },
       { row_number: "6", stock_count: 100, bunches: 20 },
+      { row_number: "7", stock_count: 100, bunches: 20 },
     ],
   });
   await block.save();
@@ -198,6 +199,61 @@ test("T3: same row+job by another worker -> conflict, then override allows both"
 
   await checkout("W003", "Cara", "2", "PRUNING");
   await checkout("W004", "Dan", "2", "PRUNING");
+});
+
+test("T3b: three workers share one row balance and checkout updates every worker", async () => {
+  const rowNumber = "7";
+  await checkin("W020", "Worker One", rowNumber, "PRUNING", true);
+  await checkin("W021", "Worker Two", rowNumber, "PRUNING", true);
+  await checkin("W022", "Worker Three", rowNumber, "PRUNING", true);
+
+  const initial = await rowState(rowNumber);
+  assert.equal(initial.remaining_stock_count, 100);
+  assert.deepEqual(
+    initial.active_jobs.map((job) => job.remaining_stock),
+    [100, 100, 100]
+  );
+
+  const firstCheckout = await checkout("W020", "Worker One", rowNumber, "PRUNING", 10);
+  assert.equal(firstCheckout.status, 200);
+  assert.equal(firstCheckout.body.remainingStocks, 90);
+
+  const afterFirst = await rowState(rowNumber);
+  assert.equal(afterFirst.remaining_stock_count, 90);
+  assert.equal(afterFirst.shared_row, true);
+  assert.deepEqual(
+    afterFirst.active_jobs.map((job) => job.remaining_stock),
+    [90, 90]
+  );
+
+  const remainingWorkerCheckins = await currentCheckinsFor("W021");
+  assert.equal(remainingWorkerCheckins.length, 1);
+  assert.equal(remainingWorkerCheckins[0].remainingStocks, 90);
+  assert.equal(remainingWorkerCheckins[0].rowRemainingStocks, 90);
+  assert.equal(remainingWorkerCheckins[0].sharedRow, true);
+
+  afterFirst.active_jobs[0].remaining_stock = 100;
+  await afterFirst.ownerDocument().save();
+
+  const secondCheckout = await checkout("W021", "Worker Two", rowNumber, "PRUNING", 20);
+  assert.equal(secondCheckout.status, 200);
+  assert.equal(secondCheckout.body.remainingStocks, 70);
+
+  const afterSecond = await rowState(rowNumber);
+  assert.equal(afterSecond.remaining_stock_count, 70);
+  assert.deepEqual(
+    afterSecond.active_jobs.map((job) => job.remaining_stock),
+    [70]
+  );
+
+  const finalCheckout = await checkout("W022", "Worker Three", rowNumber, "PRUNING", 70);
+  assert.equal(finalCheckout.status, 200);
+  assert.equal(finalCheckout.body.remainingStocks, 0);
+
+  const completed = await rowState(rowNumber);
+  assert.equal(completed.remaining_stock_count, 0);
+  assert.equal(completed.shared_row, false);
+  assert.equal(completed.active_jobs.length, 0);
 });
 
 test("T4: different job on the same row is allowed without a conflict", async () => {

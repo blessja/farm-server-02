@@ -284,6 +284,9 @@ const en = {
   "ci.partialPrompt": "Row still has {remaining} vines. Keep {name} checked in with the remaining vines, or free the row for someone else?",
   "ci.keepChoice": "Keep checked in\n({remaining} vines left)",
   "ci.freeChoice": "Check out\n& free row",
+  "ci.sharedRowCheckoutNotice": "{count} workers sharing this row",
+  "ci.sharedRowCheckoutHint": "Submit the selected worker's checkout. The shared vines remain available to the other workers.",
+  "ci.sharedRowBadge": "Shared row",
 
   // MoveWorkers
   "mw.title": "Move workers",

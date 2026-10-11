@@ -412,6 +412,17 @@ export default function CheckedInScreen({
     return stock < remaining;
   }
 
+  function isSharedRow(record) {
+    return (
+      record?.sharedRow === true ||
+      records.filter(
+        (candidate) =>
+          candidate.blockName === record?.blockName &&
+          candidate.rowNumber === record?.rowNumber
+      ).length > 1
+    );
+  }
+
   function isKeptCheckedIn(record) {
     const remaining = Number(record?.remainingStocks);
     const total = Number(record?.vines);
@@ -434,7 +445,8 @@ export default function CheckedInScreen({
     setCheckoutFeedback({ type: "info", message: "" });
 
     try {
-      const willKeep = checkoutWillKeepWorker(checkoutWorker, checkoutStock);
+      const sharedRow = isSharedRow(checkoutWorker);
+      const willKeep = !sharedRow && checkoutWillKeepWorker(checkoutWorker, checkoutStock);
       const payload = {
         workerID: checkoutWorker.workerID,
         workerName: checkoutWorker.workerName,
@@ -491,7 +503,8 @@ export default function CheckedInScreen({
     setInlineCheckoutFeedback({ type: "info", message: "" });
 
     try {
-      const willKeep = checkoutWillKeepWorker(
+      const sharedRow = isSharedRow(expandedRecord);
+      const willKeep = !sharedRow && checkoutWillKeepWorker(
         expandedRecord,
         inlineCheckoutStock
       );
@@ -653,6 +666,12 @@ export default function CheckedInScreen({
     setInlinePendingOverride(null);
   }
 
+  const workerCountByRow = records.reduce((acc, item) => {
+    const key = `${item.blockName}::${item.rowNumber}`;
+    acc[key] = (acc[key] || 0) + 1;
+    return acc;
+  }, {});
+
   const groupedByBlock = records.reduce((acc, item) => {
     const block = item.blockName || t("common.unknown");
     if (!acc[block]) acc[block] = [];
@@ -734,15 +753,28 @@ export default function CheckedInScreen({
             <View className="gap-2">
               {groupedByBlock[blockName].map((item, index) => {
                 const isExpanded = expandedWorker === `${item.workerID}-${item.rowNumber}`;
+                const rowKey = `${item.blockName}::${item.rowNumber}`;
+                const sharedWorkerCount = workerCountByRow[rowKey] || 1;
+                const isSharedRowAssignment = sharedWorkerCount > 1;
+                const isSharedRowItem = item.sharedRow === true || isSharedRowAssignment;
                 return (
                   <View
                     key={`${item.workerID}-${item.rowNumber}-${index}`}
                     className={`rounded-xl border p-3.5 ${
-                      isKeptCheckedIn(item)
-                        ? "bg-emerald-50 border-emerald-300"
-                        : "bg-gray-50 border-gray-100"
+                      isSharedRowItem
+                        ? "bg-teal-50 border-teal-300"
+                        : isKeptCheckedIn(item)
+                          ? "bg-emerald-50 border-emerald-300"
+                          : "bg-gray-50 border-gray-100"
                     }`}
                   >
+                    {isSharedRowItem ? (
+                      <View className="bg-teal-100 rounded-lg px-2.5 py-1.5 mb-2 self-start">
+                        <Text className="text-teal-800 text-[11px] font-extrabold">
+                          {t("ci.sharedRowBadge")}
+                        </Text>
+                      </View>
+                    ) : null}
                     <TouchableOpacity
                       activeOpacity={0.7}
                       onPress={() => toggleExpanded(item)}
@@ -765,8 +797,8 @@ export default function CheckedInScreen({
                           </Text>
                           <Text className={isKeptCheckedIn(item) ? "text-emerald-700 text-xs mt-0.5 font-bold" : "text-gray-400 text-xs mt-0.5"}>
                             {isKeptCheckedIn(item)
-                              ? `${item.remainingStocks} left / ${item.vines ?? "—"} vines`
-                              : t("ci.vinesLine", { count: item.vines ?? "—" })}
+                              ? `${item.rowRemainingStocks ?? item.remainingStocks} left / ${item.vines ?? "—"} vines`
+                              : t("ci.vinesLine", { count: item.rowRemainingStocks ?? item.vines ?? "—" })}
                           </Text>
                         </View>
                       </View>
@@ -918,7 +950,22 @@ export default function CheckedInScreen({
                                 />
                               </View>
                             ) : null}
-                            {checkoutWillKeepWorker(expandedRecord, inlineCheckoutStock) ? (
+                            {isSharedRow(expandedRecord) ? (
+                              <View className="bg-teal-50 border border-teal-200 rounded-xl p-3 gap-1.5">
+                                <Text className="text-teal-800 text-xs font-extrabold">
+                                  {t("ci.sharedRowCheckoutNotice", {
+                                    count: records.filter(
+                                      (candidate) =>
+                                        candidate.blockName === expandedRecord.blockName &&
+                                        candidate.rowNumber === expandedRecord.rowNumber
+                                    ).length,
+                                  })}
+                                </Text>
+                                <Text className="text-teal-700 text-xs">
+                                  {t("ci.sharedRowCheckoutHint")}
+                                </Text>
+                              </View>
+                            ) : checkoutWillKeepWorker(expandedRecord, inlineCheckoutStock) ? (
                               <View className="gap-1.5">
                                 <Text className="text-gray-600 text-xs font-bold">
                                   {t("ci.partialPrompt", {
@@ -1585,7 +1632,22 @@ export default function CheckedInScreen({
                         </View>
                       ) : null}
 
-                      {checkoutWillKeepWorker(w, checkoutStock) ? (
+                      {isSharedRow(w) ? (
+                        <View className="bg-teal-50 border border-teal-200 rounded-xl p-3 gap-1.5">
+                          <Text className="text-teal-800 text-xs font-extrabold">
+                            {t("ci.sharedRowCheckoutNotice", {
+                              count: records.filter(
+                                (candidate) =>
+                                  candidate.blockName === w.blockName &&
+                                  candidate.rowNumber === w.rowNumber
+                              ).length,
+                            })}
+                          </Text>
+                          <Text className="text-teal-700 text-xs">
+                            {t("ci.sharedRowCheckoutHint")}
+                          </Text>
+                        </View>
+                      ) : checkoutWillKeepWorker(w, checkoutStock) ? (
                         <View className="gap-2">
                           <Text className="text-gray-600 text-xs font-bold">
                             {t("ci.partialPrompt", {
