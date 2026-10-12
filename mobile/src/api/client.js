@@ -1,8 +1,15 @@
+import NetInfo from "@react-native-community/netinfo";
 import { API_BASE_URL } from "../config/env";
 import { getAuthToken, setAuthToken, clearAuthToken } from "../storage/authStorage";
 import { enqueueAction, removeQueuedAction } from "../storage/offlineQueue";
 
 const REQUEST_TIMEOUT_MS = 12000;
+
+// Writes are idempotent (requestId dedupe on the server), so they are allowed to
+// wait out a cold boot (~30-60s on free Render) instead of being refused at the
+// 12s read budget. If the phone is genuinely offline, NetInfo short-circuits
+// below so the user never actually waits this long.
+const WRITE_TIMEOUT_MS = 30000;
 
 // A free-tier Render instance idles out after ~15 minutes and then needs
 // 30-60s to boot on the next request. Sign-in is the one call that cannot fall
@@ -111,6 +118,27 @@ function authRequest(path, options = {}) {
   });
 }
 
+// Guess whether we can reach the internet. Cached for a few seconds so every
+// write doesn't pay for a native round-trip; a "false" short-circuits a write
+// straight into the offline queue instead of stalling on a 12-30s timeout.
+let cachedOnline = null;
+let cachedOnlineAt = 0;
+
+async function isOnline() {
+  const now = Date.now();
+  if (cachedOnline !== null && now - cachedOnlineAt < 3000) {
+    return cachedOnline;
+  }
+  try {
+    const state = await NetInfo.fetch();
+    cachedOnline = !!state.isConnected && state.isInternetReachable !== false;
+  } catch {
+    cachedOnline = true; // if we cannot tell, assume online
+  }
+  cachedOnlineAt = Date.now();
+  return cachedOnline;
+}
+
 // Give a write a stable identity that survives an offline-queue replay. The
 // server uses it to guarantee at-most-once execution: if the first attempt
 // times out but the server actually applied it, the re-sent copy is answered
@@ -126,9 +154,23 @@ function withRequestId(body) {
 async function queuedMutation(path, body, queueLabel) {
   const bodyWithId = withRequestId(body);
 
+  if (!(await isOnline())) {
+    await enqueueAction({
+      path,
+      method: "POST",
+      body: bodyWithId,
+      queueLabel,
+    });
+    return {
+      queued: true,
+      message: `${queueLabel} saved offline and will sync automatically.`,
+    };
+  }
+
   try {
     return await request(path, {
       method: "POST",
+      timeoutMs: WRITE_TIMEOUT_MS,
       body: JSON.stringify(bodyWithId),
     });
   } catch (error) {
@@ -153,6 +195,19 @@ async function queuedMutation(path, body, queueLabel) {
 async function queueAndPush(path, body, queueLabel) {
   const bodyWithId = withRequestId(body);
 
+  if (!(await isOnline())) {
+    const entry = await enqueueAction({
+      path,
+      method: "POST",
+      body: bodyWithId,
+      queueLabel,
+    });
+    return {
+      queued: true,
+      message: `${queueLabel} saved and will sync.`,
+    };
+  }
+
   const entry = await enqueueAction({
     path,
     method: "POST",
@@ -163,6 +218,7 @@ async function queueAndPush(path, body, queueLabel) {
   try {
     const result = await request(path, {
       method: "POST",
+      timeoutMs: WRITE_TIMEOUT_MS,
       body: JSON.stringify(bodyWithId),
     });
     await removeQueuedAction(entry.id);
@@ -250,6 +306,7 @@ export const api = {
   replayQueuedAction: (action) =>
     request(action.path, {
       method: action.method || "POST",
+      timeoutMs: WRITE_TIMEOUT_MS,
       body: JSON.stringify(action.body || {}),
     }),
 };

@@ -23,14 +23,22 @@ function resolveMongoUri() {
 const connectDB = async () => {
   try {
     const uri = resolveMongoUri();
-    await mongoose.connect(uri);
+    await mongoose.connect(uri, {
+      maxPoolSize: Number(process.env.MONGO_MAX_POOL_SIZE) || 10,
+      serverSelectionTimeoutMS: 10000,
+      socketTimeoutMS: 45000,
+      family: 4,
+    });
     console.log(
       `MongoDB connected!! (database: ${resolveDatabaseName()}, mode: ${String(
         process.env.MONGO_DB || "production"
       )})`
     );
   } catch (error) {
-    console.log("Failed to connect to MongoDB", error);
+    // Do not let a transient Atlas hiccup take the instance down: /health (and
+    // quick cold boots) keep working and Mongo keeps retrying in the background.
+    console.log("Failed to connect to MongoDB, retrying in 10s", error);
+    setTimeout(connectDB, 10000);
   }
 };
 

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { AppState } from "react-native";
+import NetInfo from "@react-native-community/netinfo";
 import { api } from "../api/client";
 import {
   clearQueuedActions,
@@ -91,13 +92,22 @@ export function useOfflineQueue() {
     refreshQueue();
     syncQueue();
 
-    const subscription = AppState.addEventListener("change", (state) => {
+    const appStateSubscription = AppState.addEventListener("change", (state) => {
       if (state === "active") {
         syncQueue();
       }
     });
 
-    return () => subscription.remove();
+    const netInfoUnsubscribe = NetInfo.addEventListener((state) => {
+      if (state.isConnected && state.isInternetReachable !== false) {
+        syncQueue();
+      }
+    });
+
+    return () => {
+      appStateSubscription.remove();
+      netInfoUnsubscribe();
+    };
   }, [refreshQueue, syncQueue]);
 
   return {

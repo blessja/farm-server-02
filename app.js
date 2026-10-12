@@ -89,4 +89,11 @@ app.get("/", (req, res) => {
   res.send("✅ Backend is running!");
 });
 
+// Cheap, DB-free probe endpoint for external keep-alive pings (e.g. cron-job.org)
+// every 10 minutes during working hours so the free Render instance does not
+// cold-start mid-shift without burning the 750 instance-hours/month allowance.
+app.get("/health", (req, res) => {
+  res.status(200).json({ status: "ok", ts: Date.now() });
+});
+
 module.exports = app;

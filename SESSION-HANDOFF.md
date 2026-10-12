@@ -67,16 +67,28 @@ Run: `node --test scripts/daywork-test.js` (isolated throwaway DB; real data unt
 - The production **data** is fixed, but the double-count **safeguards only apply once this code is deployed** to Render. Commit/push, then deploy the server and ship the mobile update (which should also be checked on a real device per repo convention).
 - No DB migrations needed; `ProcessedRequest` and its indexes are created lazily on first use.
 
-## Render keep-alive plan (NOT implemented — documented only)
+## Render keep-alive (IMPLEMENTED — user approved during network-plan session)
 
-Free-tier Render sleeps after ~15 min idle; first cold-start request can take 30–60s. To keep the app warm **only during working hours** (so you don't burn the free 750 hours overnight):
+A cheap `GET /health` (no DB, no auth) was added to `app.js` and is the intended ping target. Free-tier Render sleeps after ~15 min idle; first cold-start request takes 30–60s. To keep the app warm **only during working hours** (so the free 750 instance-hours/mo are not burned overnight):
 
-1. Add a tiny `GET /health` returning 200 fast (existing `GET /` already works as a ping target).
-2. Use a free external cron (cron-job.org) hitting `https://<app>.onrender.com/health` **every ≤10 min** (under the 15-min sleep threshold).
-3. Restrict the schedule in cron-job.org to **Mon–Sat 05:30–20:30 SAST** (e.g. cron `*/10 5-20 * * 1-6`). UptimeRobot is the fallback but pings 24/7 (needs manual pause outside shifts).
-4. Verify in Render logs that the instance stays warm in-window; accept the ~30–60s cold start if a >15-min gap slips through (lunch).
+- Expected cost: Mon–Sat 05:30–20:30 SAST, ping every ≤10 min ≈ **~390 h/mo** (≈455 h if Sunday added) — comfortably under 750 h, leaving headroom. Do NOT use a default 24/7 UptimeRobot monitor on this URL (it pings all night and burns the allowance).
 
-Owner previously declined a keepalive ping — this plan is optional, not wired in.
+**cron-job.org setup (exact):**
+1. Login → "Create job" → URL = `https://<app>.onrender.com/health` (the /health path, not /).
+2. Schedule: every 10 minutes → choose **minutes** units with cron `0 */10` for the minute field, or use the preset "every minute × every 10"; Timezone = **Johannesburg (SAST)**.
+3. Restrict to work hours: cron expression `*/10 5-20 * * 1-6` → Mon–Sat every 10 min 05:00–20:59 SAST (05:30–20:30 effectively, since 05:00-05:29 pings are harmless).
+4. Keep AppType on the default "once run" (single GET, no JSON body).
+5. cron-job's run log doubles as an in-hours uptime signal; Render's built-in email notification covers crashes/deploy failures.
+
+Note: owner previously declined a keepalive ping; this time the network plan requested it explicitly.
+
+## Network resilience (IMPLEMENTED — same session)
+
+- **Write timeout 30s** (`WRITE_TIMEOUT_MS` in `client.js`) instead of 12s: writes are idempotent (requestId), so waiting out a 30–60s cold boot is safe. Reads stay at 12s.
+- **NetInfo short-circuit** (new `@react-native-community/netinfo` 12.0.1 dep): if the phone is offline/reachability false, writes enqueue instantly instead of stalling on a timeout; a NetInfo listener in `useOfflineQueue.js` auto-flushes when connectivity returns (in addition to app-foreground flush).
+- **Queue dedupe + age prune** (`offlineQueue.js`): duplicate identical pending writes (same method+path+body, ignoring requestId) are replaced (latest intent wins); pending actions older than **72h** are pruned on enqueue/flush as stale — the exact class of lingering action that caused the historic double-counting.
+- **Server**: `config/db.js` now connects with `maxPoolSize 10` (shared Atlas M0), `serverSelectionTimeoutMS 10s`, `socketTimeoutMS 45s`, `family 4`, and re-tries forever every 10s instead of giving up, so a transient Atlas hiccup does not take down `/health` or cold boots.
+- **Fallback if keep-alive fails/off**: writes queue and flush on reconnection; no data loss, only latency, and the 30–60s cold start is accepted (lunch break gaps).
 
 ## Conventions carried over
 
