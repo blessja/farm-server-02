@@ -3,6 +3,6 @@
   publish = "dist"
 
 [build.environment]
-  # EXPO_PUBLIC_* values are intentionally inlined into the client bundle,
-  # and PORT's value matches common strings throughout node_modules.
-  SECRETS_SCAN_OMIT_KEYS = "EXPO_PUBLIC_API_URL,PORT"
+  # These are public configuration values or common build strings, not secrets.
+  # Expo intentionally inlines EXPO_PUBLIC_* values into the client bundle.
+  SECRETS_SCAN_OMIT_KEYS = "EXPO_PUBLIC_API_URL,EXPO_PUBLIC_DEVICE_NAME,NODE_ENV,PORT"
