@@ -90,6 +90,16 @@ Note: owner previously declined a keepalive ping; this time the network plan req
 - **Server**: `config/db.js` now connects with `maxPoolSize 10` (shared Atlas M0), `serverSelectionTimeoutMS 10s`, `socketTimeoutMS 45s`, `family 4`, and re-tries forever every 10s instead of giving up, so a transient Atlas hiccup does not take down `/health` or cold boots.
 - **Fallback if keep-alive fails/off**: writes queue and flush on reconnection; no data loss, only latency, and the 30–60s cold start is accepted (lunch break gaps).
 
+## Mobile build (EAS) — this session
+
+- Linked the project to EAS Build: account `bjackson2`, project **`glen-oak`** (ID `e09eb6fd-369c-4006-a6e7-7705d9e32b34`). `mobile/app.json` now carries `extra.eas.projectId` + `owner: bjackson2` — commit these.
+  - Note: an empty stray project `@bjackson2/backend` was created by mistake (an `eas init` run from the repo ROOT picked up a placeholder root `app.json`). It is unused; delete it from the Expo console (expo.dev → account → projects) or leave it harmlessly. The root `app.json` (`{"expo":{}}`) and the root `eas.json` that were accidentally created were reverted/removed.
+- Android production APK build submitted: **https://expo.dev/accounts/bjackson2/projects/glen-oak/builds/412ff657-397a-4b1b-995c-c03e8b9a322e**
+  - Profile: `production` (APK), env baked in from `eas.json`: `EXPO_PUBLIC_API_URL=https://farm-server-02.onrender.com`, `EXPO_PUBLIC_DEVICE_NAME=farm-foreman-phone`.
+  - Reused existing Keystore (Build Credentials 1_xSWDLL5l). Build runs in the cloud; the APK appears on the build page when done.
+  - Build command: from `mobile/`, `npx eas-cli build --platform android --profile production --non-interactive --no-wait`.
+- Once the APK is done: sideload onto the farm phone and (per repo convention) do a device pass on the new network flows — airplane-mode check-in/checkout → queued, then connectivity restores → auto-flush; confirm no double-counts.
+
 ## Conventions carried over
 
 - Dry run first, then `--apply`; full backup to `backups/`; precondition guards; re-read + verify; never inline `node -e` in PowerShell (write a script file).

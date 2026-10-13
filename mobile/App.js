@@ -1,5 +1,13 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Modal, StatusBar, Text, TouchableOpacity, View } from "react-native";
+import {
+  Alert,
+  Modal,
+  Platform,
+  StatusBar,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { StatusBar as ExpoStatusBar } from "expo-status-bar";
 import "./global.css";
 import {
@@ -47,6 +55,8 @@ export default function App() {
   const [cacheEpoch, setCacheEpoch] = useState(0);
   const [refreshEpoch, setRefreshEpoch] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
+  const [installPrompt, setInstallPrompt] = useState(null);
+  const [isInstalled, setIsInstalled] = useState(false);
   const [selectedBlock, setSelectedBlock] = useState("");
   const [selectedRow, setSelectedRow] = useState("");
   const [jobType, setJobType] = useState("");
@@ -139,6 +149,62 @@ export default function App() {
 
     bootstrap();
   }, []);
+
+  useEffect(() => {
+    if (Platform.OS !== "web" || typeof window === "undefined") return;
+
+    setIsInstalled(
+      window.matchMedia("(display-mode: standalone)").matches ||
+        window.navigator.standalone === true
+    );
+
+    const handleInstallPrompt = (event) => {
+      event.preventDefault();
+      setInstallPrompt(event);
+    };
+    const handleInstalled = () => {
+      setInstallPrompt(null);
+      setIsInstalled(true);
+    };
+
+    window.addEventListener("beforeinstallprompt", handleInstallPrompt);
+    window.addEventListener("appinstalled", handleInstalled);
+
+    return () => {
+      window.removeEventListener("beforeinstallprompt", handleInstallPrompt);
+      window.removeEventListener("appinstalled", handleInstalled);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (
+      Platform.OS !== "web" ||
+      typeof navigator === "undefined" ||
+      !("serviceWorker" in navigator)
+    ) {
+      return;
+    }
+
+    navigator.serviceWorker
+      .register("/service-worker.js")
+      .catch((error) => {
+        console.error("Could not register the Glen Oak offline app shell.", error);
+      });
+  }, []);
+
+  async function handleInstall() {
+    if (installPrompt) {
+      await installPrompt.prompt();
+      await installPrompt.userChoice;
+      setInstallPrompt(null);
+      return;
+    }
+
+    Alert.alert(
+      t("pwa.installHelpTitle"),
+      t("pwa.installHelpMessage")
+    );
+  }
 
   async function handleClearCache() {
     await clearAllCache();
@@ -284,44 +350,68 @@ export default function App() {
                 ) : null}
               </View>
 
-              {bootState.authenticated ? (
+              {bootState.authenticated ||
+              (Platform.OS === "web" && !isInstalled) ? (
                 <View style={{ gap: 8, alignItems: "flex-end", marginTop: 6 }}>
-                  <TouchableOpacity
-                    activeOpacity={0.7}
-                    style={{ borderRadius: 12, backgroundColor: "#F4F7F3", borderWidth: 1, borderColor: "#D4DFD3", paddingHorizontal: 14, paddingVertical: 8 }}
-                    onPress={handleClearCache}
-                  >
-                    <Text style={{ color: "#627060", fontSize: 12, fontWeight: "700" }}>
-                      {t("header.clearCache")}
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    activeOpacity={0.7}
-                    disabled={refreshing}
-                    style={{
-                      borderRadius: 12,
-                      backgroundColor: "#EAF3FB",
-                      borderWidth: 1,
-                      borderColor: "#C7DBEE",
-                      paddingHorizontal: 14,
-                      paddingVertical: 8,
-                      opacity: refreshing ? 0.6 : 1,
-                    }}
-                    onPress={handleRefresh}
-                  >
-                    <Text style={{ color: "#2A5C87", fontSize: 12, fontWeight: "700" }}>
-                      {refreshing ? t("header.refreshing") : t("header.refresh")}
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    activeOpacity={0.7}
-                    style={{ borderRadius: 12, backgroundColor: "#E5ECE4", borderWidth: 1, borderColor: "#D4DFD3", paddingHorizontal: 14, paddingVertical: 10 }}
-                    onPress={handleLogout}
-                  >
-                    <Text style={{ color: "#374236", fontSize: 13, fontWeight: "800" }}>
-                      {t("header.logout")}
-                    </Text>
-                  </TouchableOpacity>
+                  {Platform.OS === "web" && !isInstalled ? (
+                    <TouchableOpacity
+                      accessibilityRole="button"
+                      activeOpacity={0.7}
+                      style={{
+                        borderRadius: 12,
+                        backgroundColor: "#eaf3ec",
+                        borderWidth: 1,
+                        borderColor: "#c7dbce",
+                        paddingHorizontal: 14,
+                        paddingVertical: 8,
+                      }}
+                      onPress={handleInstall}
+                    >
+                      <Text style={{ color: "#1a5f4a", fontSize: 12, fontWeight: "700" }}>
+                        {t("pwa.install")}
+                      </Text>
+                    </TouchableOpacity>
+                  ) : null}
+                  {bootState.authenticated ? (
+                    <>
+                      <TouchableOpacity
+                        activeOpacity={0.7}
+                        style={{ borderRadius: 12, backgroundColor: "#F4F7F3", borderWidth: 1, borderColor: "#D4DFD3", paddingHorizontal: 14, paddingVertical: 8 }}
+                        onPress={handleClearCache}
+                      >
+                        <Text style={{ color: "#627060", fontSize: 12, fontWeight: "700" }}>
+                          {t("header.clearCache")}
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        activeOpacity={0.7}
+                        disabled={refreshing}
+                        style={{
+                          borderRadius: 12,
+                          backgroundColor: "#EAF3FB",
+                          borderWidth: 1,
+                          borderColor: "#C7DBEE",
+                          paddingHorizontal: 14,
+                          paddingVertical: 8,
+                          opacity: refreshing ? 0.6 : 1,
+                        }}
+                        onPress={handleRefresh}
+                      >
+                        <Text style={{ color: "#2A5C87", fontSize: 12, fontWeight: "700" }}>
+                          {refreshing ? t("header.refreshing") : t("header.refresh")}
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        activeOpacity={0.7}
+                        style={{ borderRadius: 12, backgroundColor: "#E5ECE4", borderWidth: 1, borderColor: "#D4DFD3", paddingHorizontal: 14, paddingVertical: 10 }}
+                        onPress={handleLogout}
+                      >
+                        <Text style={{ color: "#374236", fontSize: 13, fontWeight: "800" }}>
+                          {t("header.logout")}
+                        </Text>
+                      </TouchableOpacity>
+                    </>
+                  ) : null}
                 </View>
               ) : null}
             </View>

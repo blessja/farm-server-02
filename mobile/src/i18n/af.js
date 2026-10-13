@@ -13,6 +13,9 @@ const af = {
   "header.refresh": "Herlaai",
   "header.refreshing": "Herlaai tans...",
   "header.logout": "Teken uit",
+  "pwa.install": "Installeer toepassing",
+  "pwa.installHelpTitle": "Installeer Glen Oak",
+  "pwa.installHelpMessage": "Maak jou blaaierkieslys oop en kies Installeer toepassing of Voeg by tuisskerm.",
 
   // Splash
   "splash.preparing": "Maak mobiele werkspas gereed...",

@@ -47,6 +47,35 @@ You can also set:
 npm start
 ```
 
+## Installable web app
+
+The Expo app can also be built and hosted as an installable web app:
+
+```bash
+npm run web
+```
+
+For a production build, set `EXPO_PUBLIC_API_URL` to the deployed HTTPS backend
+URL, then run:
+
+```bash
+npm run build:web
+```
+
+Publish the generated `dist/` directory to an HTTPS static host such as Netlify.
+For automatic deployments from GitHub on Netlify, use `mobile` as the base
+directory, `npm run build:web` as the build command, and `dist` as the publish
+directory. Set `EXPO_PUBLIC_API_URL` in the host's environment variables.
+The browser install button appears when the browser supports an install prompt;
+otherwise use the browser menu's **Install app** or **Add to Home Screen** option.
+After publishing a new build, users receive it the next time they open or reload
+the app. The service worker keeps the app shell and already-loaded assets
+available offline; API data still requires a connection, while queued write
+actions continue to use the existing offline queue.
+
+Camera scanning in the web app requires the site to be served over HTTPS (or
+localhost) and camera permission to be granted in the browser.
+
 ## Current backend mappings
 
 - `GET /api/blocks`

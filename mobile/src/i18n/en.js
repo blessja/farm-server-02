@@ -13,6 +13,9 @@ const en = {
   "header.refresh": "Refresh",
   "header.refreshing": "Refreshing...",
   "header.logout": "Logout",
+  "pwa.install": "Install app",
+  "pwa.installHelpTitle": "Install Glen Oak",
+  "pwa.installHelpMessage": "Open your browser menu and choose Install app or Add to Home Screen.",
 
   // Splash
   "splash.preparing": "Preparing mobile workspace...",

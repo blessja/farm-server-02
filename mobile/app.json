@@ -47,7 +47,21 @@
       "package": "com.anonymous.glenoaksupplements"
     },
     "web": {
-      "bundler": "metro"
-    }
+      "bundler": "metro",
+      "output": "single",
+      "name": "Glen Oak Farm",
+      "shortName": "Glen Oak",
+      "description": "Glen Oak Farm operations",
+      "themeColor": "#1a5f4a",
+      "backgroundColor": "#f4f7f3",
+      "display": "standalone",
+      "favicon": "./assets/icon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "e09eb6fd-369c-4006-a6e7-7705d9e32b34"
+      }
+    },
+    "owner": "bjackson2"
   }
 }
