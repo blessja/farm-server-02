@@ -4,5 +4,5 @@
 
 [build.environment]
   # EXPO_PUBLIC_* values are intentionally inlined into the client bundle,
-  # and PORT's value matches common strings throughout node_modules.
-  SECRETS_SCAN_OMIT_KEYS = "EXPO_PUBLIC_API_URL,PORT"
+  # and PORT/NODE_ENV values match common strings throughout node_modules.
+  SECRETS_SCAN_OMIT_KEYS = "EXPO_PUBLIC_API_URL,EXPO_PUBLIC_DEVICE_NAME,PORT,NODE_ENV"
