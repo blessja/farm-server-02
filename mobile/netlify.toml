@@ -1,0 +1,9 @@
+[build]
+  command = "npm run build:web"
+  publish = "dist"
+
+[build.environment]
+  # EXPO_PUBLIC_* values are intentionally inlined into the client bundle.
+  # NODE_ENV, PORT, MONGO_DB and MOBILE_AUTH_ENABLED hold short, non-sensitive
+  # values that match common strings throughout node_modules.
+  SECRETS_SCAN_OMIT_KEYS = "EXPO_PUBLIC_API_URL,EXPO_PUBLIC_DEVICE_NAME,PORT,NODE_ENV,MONGO_DB,MOBILE_AUTH_ENABLED"
