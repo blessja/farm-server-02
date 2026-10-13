@@ -39,6 +39,7 @@ const allowedOrigins = [
   "http://192.168.1.101:8135",
   "http://192.168.1.101:8080",
   "https://6c469024e214.ngrok-free.app",
+  "https://glenoak.netlify.app"
 ];
 
 // Allow any private-network origin so DHCP IP changes don't break CORS
