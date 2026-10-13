@@ -1,0 +1,8 @@
+[build]
+  command = "npm run build:web"
+  publish = "dist"
+
+[build.environment]
+  # EXPO_PUBLIC_* values are intentionally inlined into the client bundle,
+  # and PORT's value matches common strings throughout node_modules.
+  SECRETS_SCAN_OMIT_KEYS = "EXPO_PUBLIC_API_URL,PORT"
