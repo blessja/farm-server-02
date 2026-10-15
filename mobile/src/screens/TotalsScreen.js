@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { Text, View } from "react-native";
+import { ActivityIndicator, Text, View } from "react-native";
 import { api } from "../api/client";
 import ScreenScroll from "../components/ScreenScroll";
 import SectionCard from "../components/SectionCard";
@@ -43,7 +43,8 @@ export default function TotalsScreen({ supervisorName = "" }) {
     fastState.errorStatus === 403 ||
     hoursState.errorStatus === 403;
 
-  const loading = regularState.loading && fastState.loading;
+  const loading =
+    regularState.loading || fastState.loading || hoursState.loading;
 
   const [blockFilter, setBlockFilter] = useState("");
   const [jobFilter, setJobFilter] = useState("");
@@ -154,14 +155,23 @@ export default function TotalsScreen({ supervisorName = "" }) {
     setExporting(true);
     setExportMessage(null);
     try {
-      await exportTotalsPdf({
+      const result = await exportTotalsPdf({
         rows: filteredRows,
         hours: dayHours,
         blockFilter,
         jobFilter,
         rowFilter,
       });
-      setExportMessage({ text: t("totals.pdfCreated"), ok: true });
+      if (result.delivery === "cancelled") return;
+      const messageKey = {
+        shared: "pdf.shared",
+        downloaded: "pdf.downloaded",
+        preview: "pdf.previewOpened",
+      }[result.delivery];
+      setExportMessage({
+        text: messageKey ? t(messageKey) : t("totals.pdfCreated"),
+        ok: true,
+      });
     } catch (error) {
       setExportMessage({
         text: error?.message || t("totals.pdfError"),
@@ -182,6 +192,38 @@ export default function TotalsScreen({ supervisorName = "" }) {
         hoursState.refresh();
       }}
     >
+      {!isBlocked && loading ? (
+        <SectionCard title={t("totals.loadingTitle")}>
+          <View
+            accessibilityRole="progressbar"
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 12,
+              borderRadius: 16,
+              backgroundColor: "#f4f7f3",
+              padding: 16,
+            }}
+          >
+            <ActivityIndicator size="small" color="#2d7a55" />
+            <Text style={{ color: "#456052", fontSize: 14, fontWeight: "700" }}>
+              {t("totals.loadingMessage")}
+            </Text>
+          </View>
+          {[0, 1, 2].map((item) => (
+            <View
+              key={item}
+              style={{
+                height: 12,
+                width: `${88 - item * 16}%`,
+                borderRadius: 8,
+                backgroundColor: "#edf1ed",
+              }}
+            />
+          ))}
+        </SectionCard>
+      ) : null}
+
       {isBlocked ? (
         <SectionCard title={t("scope.title")}>
           <Text style={{ color: "#6b7280", fontSize: 14 }}>

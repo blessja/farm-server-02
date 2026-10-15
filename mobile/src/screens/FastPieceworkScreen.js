@@ -152,14 +152,23 @@ export default function FastPieceworkScreen({ sharedState, offlineQueue }) {
     setExporting(true);
     setExportMessage(null);
     try {
-      await exportTotalsPdf({
+      const result = await exportTotalsPdf({
         rows: filteredFastRows,
         hours: dayHours,
         blockFilter,
         jobFilter,
         title: "Fast Totals",
       });
-      setExportMessage({ text: t("fast.pdfCreated"), ok: true });
+      if (result.delivery === "cancelled") return;
+      const messageKey = {
+        shared: "pdf.shared",
+        downloaded: "pdf.downloaded",
+        preview: "pdf.previewOpened",
+      }[result.delivery];
+      setExportMessage({
+        text: messageKey ? t(messageKey) : t("fast.pdfCreated"),
+        ok: true,
+      });
     } catch (error) {
       setExportMessage({
         text: error?.message || t("fast.pdfError"),

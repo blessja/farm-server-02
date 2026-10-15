@@ -44,6 +44,8 @@ const af = {
   "tab.fast": "Vinnig",
   "tab.totals": "Totaal",
   "tab.queue": "Tou",
+  "sidebar.workspace": "WERKSPASIE",
+  "sidebar.signedIn": "Aangemeld",
 
   // Common
   "common.close": "Maak toe",
@@ -64,6 +66,9 @@ const af = {
   "common.thisWorker": "hierdie werker",
   "common.unknown": "Onbekend",
   "common.menu": "Kieslys",
+  "pdf.shared": "PDF gereed om in 'n versoenbare toepassing oop te maak of te stoor.",
+  "pdf.downloaded": "PDF afgelaai.",
+  "pdf.previewOpened": "Drukvoorskou oopgemaak. Kies Stoor as PDF om dit af te laai.",
 
   // Dashboard
   "dash.title": "Vandag op 'n slag",
@@ -71,6 +76,19 @@ const af = {
   "dash.blocks": "Blokke",
   "dash.checkedIn": "Aangeteken",
   "dash.selected": "Gekies",
+  "dash.blockProgress": "Blokvordering volgens werk",
+  "dash.blockProgressSub": "Wingerde gewerk en wingerde oor vir elke werk in elke blok.",
+  "dash.noBlockProgress": "Geen stukwerkvordering is nog beskikbaar nie.",
+  "dash.blockName": "Blok {block}",
+  "dash.vinesWorked": "Gewerk: {count}",
+  "dash.vinesLeft": "Oor: {count}",
+  "dash.vinesTotal": "Bloktotaal: {count} wingerde",
+  "dash.workedLabel": "GEWERK",
+  "dash.leftLabel": "OOR",
+  "dash.progressNotStarted": "Nog nie begin nie",
+  "dash.progressUnderHalf": "Onder 50%",
+  "dash.progressOverHalf": "50–99%",
+  "dash.progressComplete": "Voltooi",
   "dash.offlineSync": "Aflynsinkronisering",
   "dash.offlineSyncSub": "Skryf-aksies word plaaslik in 'n tou geplaas as die foon verbinding verloor, en word herspeel sodra die toepassing weer aanlyn gaan.",
   "dash.queued": "In tou",
@@ -209,6 +227,8 @@ const af = {
 
   // TotalsScreen
   "totals.title": "Totale",
+  "totals.loadingTitle": "Laai jou totale",
+  "totals.loadingMessage": "Laai stukwerk en ure...",
   "totals.subtitle": "Dag-vir-dag stukwerk-opsomming. Raak enige sel aan om gewerkte ure vir daardie dag by te voeg of te wysig.",
   "totals.filters": "Filters",
   "totals.allBlocks": "Alle blokke",

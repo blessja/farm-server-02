@@ -26,6 +26,36 @@ router.get(
   rowController.getCurrentCheckin
 );
 
+router.get("/block-inventory", async (req, res) => {
+  try {
+    const blocks = await Block.find(
+      {
+        block_name: { $exists: true, $nin: [null, ""] },
+      },
+      {
+        block_name: 1,
+        total_stocks: 1,
+        total_rows: 1,
+        variety: 1,
+      }
+    )
+      .sort({ block_name: 1 })
+      .lean();
+
+    res.json(
+      blocks.map((block) => ({
+        blockName: block.block_name,
+        totalVines: Number(block.total_stocks) || 0,
+        totalRows: Number(block.total_rows) || 0,
+        variety: block.variety || "",
+      }))
+    );
+  } catch (error) {
+    console.error("Error fetching block inventory:", error);
+    res.status(500).json({ message: "Failed to fetch block inventory" });
+  }
+});
+
 router.put("/workers/clearAllCheckins", rowController.clearAllCheckins);
 
 //get rows with remaining stocks

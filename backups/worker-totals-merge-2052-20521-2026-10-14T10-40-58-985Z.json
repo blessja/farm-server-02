@@ -1,0 +1,1239 @@
+{
+  "createdAt": "2026-10-14T10:40:58.992Z",
+  "database": "farm-managment",
+  "workerIDs": [
+    "2052",
+    "20521"
+  ],
+  "purpose": "Pre-merge backup of regular piecework, fast piecework, and day-hours records for workers 2052 and 20521",
+  "collections": {
+    "workers": [
+      {
+        "_id": "6abcb08006115128aab3d9eb",
+        "workerID": "2052",
+        "name": "De Vlam Donnovan Jerome",
+        "total_stock_count": 1192,
+        "piecework_stock_count": 0,
+        "blocks": [
+          {
+            "block_name": "Block 3",
+            "rows": [
+              {
+                "row_number": "6B",
+                "job_type": "SUIER",
+                "stock_count": 53,
+                "time_spent": 285.9809833333333,
+                "date": "2026-09-30T11:33:27.026Z",
+                "day_of_week": "Wednesday",
+                "checkout_recorded_at": "2026-09-30T11:33:27.153Z",
+                "checkout_reason": "",
+                "backdated_by": "",
+                "checkout_events": [
+                  {
+                    "checkout_id": "cb6f7631-0132-4a59-8f8c-e733e09c546e",
+                    "work_date": "2026-09-30",
+                    "recorded_at": "2026-09-30T11:33:27.153Z",
+                    "recorded_by": "Jackson",
+                    "reason": "",
+                    "backdated": false,
+                    "vines_before": 53,
+                    "vines_completed": 53,
+                    "vines_remaining": 0,
+                    "minutes_worked": 285.9809833333333,
+                    "kept_checked_in": false,
+                    "checkin_started_at": "2026-09-30T06:47:28.167Z",
+                    "_id": "6abcf387966203bcb1a67a6d"
+                  }
+                ],
+                "_id": "6abcf387966203bcb1a67a6c"
+              }
+            ],
+            "_id": "6abcf387966203bcb1a67a6b"
+          },
+          {
+            "block_name": "Block 6",
+            "rows": [
+              {
+                "row_number": "11A",
+                "job_type": "ANKERS",
+                "stock_count": 78,
+                "time_spent": 1344.3470833333333,
+                "date": "2026-09-30T13:18:06.060Z",
+                "day_of_week": "Wednesday",
+                "checkout_recorded_at": "2026-09-30T13:18:06.256Z",
+                "checkout_reason": "",
+                "backdated_by": "",
+                "checkout_events": [
+                  {
+                    "checkout_id": "cc388aed-da0d-4e89-9f87-c36956f60bd6",
+                    "work_date": "2026-09-30",
+                    "recorded_at": "2026-09-30T13:18:06.256Z",
+                    "recorded_by": "Jackson",
+                    "reason": "",
+                    "backdated": false,
+                    "vines_before": 78,
+                    "vines_completed": 78,
+                    "vines_remaining": 0,
+                    "minutes_worked": 1344.3470833333333,
+                    "kept_checked_in": false,
+                    "checkin_started_at": "2026-09-29T14:53:45.235Z",
+                    "_id": "6abd0c0e8532de84a368bf24"
+                  }
+                ],
+                "_id": "6abd0c0e8532de84a368bf23"
+              }
+            ],
+            "_id": "6abd0c0e8532de84a368bf22"
+          },
+          {
+            "block_name": "Block 17",
+            "rows": [
+              {
+                "row_number": "81A",
+                "job_type": "SUIER",
+                "stock_count": 63,
+                "time_spent": 348.7372666666667,
+                "date": "2026-10-01T12:34:03.512Z",
+                "day_of_week": "Thursday",
+                "checkout_recorded_at": "2026-10-01T12:34:04.251Z",
+                "checkout_reason": "",
+                "backdated_by": "",
+                "checkout_events": [
+                  {
+                    "checkout_id": "19ccb1c5-e94e-4ea6-913b-8276863d6da8",
+                    "work_date": "2026-10-01",
+                    "recorded_at": "2026-10-01T12:34:04.251Z",
+                    "recorded_by": "Jackson",
+                    "reason": "",
+                    "backdated": false,
+                    "vines_before": 63,
+                    "vines_completed": 63,
+                    "vines_remaining": 0,
+                    "minutes_worked": 348.7372666666667,
+                    "kept_checked_in": false,
+                    "checkin_started_at": "2026-10-01T06:45:19.276Z",
+                    "_id": "6abe533ca89b18cd581cb2d5"
+                  }
+                ],
+                "_id": "6abe533ca89b18cd581cb2d4"
+              },
+              {
+                "row_number": "52A",
+                "job_type": "SUIER",
+                "stock_count": 73,
+                "time_spent": 166.00261666666665,
+                "date": "2026-10-01T15:19:44.218Z",
+                "day_of_week": "Thursday",
+                "checkout_recorded_at": "2026-10-01T15:19:44.569Z",
+                "checkout_reason": "",
+                "backdated_by": "",
+                "checkout_events": [
+                  {
+                    "checkout_id": "da163480-4289-4ff1-9ace-49dda1ca96ed",
+                    "work_date": "2026-10-01",
+                    "recorded_at": "2026-10-01T15:19:44.569Z",
+                    "recorded_by": "Jackson",
+                    "reason": "",
+                    "backdated": false,
+                    "vines_before": 73,
+                    "vines_completed": 73,
+                    "vines_remaining": 0,
+                    "minutes_worked": 166.00261666666665,
+                    "kept_checked_in": false,
+                    "checkin_started_at": "2026-10-01T12:33:44.061Z",
+                    "_id": "6abe7a10ffc99201b5b9ced7"
+                  }
+                ],
+                "_id": "6abe7a10ffc99201b5b9ced6"
+              }
+            ],
+            "_id": "6abe533ca89b18cd581cb2d3"
+          },
+          {
+            "block_name": "Block 1",
+            "rows": [
+              {
+                "row_number": "32A",
+                "job_type": "DOUBLE EYES",
+                "stock_count": 78,
+                "time_spent": 51.12035,
+                "date": "2026-10-05T08:42:28.905Z",
+                "day_of_week": "Monday",
+                "checkout_recorded_at": "2026-10-05T08:42:29.458Z",
+                "checkout_reason": "",
+                "backdated_by": "",
+                "checkout_events": [
+                  {
+                    "checkout_id": "b966bcf9-93d2-4091-ae03-b7bad341f7bf",
+                    "work_date": "2026-10-05",
+                    "recorded_at": "2026-10-05T08:42:29.458Z",
+                    "recorded_by": "Jackson",
+                    "reason": "",
+                    "backdated": false,
+                    "vines_before": 78,
+                    "vines_completed": 78,
+                    "vines_remaining": 0,
+                    "minutes_worked": 51.12035,
+                    "kept_checked_in": false,
+                    "checkin_started_at": "2026-10-05T07:51:21.684Z",
+                    "_id": "6ac362f55bc50d6e0a7570a5"
+                  }
+                ],
+                "_id": "6ac362f55bc50d6e0a7570a4"
+              },
+              {
+                "row_number": "11B",
+                "job_type": "DOUBLE EYES",
+                "stock_count": 42,
+                "time_spent": 47.909683333333334,
+                "date": "2026-10-05T09:43:15.484Z",
+                "day_of_week": "Monday",
+                "checkout_recorded_at": "2026-10-05T09:43:15.647Z",
+                "checkout_reason": "",
+                "backdated_by": "",
+                "checkout_events": [
+                  {
+                    "checkout_id": "602b690d-acb0-478d-b692-d437a2365fd6",
+                    "work_date": "2026-10-05",
+                    "recorded_at": "2026-10-05T09:43:15.647Z",
+                    "recorded_by": "Jackson",
+                    "reason": "",
+                    "backdated": false,
+                    "vines_before": 42,
+                    "vines_completed": 42,
+                    "vines_remaining": 0,
+                    "minutes_worked": 47.909683333333334,
+                    "kept_checked_in": false,
+                    "checkin_started_at": "2026-10-05T08:55:20.903Z",
+                    "_id": "6ac371335bc50d6e0a7a4751"
+                  }
+                ],
+                "_id": "6ac371335bc50d6e0a7a4750"
+              }
+            ],
+            "_id": "6ac362f55bc50d6e0a7570a3"
+          },
+          {
+            "block_name": "Block 18",
+            "rows": [
+              {
+                "row_number": "4B",
+                "job_type": "SUIER",
+                "stock_count": 20,
+                "time_spent": 87.49248333333334,
+                "date": "2026-10-06T12:57:55.683Z",
+                "day_of_week": "Tuesday",
+                "checkout_recorded_at": "2026-10-06T12:57:56.684Z",
+                "checkout_reason": "Automatically checked out when checking in to Row 30A",
+                "backdated_by": "",
+                "checkout_events": [
+                  {
+                    "checkout_id": "cf95a3ae-52fe-448d-9609-5328d73a8bf2",
+                    "work_date": "2026-10-06",
+                    "recorded_at": "2026-10-06T12:57:56.684Z",
+                    "recorded_by": "Jackson",
+                    "reason": "Automatically checked out when checking in to Row 30A",
+                    "backdated": false,
+                    "vines_before": 20,
+                    "vines_completed": 20,
+                    "vines_remaining": 0,
+                    "minutes_worked": 87.49248333333334,
+                    "kept_checked_in": false,
+                    "checkin_started_at": "2026-10-06T11:30:26.134Z",
+                    "_id": "6ac4f054cec56a7792636d29"
+                  }
+                ],
+                "_id": "6ac4f054cec56a7792636d28"
+              },
+              {
+                "row_number": "30A",
+                "job_type": "SUIER",
+                "stock_count": 54,
+                "time_spent": 103.08811666666666,
+                "date": "2026-10-06T14:41:02.371Z",
+                "day_of_week": "Tuesday",
+                "checkout_recorded_at": "2026-10-06T14:41:03.308Z",
+                "checkout_reason": "Automatically checked out when checking in to Row 46B",
+                "backdated_by": "",
+                "checkout_events": [
+                  {
+                    "checkout_id": "75718442-f8ac-4f72-a862-d11ff3e41a6f",
+                    "work_date": "2026-10-06",
+                    "recorded_at": "2026-10-06T14:41:03.308Z",
+                    "recorded_by": "Jackson",
+                    "reason": "Automatically checked out when checking in to Row 46B",
+                    "backdated": false,
+                    "vines_before": 54,
+                    "vines_completed": 54,
+                    "vines_remaining": 0,
+                    "minutes_worked": 103.08811666666666,
+                    "kept_checked_in": false,
+                    "checkin_started_at": "2026-10-06T12:57:57.084Z",
+                    "_id": "6ac5087fdd1a3645a8a60862"
+                  }
+                ],
+                "_id": "6ac5087fdd1a3645a8a60861"
+              },
+              {
+                "row_number": "46B",
+                "job_type": "SUIER",
+                "stock_count": 28,
+                "time_spent": 24.587,
+                "date": "2026-10-06T15:05:38.854Z",
+                "day_of_week": "Tuesday",
+                "checkout_recorded_at": "2026-10-06T15:05:39.362Z",
+                "checkout_reason": "",
+                "backdated_by": "",
+                "checkout_events": [
+                  {
+                    "checkout_id": "6ec23f6e-deac-4b4d-8b0f-38b636025390",
+                    "work_date": "2026-10-06",
+                    "recorded_at": "2026-10-06T15:05:39.362Z",
+                    "recorded_by": "Jackson",
+                    "reason": "",
+                    "backdated": false,
+                    "vines_before": 54,
+                    "vines_completed": 28,
+                    "vines_remaining": 26,
+                    "minutes_worked": 24.587,
+                    "kept_checked_in": true,
+                    "checkin_started_at": "2026-10-06T14:41:03.634Z",
+                    "_id": "6ac50e43dd1a3645a8a6fc16"
+                  }
+                ],
+                "_id": "6ac50e43dd1a3645a8a6fc15"
+              },
+              {
+                "row_number": "46B",
+                "job_type": "SUIER",
+                "stock_count": 0,
+                "time_spent": 893.5230666666666,
+                "date": "2026-10-07T05:59:10.239Z",
+                "day_of_week": "Wednesday",
+                "checkout_recorded_at": "2026-10-07T05:59:10.980Z",
+                "checkout_reason": "",
+                "backdated_by": "",
+                "checkout_events": [
+                  {
+                    "checkout_id": "f1d12d9f-7056-4f34-bb6d-315a016f64c5",
+                    "work_date": "2026-10-07",
+                    "recorded_at": "2026-10-07T05:59:10.980Z",
+                    "recorded_by": "Jackson",
+                    "reason": "",
+                    "backdated": false,
+                    "vines_before": 26,
+                    "vines_completed": 0,
+                    "vines_remaining": 26,
+                    "minutes_worked": 893.5230666666666,
+                    "kept_checked_in": false,
+                    "checkin_started_at": "2026-10-06T15:05:38.855Z",
+                    "_id": "6ac5dfaecda04be8654560e5"
+                  }
+                ],
+                "_id": "6ac5dfaecda04be8654560e4"
+              },
+              {
+                "row_number": "57A",
+                "job_type": "SUIER",
+                "stock_count": 54,
+                "time_spent": 152.17083333333332,
+                "date": "2026-10-07T08:44:38.982Z",
+                "day_of_week": "Wednesday",
+                "checkout_recorded_at": "2026-10-07T08:44:39.423Z",
+                "checkout_reason": "Automatically checked out when checking in to Row 2A",
+                "backdated_by": "",
+                "checkout_events": [
+                  {
+                    "checkout_id": "6c7f87fb-ae6d-4917-982a-c5d00f859a38",
+                    "work_date": "2026-10-07",
+                    "recorded_at": "2026-10-07T08:44:39.423Z",
+                    "recorded_by": "Jackson",
+                    "reason": "Automatically checked out when checking in to Row 2A",
+                    "backdated": false,
+                    "vines_before": 54,
+                    "vines_completed": 54,
+                    "vines_remaining": 0,
+                    "minutes_worked": 152.17083333333332,
+                    "kept_checked_in": false,
+                    "checkin_started_at": "2026-10-07T06:12:28.732Z",
+                    "_id": "6ac60677aaa24d177acb0ac5"
+                  }
+                ],
+                "_id": "6ac60677aaa24d177acb0ac4"
+              }
+            ],
+            "_id": "6ac4f054cec56a7792636d27"
+          },
+          {
+            "block_name": "Block 19",
+            "rows": [
+              {
+                "row_number": "2A",
+                "job_type": "SUIER",
+                "stock_count": 23,
+                "time_spent": 144.68808333333334,
+                "date": "2026-10-07T11:09:21.127Z",
+                "day_of_week": "Wednesday",
+                "checkout_recorded_at": "2026-10-07T11:09:21.382Z",
+                "checkout_reason": "Automatically checked out when checking in to Row 53B",
+                "backdated_by": "",
+                "checkout_events": [
+                  {
+                    "checkout_id": "4765a0cc-0227-46fd-ba82-7e82cedec885",
+                    "work_date": "2026-10-07",
+                    "recorded_at": "2026-10-07T11:09:21.382Z",
+                    "recorded_by": "Jackson",
+                    "reason": "Automatically checked out when checking in to Row 53B",
+                    "backdated": false,
+                    "vines_before": 23,
+                    "vines_completed": 23,
+                    "vines_remaining": 0,
+                    "minutes_worked": 144.68808333333334,
+                    "kept_checked_in": false,
+                    "checkin_started_at": "2026-10-07T08:44:39.842Z",
+                    "_id": "6ac628618e4b9ea90dc637b7"
+                  }
+                ],
+                "_id": "6ac628618e4b9ea90dc637b6"
+              }
+            ],
+            "_id": "6ac628618e4b9ea90dc637b5"
+          },
+          {
+            "block_name": "Block 15",
+            "rows": [
+              {
+                "row_number": "53B",
+                "job_type": "SUIER",
+                "stock_count": 28,
+                "time_spent": 72.59988333333334,
+                "date": "2026-10-07T12:21:57.502Z",
+                "day_of_week": "Wednesday",
+                "checkout_recorded_at": "2026-10-07T12:21:58.502Z",
+                "checkout_reason": "Automatically checked out when checking in to Row 29A",
+                "backdated_by": "",
+                "checkout_events": [
+                  {
+                    "checkout_id": "07d1dd3c-5b18-46da-a91f-8c8b5fb82aea",
+                    "work_date": "2026-10-07",
+                    "recorded_at": "2026-10-07T12:21:58.502Z",
+                    "recorded_by": "Jackson",
+                    "reason": "Automatically checked out when checking in to Row 29A",
+                    "backdated": false,
+                    "vines_before": 28,
+                    "vines_completed": 28,
+                    "vines_remaining": 0,
+                    "minutes_worked": 72.59988333333334,
+                    "kept_checked_in": false,
+                    "checkin_started_at": "2026-10-07T11:09:21.510Z",
+                    "_id": "6ac63966ff4db2741c5d1d60"
+                  }
+                ],
+                "_id": "6ac63966ff4db2741c5d1d5f"
+              },
+              {
+                "row_number": "29A",
+                "job_type": "SUIER",
+                "stock_count": 56,
+                "time_spent": 96.79086666666667,
+                "date": "2026-10-07T13:58:46.271Z",
+                "day_of_week": "Wednesday",
+                "checkout_recorded_at": "2026-10-07T13:58:46.605Z",
+                "checkout_reason": "Automatically checked out when checking in to Row 7A",
+                "backdated_by": "",
+                "checkout_events": [
+                  {
+                    "checkout_id": "1bd42e54-495e-4c3f-b10e-a14065901082",
+                    "work_date": "2026-10-07",
+                    "recorded_at": "2026-10-07T13:58:46.605Z",
+                    "recorded_by": "Jackson",
+                    "reason": "Automatically checked out when checking in to Row 7A",
+                    "backdated": false,
+                    "vines_before": 56,
+                    "vines_completed": 56,
+                    "vines_remaining": 0,
+                    "minutes_worked": 96.79086666666667,
+                    "kept_checked_in": false,
+                    "checkin_started_at": "2026-10-07T12:21:58.819Z",
+                    "_id": "6ac650161ea173d067922a15"
+                  }
+                ],
+                "_id": "6ac650161ea173d067922a14"
+              },
+              {
+                "row_number": "7A",
+                "job_type": "SUIER",
+                "stock_count": 69,
+                "time_spent": 199.18259999999998,
+                "date": "2026-10-07T17:17:57.719Z",
+                "day_of_week": "Wednesday",
+                "checkout_recorded_at": "2026-10-07T17:17:58.160Z",
+                "checkout_reason": "",
+                "backdated_by": "",
+                "checkout_events": [
+                  {
+                    "checkout_id": "df2eba15-87eb-4858-8491-2ed1ab64f2db",
+                    "work_date": "2026-10-07",
+                    "recorded_at": "2026-10-07T15:23:38.893Z",
+                    "recorded_by": "Jackson",
+                    "reason": "",
+                    "backdated": false,
+                    "vines_before": 69,
+                    "vines_completed": 49,
+                    "vines_remaining": 20,
+                    "minutes_worked": 84.86433333333333,
+                    "kept_checked_in": true,
+                    "checkin_started_at": "2026-10-07T13:58:46.763Z",
+                    "_id": "6ac663fa906de32ff941000c"
+                  },
+                  {
+                    "checkout_id": "b11dc7bc-ec08-4186-89dc-ce32e5c6f72a",
+                    "work_date": "2026-10-07",
+                    "recorded_at": "2026-10-07T17:17:58.160Z",
+                    "recorded_by": "Jackson",
+                    "reason": "",
+                    "backdated": false,
+                    "vines_before": 20,
+                    "vines_completed": 20,
+                    "vines_remaining": 0,
+                    "minutes_worked": 114.31826666666666,
+                    "kept_checked_in": false,
+                    "checkin_started_at": "2026-10-07T15:23:38.623Z",
+                    "_id": "6ac67ec6298c627974cd0a6e"
+                  }
+                ],
+                "_id": "6ac663fa906de32ff941000b"
+              }
+            ],
+            "_id": "6ac63966ff4db2741c5d1d5e"
+          },
+          {
+            "block_name": "Block 4",
+            "rows": [
+              {
+                "row_number": "13B",
+                "job_type": "SUIER",
+                "stock_count": 57,
+                "time_spent": 183.78161666666668,
+                "date": "2026-10-08T09:21:40.249Z",
+                "day_of_week": "Thursday",
+                "checkout_recorded_at": "2026-10-08T09:21:40.844Z",
+                "checkout_reason": "Automatically checked out when checking in to Row 36A",
+                "backdated_by": "",
+                "checkout_events": [
+                  {
+                    "checkout_id": "cff9d98a-354a-4bcd-a70d-25685860b9c8",
+                    "work_date": "2026-10-08",
+                    "recorded_at": "2026-10-08T09:21:40.844Z",
+                    "recorded_by": "Jackson",
+                    "reason": "Automatically checked out when checking in to Row 36A",
+                    "backdated": false,
+                    "vines_before": 57,
+                    "vines_completed": 57,
+                    "vines_remaining": 0,
+                    "minutes_worked": 183.78161666666668,
+                    "kept_checked_in": false,
+                    "checkin_started_at": "2026-10-08T06:17:53.352Z",
+                    "_id": "6ac760a48d417cb1ee476a0a"
+                  }
+                ],
+                "_id": "6ac760a48d417cb1ee476a09"
+              },
+              {
+                "row_number": "36A",
+                "job_type": "SUIER",
+                "stock_count": 65,
+                "time_spent": 176.74726666666666,
+                "date": "2026-10-08T12:18:25.852Z",
+                "day_of_week": "Thursday",
+                "checkout_recorded_at": "2026-10-08T12:18:26.241Z",
+                "checkout_reason": "Automatically checked out when checking in to Row 13A",
+                "backdated_by": "",
+                "checkout_events": [
+                  {
+                    "checkout_id": "fcf1d5ce-3923-4aa6-8c55-f0a94cfa2150",
+                    "work_date": "2026-10-08",
+                    "recorded_at": "2026-10-08T12:18:26.241Z",
+                    "recorded_by": "Jackson",
+                    "reason": "Automatically checked out when checking in to Row 13A",
+                    "backdated": false,
+                    "vines_before": 65,
+                    "vines_completed": 65,
+                    "vines_remaining": 0,
+                    "minutes_worked": 176.74726666666666,
+                    "kept_checked_in": false,
+                    "checkin_started_at": "2026-10-08T09:21:41.016Z",
+                    "_id": "6ac78a12ed146fda0395adf5"
+                  }
+                ],
+                "_id": "6ac78a12ed146fda0395adf4"
+              }
+            ],
+            "_id": "6ac760a48d417cb1ee476a08"
+          },
+          {
+            "block_name": "Block 5",
+            "rows": [
+              {
+                "row_number": "13A",
+                "job_type": "SUIER",
+                "stock_count": 86,
+                "time_spent": 174.38946666666666,
+                "date": "2026-10-08T15:12:49.747Z",
+                "day_of_week": "Thursday",
+                "checkout_recorded_at": "2026-10-08T15:12:50.034Z",
+                "checkout_reason": "",
+                "backdated_by": "",
+                "checkout_events": [
+                  {
+                    "checkout_id": "58a49581-98eb-457d-abfe-c462b76631f6",
+                    "work_date": "2026-10-08",
+                    "recorded_at": "2026-10-08T15:12:50.034Z",
+                    "recorded_by": "Jackson",
+                    "reason": "",
+                    "backdated": false,
+                    "vines_before": 86,
+                    "vines_completed": 86,
+                    "vines_remaining": 0,
+                    "minutes_worked": 174.38946666666666,
+                    "kept_checked_in": false,
+                    "checkin_started_at": "2026-10-08T12:18:26.379Z",
+                    "_id": "6ac7b2f23671bce532797f8d"
+                  }
+                ],
+                "_id": "6ac7b2f23671bce532797f8c"
+              }
+            ],
+            "_id": "6ac7b2f23671bce532797f8b"
+          },
+          {
+            "block_name": "Block 9",
+            "rows": [
+              {
+                "row_number": "19A",
+                "job_type": "SUIER",
+                "stock_count": 85,
+                "time_spent": 146.98225,
+                "date": "2026-10-12T08:53:13.589Z",
+                "day_of_week": "Monday",
+                "checkout_recorded_at": "2026-10-12T08:53:13.868Z",
+                "checkout_reason": "",
+                "backdated_by": "",
+                "checkout_events": [
+                  {
+                    "checkout_id": "b11c7640-1e61-4162-ba95-a27057453c9a",
+                    "work_date": "2026-10-12",
+                    "recorded_at": "2026-10-12T08:53:13.868Z",
+                    "recorded_by": "Jackson",
+                    "reason": "",
+                    "backdated": false,
+                    "vines_before": 85,
+                    "vines_completed": 85,
+                    "vines_remaining": 0,
+                    "minutes_worked": 146.98225,
+                    "kept_checked_in": false,
+                    "checkin_started_at": "2026-10-12T06:26:14.654Z",
+                    "_id": "6acc9ff9ce5c26b068214aae"
+                  }
+                ],
+                "_id": "6acc9ff9ce5c26b068214aad"
+              }
+            ],
+            "_id": "6acc9ff9ce5c26b068214aac"
+          },
+          {
+            "block_name": "Block 11",
+            "rows": [
+              {
+                "row_number": "15B",
+                "job_type": "SUIER",
+                "stock_count": 60,
+                "time_spent": 64.44508333333333,
+                "date": "2026-10-14T07:18:50.555Z",
+                "day_of_week": "Wednesday",
+                "checkout_recorded_at": "2026-10-14T07:18:50.951Z",
+                "checkout_reason": "Automatically checked out when checking in to Row 12B",
+                "backdated_by": "",
+                "checkout_events": [
+                  {
+                    "checkout_id": "b7a4edcb-f920-4c62-aefb-d1bc755e58d5",
+                    "work_date": "2026-10-14",
+                    "recorded_at": "2026-10-14T07:18:50.951Z",
+                    "recorded_by": "Jackson",
+                    "reason": "Automatically checked out when checking in to Row 12B",
+                    "backdated": false,
+                    "vines_before": 60,
+                    "vines_completed": 60,
+                    "vines_remaining": 0,
+                    "minutes_worked": 64.44508333333333,
+                    "kept_checked_in": false,
+                    "checkin_started_at": "2026-10-14T06:14:23.850Z",
+                    "_id": "6acf2cda0ea0fbe7dc61ee30"
+                  }
+                ],
+                "_id": "6acf2cda0ea0fbe7dc61ee2f"
+              },
+              {
+                "row_number": "12B",
+                "job_type": "SUIER",
+                "stock_count": 60,
+                "time_spent": 57.75536666666667,
+                "date": "2026-10-14T08:16:36.622Z",
+                "day_of_week": "Wednesday",
+                "checkout_recorded_at": "2026-10-14T08:16:37.090Z",
+                "checkout_reason": "Automatically checked out when checking in to Row 38A",
+                "backdated_by": "",
+                "checkout_events": [
+                  {
+                    "checkout_id": "cb18606a-2c46-4b52-b600-9b788cb9afdb",
+                    "work_date": "2026-10-14",
+                    "recorded_at": "2026-10-14T08:16:37.090Z",
+                    "recorded_by": "Jackson",
+                    "reason": "Automatically checked out when checking in to Row 38A",
+                    "backdated": false,
+                    "vines_before": 60,
+                    "vines_completed": 60,
+                    "vines_remaining": 0,
+                    "minutes_worked": 57.75536666666667,
+                    "kept_checked_in": false,
+                    "checkin_started_at": "2026-10-14T07:18:51.300Z",
+                    "_id": "6acf3a654e1fcd2ab6569a98"
+                  }
+                ],
+                "_id": "6acf3a654e1fcd2ab6569a97"
+              },
+              {
+                "row_number": "38A",
+                "job_type": "SUIER",
+                "stock_count": 60,
+                "time_spent": 83.62011666666668,
+                "date": "2026-10-14T09:40:14.544Z",
+                "day_of_week": "Wednesday",
+                "checkout_recorded_at": "2026-10-14T09:40:15.216Z",
+                "checkout_reason": "Automatically checked out when checking in to Row 67B",
+                "backdated_by": "",
+                "checkout_events": [
+                  {
+                    "checkout_id": "cf22bba2-af5f-4aa7-9666-fa41f42fe3c6",
+                    "work_date": "2026-10-14",
+                    "recorded_at": "2026-10-14T09:40:15.216Z",
+                    "recorded_by": "Jackson",
+                    "reason": "Automatically checked out when checking in to Row 67B",
+                    "backdated": false,
+                    "vines_before": 60,
+                    "vines_completed": 60,
+                    "vines_remaining": 0,
+                    "minutes_worked": 83.62011666666668,
+                    "kept_checked_in": false,
+                    "checkin_started_at": "2026-10-14T08:16:37.337Z",
+                    "_id": "6acf4dff8442ec0cc1b7ce0f"
+                  }
+                ],
+                "_id": "6acf4dff8442ec0cc1b7ce0e"
+              }
+            ],
+            "_id": "6acf2cda0ea0fbe7dc61ee2e"
+          }
+        ],
+        "syncLogs": [],
+        "__v": 23,
+        "supervisor": "Jackson"
+      },
+      {
+        "_id": "6ab22b8f70e4f51a63f3c364",
+        "workerID": "20521",
+        "__v": 18,
+        "blocks": [
+          {
+            "block_name": "Block 16",
+            "rows": [
+              {
+                "row_number": "41B",
+                "job_type": "SUIER",
+                "stock_count": 60,
+                "time_spent": 100.4731,
+                "date": "2026-09-22T13:06:27.345Z",
+                "day_of_week": "Tuesday",
+                "_id": "6ab27d53993830edb8a88ff3"
+              },
+              {
+                "row_number": "71A",
+                "job_type": "SUIER",
+                "stock_count": 18,
+                "time_spent": 59.89035,
+                "date": "2026-09-22T14:43:29.165Z",
+                "day_of_week": "Tuesday",
+                "_id": "6ab294114c64450c894cc5aa"
+              }
+            ],
+            "_id": "6ab27d53993830edb8a88ff2"
+          },
+          {
+            "block_name": "Block 6",
+            "rows": [
+              {
+                "row_number": "17A",
+                "job_type": "SUIER",
+                "stock_count": 94,
+                "time_spent": 1435.99695,
+                "date": "2026-09-24T07:56:20.186Z",
+                "day_of_week": "Thursday",
+                "checkout_recorded_at": "2026-09-24T07:56:20.422Z",
+                "checkout_reason": "",
+                "backdated_by": "",
+                "_id": "6ab4c22d0fdcac1b20f0175c"
+              },
+              {
+                "row_number": "41B",
+                "job_type": "SUIER",
+                "stock_count": 86,
+                "time_spent": 328.8197,
+                "date": "2026-09-24T13:29:53.506Z",
+                "day_of_week": "Thursday",
+                "checkout_recorded_at": "2026-09-24T13:29:53.887Z",
+                "checkout_reason": "",
+                "backdated_by": "",
+                "_id": "6ab525d19d69f1e7ec97f055"
+              }
+            ],
+            "_id": "6ab4c22d0fdcac1b20f0175b"
+          },
+          {
+            "block_name": "Block 7",
+            "rows": [
+              {
+                "row_number": "18B",
+                "job_type": "SUIER",
+                "stock_count": 20,
+                "time_spent": 66.88961666666667,
+                "date": "2026-09-24T14:38:04.861Z",
+                "day_of_week": "Thursday",
+                "checkout_recorded_at": "2026-09-24T14:38:05.005Z",
+                "checkout_reason": "",
+                "backdated_by": "",
+                "_id": "6ab535cd948564e098e0bf53"
+              },
+              {
+                "row_number": "18B",
+                "job_type": "SUIER",
+                "stock_count": 74,
+                "time_spent": 5474.525066666667,
+                "date": "2026-09-28T09:52:36.365Z",
+                "day_of_week": "Monday",
+                "checkout_recorded_at": "2026-09-28T09:52:36.678Z",
+                "checkout_reason": "",
+                "backdated_by": "",
+                "checkout_events": [
+                  {
+                    "checkout_id": "cd95f8ae-f7c2-4135-849c-4f0295f85361",
+                    "work_date": "2026-09-28",
+                    "recorded_at": "2026-09-28T09:52:36.678Z",
+                    "recorded_by": "Jackson",
+                    "reason": "",
+                    "backdated": false,
+                    "vines_before": 74,
+                    "vines_completed": 74,
+                    "vines_remaining": 0,
+                    "minutes_worked": 5474.525066666667,
+                    "kept_checked_in": false,
+                    "checkin_started_at": "2026-09-24T14:38:04.861Z",
+                    "_id": "6aba38e4fd14eeabe9131be2"
+                  }
+                ],
+                "_id": "6aba38e4fd14eeabe9131be1"
+              },
+              {
+                "row_number": "39B",
+                "job_type": "SUIER",
+                "stock_count": 20,
+                "time_spent": 188.3124,
+                "date": "2026-09-28T12:48:31.706Z",
+                "day_of_week": "Monday",
+                "checkout_recorded_at": "2026-09-28T12:48:31.839Z",
+                "checkout_reason": "",
+                "backdated_by": "",
+                "checkout_events": [
+                  {
+                    "checkout_id": "3d209973-5cb1-4172-9dd7-a51834566dab",
+                    "work_date": "2026-09-28",
+                    "recorded_at": "2026-09-28T12:48:31.839Z",
+                    "recorded_by": "Jackson",
+                    "reason": "",
+                    "backdated": false,
+                    "vines_before": 92,
+                    "vines_completed": 20,
+                    "vines_remaining": 72,
+                    "minutes_worked": 188.3124,
+                    "kept_checked_in": false,
+                    "checkin_started_at": "2026-09-28T09:40:12.962Z",
+                    "_id": "6aba621fbbc141479f8a4e3a"
+                  }
+                ],
+                "_id": "6aba621fbbc141479f8a4e39"
+              }
+            ],
+            "_id": "6ab535cd948564e098e0bf52"
+          },
+          {
+            "block_name": "Block 11",
+            "rows": [
+              {
+                "row_number": "61A",
+                "job_type": "SUIER",
+                "stock_count": 60,
+                "time_spent": 48.307300000000005,
+                "date": "2026-09-28T13:27:14.287Z",
+                "day_of_week": "Monday",
+                "checkout_recorded_at": "2026-09-28T13:27:14.470Z",
+                "checkout_reason": "",
+                "backdated_by": "",
+                "checkout_events": [
+                  {
+                    "checkout_id": "25be229c-dbeb-48b4-a695-907b7d234e9c",
+                    "work_date": "2026-09-28",
+                    "recorded_at": "2026-09-28T13:27:14.470Z",
+                    "recorded_by": "Jackson",
+                    "reason": "",
+                    "backdated": false,
+                    "vines_before": 60,
+                    "vines_completed": 60,
+                    "vines_remaining": 0,
+                    "minutes_worked": 48.307300000000005,
+                    "kept_checked_in": false,
+                    "checkin_started_at": "2026-09-28T12:38:55.850Z",
+                    "_id": "6aba6b32bbc141479f8d4dd3"
+                  }
+                ],
+                "_id": "6aba6b32bbc141479f8d4dd2"
+              },
+              {
+                "row_number": "35B",
+                "job_type": "SUIER",
+                "stock_count": 60,
+                "time_spent": 72.08265,
+                "date": "2026-09-28T14:38:41.669Z",
+                "day_of_week": "Monday",
+                "checkout_recorded_at": "2026-09-28T14:38:42.141Z",
+                "checkout_reason": "",
+                "backdated_by": "",
+                "checkout_events": [
+                  {
+                    "checkout_id": "65997701-27be-47e0-a74a-6ecf0f323a8f",
+                    "work_date": "2026-09-28",
+                    "recorded_at": "2026-09-28T14:38:42.141Z",
+                    "recorded_by": "Jackson",
+                    "reason": "",
+                    "backdated": false,
+                    "vines_before": 60,
+                    "vines_completed": 60,
+                    "vines_remaining": 0,
+                    "minutes_worked": 72.08265,
+                    "kept_checked_in": false,
+                    "checkin_started_at": "2026-09-28T13:26:36.711Z",
+                    "_id": "6aba7bf2e7eae7469bd4d280"
+                  }
+                ],
+                "_id": "6aba7bf2e7eae7469bd4d27f"
+              },
+              {
+                "row_number": "17A",
+                "job_type": "SUIER",
+                "stock_count": 24,
+                "time_spent": 10.21785,
+                "date": "2026-09-28T14:46:43.114Z",
+                "day_of_week": "Monday",
+                "checkout_recorded_at": "2026-09-28T14:46:43.370Z",
+                "checkout_reason": "",
+                "backdated_by": "",
+                "checkout_events": [
+                  {
+                    "checkout_id": "8781e7c9-203b-4f00-a4d5-98b01d85c6c2",
+                    "work_date": "2026-09-28",
+                    "recorded_at": "2026-09-28T14:46:43.370Z",
+                    "recorded_by": "Jackson",
+                    "reason": "",
+                    "backdated": false,
+                    "vines_before": 60,
+                    "vines_completed": 24,
+                    "vines_remaining": 36,
+                    "minutes_worked": 10.21785,
+                    "kept_checked_in": true,
+                    "checkin_started_at": "2026-09-28T14:36:30.043Z",
+                    "_id": "6aba7dd3e7eae7469bd5fc3e"
+                  }
+                ],
+                "_id": "6aba7dd3e7eae7469bd5fc3d"
+              },
+              {
+                "row_number": "17A",
+                "job_type": "SUIER",
+                "stock_count": 36,
+                "time_spent": 998.1787166666667,
+                "date": "2026-09-29T07:24:53.837Z",
+                "day_of_week": "Tuesday",
+                "checkout_recorded_at": "2026-09-29T07:24:54.192Z",
+                "checkout_reason": "",
+                "backdated_by": "",
+                "checkout_events": [
+                  {
+                    "checkout_id": "178104d0-ab9b-4628-9012-879bdedcb23b",
+                    "work_date": "2026-09-29",
+                    "recorded_at": "2026-09-29T07:24:54.192Z",
+                    "recorded_by": "Jackson",
+                    "reason": "",
+                    "backdated": false,
+                    "vines_before": 36,
+                    "vines_completed": 36,
+                    "vines_remaining": 0,
+                    "minutes_worked": 998.1787166666667,
+                    "kept_checked_in": false,
+                    "checkin_started_at": "2026-09-28T14:46:43.114Z",
+                    "_id": "6abb67c6c52b82efb02f6a7a"
+                  }
+                ],
+                "_id": "6abb67c6c52b82efb02f6a79"
+              }
+            ],
+            "_id": "6aba6b32bbc141479f8d4dd1"
+          },
+          {
+            "block_name": "Block 8",
+            "rows": [
+              {
+                "row_number": "1A",
+                "job_type": "SUIER",
+                "stock_count": 32,
+                "time_spent": 36.31203333333334,
+                "date": "2026-09-29T08:00:39.513Z",
+                "day_of_week": "Tuesday",
+                "checkout_recorded_at": "2026-09-29T08:00:39.659Z",
+                "checkout_reason": "",
+                "backdated_by": "",
+                "checkout_events": [
+                  {
+                    "checkout_id": "5b8fbe59-3894-4594-98dc-5bb6075b3b13",
+                    "work_date": "2026-09-29",
+                    "recorded_at": "2026-09-29T08:00:39.659Z",
+                    "recorded_by": "Jackson",
+                    "reason": "",
+                    "backdated": false,
+                    "vines_before": 32,
+                    "vines_completed": 32,
+                    "vines_remaining": 0,
+                    "minutes_worked": 36.31203333333334,
+                    "kept_checked_in": false,
+                    "checkin_started_at": "2026-09-29T07:24:20.791Z",
+                    "_id": "6abb7027df10cf491f49cae0"
+                  }
+                ],
+                "_id": "6abb7027df10cf491f49cadf"
+              }
+            ],
+            "_id": "6abb7027df10cf491f49cade"
+          },
+          {
+            "block_name": "Block 2",
+            "rows": [
+              {
+                "row_number": "17A",
+                "job_type": "SUIER",
+                "stock_count": 73,
+                "time_spent": 250.96008333333333,
+                "date": "2026-09-29T12:50:27.801Z",
+                "day_of_week": "Tuesday",
+                "checkout_recorded_at": "2026-09-29T12:50:28.087Z",
+                "checkout_reason": "",
+                "backdated_by": "",
+                "checkout_events": [
+                  {
+                    "checkout_id": "260a6d0a-0ffb-45dc-9c04-e2f16c9fd619",
+                    "work_date": "2026-09-29",
+                    "recorded_at": "2026-09-29T12:50:28.087Z",
+                    "recorded_by": "Jackson",
+                    "reason": "",
+                    "backdated": false,
+                    "vines_before": 73,
+                    "vines_completed": 73,
+                    "vines_remaining": 0,
+                    "minutes_worked": 250.96008333333333,
+                    "kept_checked_in": false,
+                    "checkin_started_at": "2026-09-29T08:39:30.196Z",
+                    "_id": "6abbb414962347664e454c81"
+                  }
+                ],
+                "_id": "6abbb414962347664e454c80"
+              },
+              {
+                "row_number": "37A",
+                "job_type": "SUIER",
+                "stock_count": 49,
+                "time_spent": 0.9009166666666667,
+                "date": "2026-09-29T14:41:23.934Z",
+                "day_of_week": "Tuesday",
+                "checkout_recorded_at": "2026-09-29T14:41:24.190Z",
+                "checkout_reason": "",
+                "backdated_by": "",
+                "checkout_events": [
+                  {
+                    "checkout_id": "1975a984-08b7-4c09-8536-2f12fdccf727",
+                    "work_date": "2026-09-29",
+                    "recorded_at": "2026-09-29T14:41:24.190Z",
+                    "recorded_by": "Jackson",
+                    "reason": "",
+                    "backdated": false,
+                    "vines_before": 73,
+                    "vines_completed": 49,
+                    "vines_remaining": 24,
+                    "minutes_worked": 0.9009166666666667,
+                    "kept_checked_in": true,
+                    "checkin_started_at": "2026-09-29T14:40:29.879Z",
+                    "_id": "6abbce14962347664e4bfbfe"
+                  }
+                ],
+                "_id": "6abbce14962347664e4bfbfd"
+              },
+              {
+                "row_number": "37A",
+                "job_type": "SUIER",
+                "stock_count": 24,
+                "time_spent": 968.2202666666667,
+                "date": "2026-09-30T06:49:37.150Z",
+                "day_of_week": "Wednesday",
+                "checkout_recorded_at": "2026-09-30T06:49:37.406Z",
+                "checkout_reason": "",
+                "backdated_by": "",
+                "checkout_events": [
+                  {
+                    "checkout_id": "c1a21397-cdca-4ac7-81b5-82578110db45",
+                    "work_date": "2026-09-30",
+                    "recorded_at": "2026-09-30T06:49:37.406Z",
+                    "recorded_by": "Jackson",
+                    "reason": "",
+                    "backdated": false,
+                    "vines_before": 24,
+                    "vines_completed": 24,
+                    "vines_remaining": 0,
+                    "minutes_worked": 968.2202666666667,
+                    "kept_checked_in": false,
+                    "checkin_started_at": "2026-09-29T14:41:23.934Z",
+                    "_id": "6abcb10106115128aab43656"
+                  }
+                ],
+                "_id": "6abcb10106115128aab43655"
+              }
+            ],
+            "_id": "6abbb414962347664e454c7f"
+          }
+        ],
+        "name": "De Vlam Donnovan Jerome",
+        "piecework_stock_count": 0,
+        "syncLogs": [],
+        "total_stock_count": 730
+      }
+    ],
+    "pieceworkworkers": [],
+    "workerdahours": [
+      {
+        "_id": "6ab296be70e4f51a63f3d553",
+        "date": "2026-09-22",
+        "workerID": "2052",
+        "__v": 0,
+        "hours": 7,
+        "workerName": "De Vlam Donnovan"
+      },
+      {
+        "_id": "6ab536dd70e4f51a63f445d7",
+        "date": "2026-09-24",
+        "workerID": "2052",
+        "__v": 0,
+        "hours": 7.5,
+        "workerName": "De Vlam Donnovan"
+      },
+      {
+        "_id": "6aba7ee370e4f51a63f58564",
+        "workerID": "2052",
+        "date": "2026-09-28",
+        "__v": 0,
+        "hours": 7.5,
+        "workerName": "De Vlam Donnovan"
+      },
+      {
+        "_id": "6abbd0f670e4f51a63f5c95b",
+        "workerID": "2052",
+        "date": "2026-09-29",
+        "__v": 0,
+        "hours": 7.5,
+        "workerName": "Neotholing"
+      },
+      {
+        "_id": "6abde85018da1913a5ff6dd2",
+        "date": "2026-09-30",
+        "workerID": "2052",
+        "__v": 0,
+        "hours": 2,
+        "workerName": "De Vlam Donnovan Jerome"
+      },
+      {
+        "_id": "6abe7a5718da1913a5ff8316",
+        "date": "2026-10-01",
+        "recordedBy": "Jackson",
+        "workerID": "2052",
+        "__v": 0,
+        "hours": 8,
+        "workerName": "De Vlam Donnovan Jerome"
+      },
+      {
+        "_id": "6ac50e5d216345fd006d7b83",
+        "recordedBy": "Jackson",
+        "date": "2026-10-06",
+        "workerID": "2052",
+        "__v": 0,
+        "hours": 4,
+        "workerName": "De Vlam Donnovan Jerome"
+      },
+      {
+        "_id": "6ac748dcdabccdd0c08c613c",
+        "date": "2026-10-07",
+        "recordedBy": "Jackson",
+        "workerID": "2052",
+        "__v": 0,
+        "hours": 7.5,
+        "workerName": "De Vlam Donnovan Jerome"
+      },
+      {
+        "_id": "6ac7b529dabccdd0c08c77de",
+        "date": "2026-10-08",
+        "recordedBy": "Jackson",
+        "workerID": "2052",
+        "__v": 0,
+        "hours": 7.5,
+        "workerName": "De Vlam Donnovan Jerome"
+      },
+      {
+        "_id": "6acce73adabccdd0c08d9c01",
+        "workerID": "2052",
+        "recordedBy": "Jackson",
+        "date": "2026-10-12",
+        "__v": 0,
+        "hours": 3,
+        "workerName": "De Vlam Donnovan Jerome"
+      },
+      {
+        "_id": "6abbd0f670e4f51a63f5c947",
+        "date": "2026-09-29",
+        "workerID": "20521",
+        "__v": 0,
+        "hours": 7.5,
+        "workerName": "De Vlam Donnovan Jerome"
+      },
+      {
+        "_id": "6abde85018da1913a5ff6de0",
+        "date": "2026-09-30",
+        "workerID": "20521",
+        "__v": 0,
+        "hours": 2,
+        "workerName": "De Vlam Donnovan Jerome"
+      }
+    ]
+  }
+}

@@ -12,7 +12,7 @@ async function run() {
 
   const collection = WorkerDayHours.collection;
   const indexes = await collection.indexes();
-  const legacy = indexes.find(
+  const legacyIndexes = indexes.filter(
     (index) =>
       index.unique === true &&
       index.key.workerID === 1 &&
@@ -20,9 +20,32 @@ async function run() {
       Object.keys(index.key).length === 2
   );
 
-  if (legacy) {
-    await collection.dropIndex(legacy.name);
-    console.log(`Removed legacy index: ${legacy.name}`);
+  const duplicateSupervisorKeys = await collection
+    .aggregate([
+      {
+        $group: {
+          _id: {
+            workerID: "$workerID",
+            date: "$date",
+            recordedBy: "$recordedBy",
+          },
+          count: { $sum: 1 },
+        },
+      },
+      { $match: { count: { $gt: 1 } } },
+      { $limit: 10 },
+    ])
+    .toArray();
+
+  if (duplicateSupervisorKeys.length > 0) {
+    throw new Error(
+      `Cannot create supervisor-specific day-hours index: duplicate worker/date/supervisor records exist (${duplicateSupervisorKeys
+        .map(
+          ({ _id, count }) =>
+            `${_id.workerID}/${_id.date}/${_id.recordedBy || "(none)"} x${count}`
+        )
+        .join(", ")}). Resolve these records before migrating.`
+    );
   }
 
   await collection.createIndex(
@@ -30,6 +53,11 @@ async function run() {
     { unique: true, name: "workerID_1_date_1_recordedBy_1" }
   );
   console.log("Created supervisor-specific day-hours index.");
+
+  for (const legacy of legacyIndexes) {
+    await collection.dropIndex(legacy.name);
+    console.log(`Removed legacy index: ${legacy.name}`);
+  }
 }
 
 run()

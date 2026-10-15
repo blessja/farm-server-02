@@ -250,6 +250,34 @@ export const api = {
   },
   logout: () => clearAuthToken(),
   getBlocks: () => request("/api/blocks"),
+  getBlockInventory: async () => {
+    try {
+      return await request("/api/block-inventory");
+    } catch (error) {
+      if (error?.status !== 404) throw error;
+
+      const blockNames = await request("/api/blocks");
+      if (!Array.isArray(blockNames)) {
+        throw new Error("The server returned an invalid block list.");
+      }
+
+      const blocks = await Promise.all(
+        blockNames.map(async (blockName) => {
+          const block = await request(
+            `/api/block/${encodeURIComponent(String(blockName))}`
+          );
+          return {
+            blockName: block?.block_name || String(blockName),
+            totalVines: Number(block?.total_stocks) || 0,
+            totalRows: Number(block?.total_rows) || 0,
+            variety: block?.variety || "",
+          };
+        })
+      );
+
+      return blocks;
+    }
+  },
   getBlockRows: (blockName) =>
     request(`/api/block/${encodeURIComponent(blockName)}/rows`),
   getBlockDetails: (blockName) =>

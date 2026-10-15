@@ -44,6 +44,8 @@ const en = {
   "tab.fast": "Fast",
   "tab.totals": "Totals",
   "tab.queue": "Queue",
+  "sidebar.workspace": "WORKSPACE",
+  "sidebar.signedIn": "Signed in",
 
   // Common
   "common.close": "Close",
@@ -64,6 +66,9 @@ const en = {
   "common.thisWorker": "this worker",
   "common.unknown": "Unknown",
   "common.menu": "Menu",
+  "pdf.shared": "PDF ready to open or save in a compatible app.",
+  "pdf.downloaded": "PDF downloaded.",
+  "pdf.previewOpened": "Print preview opened. Choose Save as PDF to download it.",
 
   // Dashboard
   "dash.title": "Today at a glance",
@@ -71,6 +76,19 @@ const en = {
   "dash.blocks": "Blocks",
   "dash.checkedIn": "Checked in",
   "dash.selected": "Selected",
+  "dash.blockProgress": "Block progress by job",
+  "dash.blockProgressSub": "Vines worked and vines remaining for each job in each block.",
+  "dash.noBlockProgress": "No piecework progress is available yet.",
+  "dash.blockName": "Block {block}",
+  "dash.vinesWorked": "Worked: {count}",
+  "dash.vinesLeft": "Left: {count}",
+  "dash.vinesTotal": "Block total: {count} vines",
+  "dash.workedLabel": "WORKED",
+  "dash.leftLabel": "LEFT",
+  "dash.progressNotStarted": "Not started",
+  "dash.progressUnderHalf": "Under 50%",
+  "dash.progressOverHalf": "50-99%",
+  "dash.progressComplete": "Complete",
   "dash.offlineSync": "Offline sync",
   "dash.offlineSyncSub": "Write actions are queued locally if the phone loses connection, then replayed when the app comes back online.",
   "dash.queued": "Queued",
@@ -209,6 +227,8 @@ const en = {
 
   // TotalsScreen
   "totals.title": "Totals",
+  "totals.loadingTitle": "Getting your totals ready",
+  "totals.loadingMessage": "Loading piecework and hours...",
   "totals.subtitle": "Day-by-day piecework summary. Tap any cell to add or edit hours worked for that day.",
   "totals.filters": "Filters",
   "totals.allBlocks": "All blocks",

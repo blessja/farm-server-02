@@ -11,7 +11,7 @@ Expo-based React Native starter for the backend in this repository.
 - `src/screens/AuthScreen.js`: PIN-based login screen for optional mobile auth
 - `src/screens/QueueScreen.js`: supervisor queue view for retrying or removing individual offline actions
 - `src/components/ScannerInput.js`: scan-enabled input for worker IDs and row labels
-- `src/screens/*`: starter screens for overview, blocks, regular row workflow, clocking, and fast piecework
+- `src/screens/*`: screens for the home dashboard, regular row workflow, clocking, and fast piecework
 - `src/config/env.js`: backend base URL wiring through `EXPO_PUBLIC_API_URL`
 
 ## Setup
@@ -76,9 +76,18 @@ actions continue to use the existing offline queue.
 Camera scanning in the web app requires the site to be served over HTTPS (or
 localhost) and camera permission to be granted in the browser.
 
+### Exporting totals PDFs
+
+On the installed mobile app, exporting opens the phone's share sheet so you can
+open or save the PDF in a compatible app. In a mobile browser/PWA, the same
+share sheet is used when the browser supports sharing PDF files; otherwise the
+PDF downloads through the browser. On desktop, export downloads the PDF
+directly. Web sharing requires HTTPS.
+
 ## Current backend mappings
 
 - `GET /api/blocks`
+- `GET /api/block-inventory` (block vine totals used by the home progress tracker)
 - `GET /api/block/:blockName/rows`
 - `GET /api/block/:blockName`
 - `GET /api/block/:blockName/row/:rowNumber`

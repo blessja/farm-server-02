@@ -557,8 +557,7 @@ function pdfStringToBytes(pdfString) {
   return bytes;
 }
 
-function triggerWebDownload(pdfString, filename) {
-  const blob = new Blob([pdfStringToBytes(pdfString)], { type: "application/pdf" });
+function triggerWebDownload(blob, filename) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
@@ -569,21 +568,52 @@ function triggerWebDownload(pdfString, filename) {
   setTimeout(() => URL.revokeObjectURL(url), 5000);
 }
 
+function pdfFilename(title = "") {
+  const slug = (title || "totals")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  const day = new Date().toISOString().split("T")[0];
+  return `glen-oak-${slug}-${day}.pdf`;
+}
+
 /**
  * Generate a PDF for the given (already filtered) totals data and share it.
- * On web it writes a real PDF and downloads it directly.
- * Returns the local PDF file URI (native) or blob URL (web).
+ * Mobile browsers open the system share sheet when file sharing is supported;
+ * desktop browsers and unsupported mobile browsers download the PDF instead.
  */
 export async function exportTotalsPdf(params) {
   if (Platform.OS === "web") {
     const pdfString = buildTotalsPdf(params);
-    const slug = (params.title || "totals")
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "");
-    const day = new Date().toISOString().split("T")[0];
-    triggerWebDownload(pdfString, `glen-oak-${slug}-${day}.pdf`);
-    return pdfString;
+    const filename = pdfFilename(params.title);
+    const blob = new Blob([pdfStringToBytes(pdfString)], {
+      type: "application/pdf",
+    });
+    const file = new File([blob], filename, { type: "application/pdf" });
+
+    if (
+      typeof navigator !== "undefined" &&
+      typeof File !== "undefined" &&
+      typeof navigator.share === "function" &&
+      typeof navigator.canShare === "function" &&
+      navigator.canShare({ files: [file] })
+    ) {
+      try {
+        await navigator.share({
+          files: [file],
+          title: filename,
+        });
+        return { delivery: "shared" };
+      } catch (error) {
+        if (error?.name === "AbortError") {
+          return { delivery: "cancelled" };
+        }
+        throw error;
+      }
+    }
+
+    triggerWebDownload(blob, filename);
+    return { delivery: "downloaded" };
   }
 
   const html = buildTotalsHtml(params);
@@ -597,7 +627,7 @@ export async function exportTotalsPdf(params) {
   if (await Sharing.isAvailableAsync()) {
     let shareUri = uri;
     if (printResult.base64 && FileSystem.documentDirectory) {
-      shareUri = `${FileSystem.documentDirectory}glen-oak-totals-${Date.now()}.pdf`;
+      shareUri = `${FileSystem.documentDirectory}${pdfFilename(params.title)}`;
       await FileSystem.writeAsStringAsync(shareUri, printResult.base64, {
         encoding: "base64",
       });
@@ -607,7 +637,9 @@ export async function exportTotalsPdf(params) {
       dialogTitle: "Glen Oak Totals PDF",
       UTI: "com.adobe.pdf",
     });
+    return { delivery: "shared", uri: shareUri };
   }
 
-  return uri;
+  await Print.printAsync({ html });
+  return { delivery: "preview", uri };
 }

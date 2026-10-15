@@ -7,6 +7,7 @@ import {
   Text,
   TouchableOpacity,
   View,
+  useWindowDimensions,
 } from "react-native";
 import { StatusBar as ExpoStatusBar } from "expo-status-bar";
 import "./global.css";
@@ -23,6 +24,7 @@ import TotalsScreen from "./src/screens/TotalsScreen";
 import QueueScreen from "./src/screens/QueueScreen";
 import CheckedInScreen from "./src/screens/CheckedInScreen";
 import TabBar from "./src/components/TabBar";
+import WebSidebar from "./src/components/WebSidebar";
 import AuthScreen from "./src/screens/AuthScreen";
 import SplashScreen from "./src/components/SplashScreen";
 import { api } from "./src/api/client";
@@ -71,6 +73,9 @@ export default function App() {
   });
   const offlineQueue = useOfflineQueue();
   const { t } = useLanguage();
+  const { width } = useWindowDimensions();
+  const desktopSidebar =
+    Platform.OS === "web" && width >= 768 && bootState.authenticated;
 
   const sharedState = useMemo(
     () => ({
@@ -312,6 +317,7 @@ export default function App() {
           <DashboardScreen
             sharedState={sharedState}
             offlineQueue={offlineQueue}
+            supervisorName={bootState.supervisorName}
             onOpenActiveWorkers={() => setActiveWorkersOpen(true)}
           />
         );
@@ -332,7 +338,20 @@ export default function App() {
     <SafeAreaProvider>
       <ExpoStatusBar style="dark" />
       <StatusBar barStyle="dark-content" />
-      <View className="flex-1 bg-gray-50">
+      <View
+        className="flex-1 bg-gray-50"
+        style={{ flexDirection: desktopSidebar ? "row" : "column" }}
+      >
+        {desktopSidebar ? (
+          <WebSidebar
+            tabs={tabs}
+            activeTab={activeTab}
+            onChange={setActiveTab}
+            supervisorName={bootState.supervisorName}
+            onLogout={handleLogout}
+          />
+        ) : null}
+        <View style={{ flex: 1, minWidth: 0 }}>
         <SafeAreaView className="bg-gray-50" edges={["top"]}>
           <View className="px-5 pt-3.5 pb-3">
             <View className="flex-row items-start justify-between gap-3">
@@ -352,7 +371,16 @@ export default function App() {
 
               {bootState.authenticated ||
               (Platform.OS === "web" && !isInstalled) ? (
-                <View style={{ gap: 8, alignItems: "flex-end", marginTop: 6 }}>
+                <View
+                  style={{
+                    flexDirection: desktopSidebar ? "row" : "column",
+                    gap: 8,
+                    alignItems: "flex-end",
+                    justifyContent: "flex-end",
+                    flexWrap: "wrap",
+                    marginTop: 6,
+                  }}
+                >
                   {Platform.OS === "web" && !isInstalled ? (
                     <TouchableOpacity
                       accessibilityRole="button"
@@ -401,15 +429,17 @@ export default function App() {
                           {refreshing ? t("header.refreshing") : t("header.refresh")}
                         </Text>
                       </TouchableOpacity>
-                      <TouchableOpacity
-                        activeOpacity={0.7}
-                        style={{ borderRadius: 12, backgroundColor: "#E5ECE4", borderWidth: 1, borderColor: "#D4DFD3", paddingHorizontal: 14, paddingVertical: 10 }}
-                        onPress={handleLogout}
-                      >
-                        <Text style={{ color: "#374236", fontSize: 13, fontWeight: "800" }}>
-                          {t("header.logout")}
-                        </Text>
-                      </TouchableOpacity>
+                      {!desktopSidebar ? (
+                        <TouchableOpacity
+                          activeOpacity={0.7}
+                          style={{ borderRadius: 12, backgroundColor: "#E5ECE4", borderWidth: 1, borderColor: "#D4DFD3", paddingHorizontal: 14, paddingVertical: 10 }}
+                          onPress={handleLogout}
+                        >
+                          <Text style={{ color: "#374236", fontSize: 13, fontWeight: "800" }}>
+                            {t("header.logout")}
+                          </Text>
+                        </TouchableOpacity>
+                      ) : null}
                     </>
                   ) : null}
                 </View>
@@ -420,6 +450,13 @@ export default function App() {
 
         <View className="flex-1" key={`${cacheEpoch}-${refreshEpoch}`}>
           {renderContent()}
+        </View>
+
+        {bootState.loading || !bootState.authenticated || desktopSidebar ? null : (
+          <SafeAreaView className="bg-gray-50" edges={["bottom"]}>
+            <TabBar tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
+          </SafeAreaView>
+        )}
         </View>
 
         <Modal visible={activeWorkersOpen} animationType="slide">
@@ -445,11 +482,6 @@ export default function App() {
           </SafeAreaView>
         </Modal>
 
-        {bootState.loading || !bootState.authenticated ? null : (
-          <SafeAreaView className="bg-gray-50" edges={["bottom"]}>
-            <TabBar tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
-          </SafeAreaView>
-        )}
       </View>
     </SafeAreaProvider>
   );
