@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from "react";
-import { View, Text, Animated } from "react-native";
+import { View, Text, Animated, Platform } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import GlenOakLogo from "./GlenOakLogo";
 
@@ -14,12 +14,12 @@ export default function SplashScreen() {
       Animated.timing(scaleAnim, {
         toValue: 1,
         duration: 600,
-        useNativeDriver: true,
+        useNativeDriver: Platform.OS !== "web",
       }),
       Animated.timing(opacityAnim, {
         toValue: 1,
         duration: 600,
-        useNativeDriver: true,
+        useNativeDriver: Platform.OS !== "web",
       }),
     ]).start();
 
@@ -28,7 +28,7 @@ export default function SplashScreen() {
       Animated.timing(spinAnim, {
         toValue: 1,
         duration: 2000,
-        useNativeDriver: true,
+        useNativeDriver: Platform.OS !== "web",
       })
     ).start();
   }, [scaleAnim, opacityAnim, spinAnim]);

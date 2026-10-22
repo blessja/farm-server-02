@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { api } from "../api/client";
 import ScreenScroll from "../components/ScreenScroll";
@@ -14,6 +15,7 @@ import InfoPill from "../components/InfoPill";
 import FeedbackBanner from "../components/FeedbackBanner";
 import ActionButton from "../components/ActionButton";
 import LabeledInput from "../components/LabeledInput";
+import SelectField from "../components/SelectField";
 import { useAsyncData } from "../hooks/useAsyncData";
 import { LANGUAGES, useLanguage } from "../i18n";
 import { addServerWorker, resolveWorkerInput } from "../workers/workerRegistry";
@@ -59,6 +61,8 @@ export default function DashboardScreen({
   const [adminSubmitting, setAdminSubmitting] = useState(false);
   const [adminModalVisible, setAdminModalVisible] = useState(false);
   const [blockProgressExpanded, setBlockProgressExpanded] = useState(true);
+  const [selectedProgressJob, setSelectedProgressJob] = useState("");
+  const [expandedProgressCard, setExpandedProgressCard] = useState("");
 
   function openAdminModal() {
     setAdminForm({ workerID: "", workerName: "" });
@@ -80,6 +84,7 @@ export default function DashboardScreen({
     if (!Array.isArray(inventory)) return [];
 
     const workedByBlockAndJob = new Map();
+    const rowsByBlockAndJob = new Map();
     const jobTypes = new Set();
     const workerLists = [
       progressState.data?.regularTotals?.workers,
@@ -102,6 +107,25 @@ export default function DashboardScreen({
             key,
             (workedByBlockAndJob.get(key) || 0) + vines
           );
+          const rowNumber = String(row?.rowNumber ?? row?.row_number ?? "").trim();
+          if (rowNumber) {
+            if (!rowsByBlockAndJob.has(key)) rowsByBlockAndJob.set(key, new Map());
+            const blockRows = rowsByBlockAndJob.get(key);
+            if (!blockRows.has(rowNumber)) blockRows.set(rowNumber, new Map());
+            const rowWorkers = blockRows.get(rowNumber);
+            const workerID = String(worker?.workerID || "").trim();
+            const workerName = String(
+              worker?.workerName || worker?.name || workerID
+            ).trim();
+            const workerKey = workerID || workerName;
+            if (workerKey) {
+              const existing = rowWorkers.get(workerKey);
+              rowWorkers.set(workerKey, {
+                name: workerName,
+                vines: (existing?.vines || 0) + vines,
+              });
+            }
+          }
           jobTypes.add(jobType);
         });
       });
@@ -133,12 +157,42 @@ export default function DashboardScreen({
               remaining: Math.max(0, totalVines - worked),
               percentage,
               totalVines,
+              rows: sortNamesNumerically([
+                ...(rowsByBlockAndJob.get(`${blockName}\u0000${jobType}`)?.keys() || []),
+              ]).map((rowNumber) => ({
+                rowNumber,
+                workers: [...rowsByBlockAndJob.get(`${blockName}\u0000${jobType}`).get(rowNumber)]
+                  .map(([workerID, worker]) => ({
+                    workerID,
+                    ...worker,
+                  }))
+                  .sort((a, b) => a.name.localeCompare(b.name)),
+              })),
             };
           }),
         };
       }
     ).filter((block) => block.jobs.length > 0);
   }, [progressState.data]);
+  const progressJobOptions = useMemo(
+    () =>
+      [...new Set(blockProgress.flatMap((block) => block.jobs.map((job) => job.jobType)))]
+        .sort((a, b) => a.localeCompare(b))
+        .map((jobType) => ({ label: jobType, value: jobType })),
+    [blockProgress]
+  );
+  const selectedJobBlockProgress = useMemo(
+    () =>
+      blockProgress
+        .map((block) => ({
+          ...block,
+          jobs: block.jobs.filter(
+            (job) => job.jobType === selectedProgressJob && job.worked > 0
+          ),
+        }))
+        .filter((block) => block.jobs.length > 0),
+    [blockProgress, selectedProgressJob]
+  );
 
   async function handleAddWorker() {
     let workerID = adminForm.workerID.trim();
@@ -250,12 +304,27 @@ export default function DashboardScreen({
           <ActivityIndicator color="#16a34a" />
         ) : progressState.error ? (
           <FeedbackBanner type="error" message={progressState.error} />
-        ) : blockProgress.length === 0 ? (
+        ) : progressJobOptions.length === 0 ? (
           <Text className="text-gray-500 text-sm leading-5">
             {t("dash.noBlockProgress")}
           </Text>
         ) : (
           <View className="gap-3">
+            <SelectField
+              label={t("dash.progressJob")}
+              value={selectedProgressJob}
+              placeholder={t("dash.selectProgressJob")}
+              options={progressJobOptions}
+              onSelect={setSelectedProgressJob}
+              emptyMessage={t("dash.noBlockProgress")}
+            />
+            {!selectedProgressJob ? (
+              <Text className="text-gray-500 text-sm leading-5">
+                {t("dash.chooseProgressJob")}
+              </Text>
+            ) : null}
+            {selectedProgressJob ? (
+              <>
             <View className="flex-row flex-wrap gap-x-3 gap-y-1">
               {[
                 ["#9ca3af", t("dash.progressNotStarted")],
@@ -277,30 +346,46 @@ export default function DashboardScreen({
               ))}
             </View>
             <View className="flex-row flex-wrap gap-2.5">
-              {blockProgress.flatMap((block) =>
+              {selectedJobBlockProgress.flatMap((block) =>
                 block.jobs.map((job) => {
                   const color = getProgressColor(job.percentage);
+                  const cardKey = `${block.blockName}-${job.jobType}`;
+                  const isExpanded = expandedProgressCard === cardKey;
                   return (
-                    <View
-                      key={`${block.blockName}-${job.jobType}`}
+                    <TouchableOpacity
+                      key={cardKey}
+                      accessibilityRole="button"
+                      accessibilityState={{ expanded: isExpanded }}
+                      activeOpacity={0.9}
+                      onPress={() =>
+                        setExpandedProgressCard((current) =>
+                          current === cardKey ? "" : cardKey
+                        )
+                      }
                       style={{
                         flexGrow: 1,
-                        flexBasis: 150,
-                        maxWidth: 280,
+                        flexBasis: isExpanded ? "100%" : 150,
+                        maxWidth: isExpanded ? "100%" : 280,
                         minWidth: 135,
+                        width: isExpanded ? "100%" : undefined,
                         borderWidth: 1,
-                        borderColor: "#e5e7eb",
-                        borderRadius: 16,
+                        borderColor: isExpanded ? "#86c99b" : "#e5e7eb",
+                        borderRadius: 18,
                         backgroundColor: "#fff",
-                        padding: 12,
-                        gap: 9,
-                        shadowColor: "#111827",
-                        shadowOpacity: 0.05,
-                        shadowRadius: 6,
-                        shadowOffset: { width: 0, height: 2 },
-                        elevation: 1,
+                        overflow: "hidden",
+                        shadowColor: "#14532d",
+                        shadowOpacity: isExpanded ? 0.14 : 0.07,
+                        shadowRadius: isExpanded ? 12 : 7,
+                        shadowOffset: { width: 0, height: isExpanded ? 5 : 2 },
+                        elevation: isExpanded ? 4 : 2,
                       }}
                     >
+                      <LinearGradient
+                        colors={isExpanded ? ["#f0fdf4", "#ffffff"] : ["#ffffff", "#f8fcf9"]}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={{ padding: 13, gap: 9 }}
+                      >
                       <View className="flex-row items-start justify-between gap-2">
                         <View className="flex-1 gap-1">
                           <Text className="text-gray-900 text-sm font-extrabold">
@@ -313,7 +398,7 @@ export default function DashboardScreen({
                         <View
                           style={{
                             borderRadius: 999,
-                            backgroundColor: `${color}18`,
+                            backgroundColor: isExpanded ? "#dcfce7" : `${color}18`,
                             paddingHorizontal: 8,
                             paddingVertical: 4,
                           }}
@@ -331,20 +416,25 @@ export default function DashboardScreen({
                       </Text>
                       <View
                         style={{
-                          height: 6,
-                          backgroundColor: "#f3f4f6",
+                          height: 8,
+                          backgroundColor: "#e8f1eb",
                           borderRadius: 999,
                           overflow: "hidden",
+                          padding: 1,
                         }}
                       >
-                        <View
-                          style={{
-                            width: `${job.percentage}%`,
-                            height: "100%",
-                            backgroundColor: color,
-                            borderRadius: 999,
-                          }}
-                        />
+                        {job.percentage > 0 ? (
+                          <LinearGradient
+                            colors={[color, color === "#16a34a" ? "#4ade80" : "#86c99b"]}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 0 }}
+                            style={{
+                              width: `${job.percentage}%`,
+                              height: "100%",
+                              borderRadius: 999,
+                            }}
+                          />
+                        ) : null}
                       </View>
                       <View className="flex-row justify-between gap-2">
                         <View className="flex-1">
@@ -369,10 +459,58 @@ export default function DashboardScreen({
                           count: job.totalVines.toLocaleString(),
                         })}
                       </Text>
-                    </View>
+                      <View className="flex-row items-center justify-between border-t border-gray-100 pt-2">
+                        <Text className="text-farm-700 text-[11px] font-bold">
+                          {t("dash.rowsWorked", { count: job.rows.length })}
+                        </Text>
+                        <Text className="text-farm-700 text-xs font-extrabold">
+                          {isExpanded ? "−" : "+"}
+                        </Text>
+                      </View>
+                      {isExpanded ? (
+                        <View className="gap-2 border-t border-green-100 pt-2">
+                          {job.rows.length ? (
+                            job.rows.map((row) => (
+                              <View
+                                key={row.rowNumber}
+                                className="rounded-xl bg-white/80 px-2.5 py-2"
+                                style={{ borderWidth: 1, borderColor: "#e8f1eb" }}
+                              >
+                                <Text className="text-gray-800 text-xs font-extrabold">
+                                  {t("dash.rowLabel", { row: row.rowNumber })}
+                                </Text>
+                                {row.workers.map((worker) => (
+                                  <View
+                                    key={`${row.rowNumber}-${worker.workerID}`}
+                                    className="mt-1 flex-row items-center justify-between gap-2"
+                                  >
+                                    <Text
+                                      className="flex-1 text-gray-600 text-xs"
+                                      numberOfLines={1}
+                                    >
+                                      {worker.name}
+                                    </Text>
+                                    <Text className="text-gray-500 text-[10px] font-semibold">
+                                      {worker.vines.toLocaleString()}
+                                    </Text>
+                                  </View>
+                                ))}
+                              </View>
+                            ))
+                          ) : (
+                            <Text className="text-gray-500 text-xs">
+                              {t("dash.noRowDetails")}
+                            </Text>
+                          )}
+                        </View>
+                      ) : null}
+                      </LinearGradient>
+                    </TouchableOpacity>
                   );
                 }))}
             </View>
+              </>
+            ) : null}
           </View>
           )
         ) : null}

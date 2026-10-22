@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Text, TouchableOpacity, View } from "react-native";
 import { api } from "../api/client";
 import ScreenScroll from "../components/ScreenScroll";
@@ -14,6 +14,7 @@ import TotalsSummary from "../components/TotalsSummary";
 import { exportTotalsPdf } from "../utils/totalsExport";
 import { sortNamesNumerically } from "../utils/sortNames";
 import { useLanguage } from "../i18n";
+import { getRowAdvanceSettings, setRowAdvanceSettings } from "../storage/settingsStorage";
 
 const initialForm = {
   workerID: "",
@@ -33,10 +34,23 @@ export default function FastPieceworkScreen({ sharedState, offlineQueue }) {
   const [feedback, setFeedback] = useState({ type: "info", message: "" });
   const [submitting, setSubmitting] = useState(false);
   const [allowSameJob, setAllowSameJob] = useState(false);
+  const [rowDirection, setRowDirection] = useState(1);
+  const [autoNextEnabled, setAutoNextEnabled] = useState(true);
+  const [nextDirection, setNextDirection] = useState("follow");
   const [blockFilter, setBlockFilter] = useState("");
   const [jobFilter, setJobFilter] = useState("");
   const [exporting, setExporting] = useState(false);
   const [exportMessage, setExportMessage] = useState(null);
+
+  useEffect(() => {
+    (async () => {
+      const settings = await getRowAdvanceSettings();
+      if (settings) {
+        setAutoNextEnabled(settings.enabled !== false);
+        if (settings.direction) setNextDirection(settings.direction);
+      }
+    })();
+  }, []);
 
   const totalsState = useAsyncData(() => api.getFastTotals(), [], {
     cacheKey: "fast-totals",
@@ -208,6 +222,81 @@ export default function FastPieceworkScreen({ sharedState, offlineQueue }) {
     value: rowNumber,
   }));
 
+  function availableRowNumbers() {
+    return sortNamesNumerically([
+      ...new Set(rows.map((rowNumber) => String(rowNumber))),
+    ]);
+  }
+
+  function handleRowSelect(value) {
+    const prevRow = sharedState.selectedRow;
+    const nextRow = String(value);
+    if (prevRow) {
+      const availableRows = availableRowNumbers();
+      const prevIndex = availableRows.indexOf(String(prevRow));
+      const nextIndex = availableRows.indexOf(nextRow);
+      if (prevIndex !== -1 && nextIndex !== -1) {
+        if (nextIndex > prevIndex) setRowDirection(1);
+        else if (nextIndex < prevIndex) setRowDirection(-1);
+      }
+    }
+    sharedState.setSelectedRow(nextRow);
+    setAllowSameJob(false);
+  }
+
+  function advanceToNextRow() {
+    if (!autoNextEnabled) return;
+    const availableRows = availableRowNumbers();
+    const currentValue = String(sharedState.selectedRow || "");
+    if (!currentValue || availableRows.length === 0) return;
+
+    const currentIndex = availableRows.indexOf(currentValue);
+    if (currentIndex === -1) return;
+
+    let step = rowDirection;
+    if (nextDirection === "up") step = 1;
+    else if (nextDirection === "down") step = -1;
+
+    const blockedRows = new Set(disabledRowValues.map(String));
+    let nextRow = null;
+    for (let i = 1; i < availableRows.length; i++) {
+      const candidate = availableRows[currentIndex + step * i];
+      if (candidate === undefined) break;
+      if (blockedRows.has(candidate)) continue;
+      nextRow = candidate;
+      break;
+    }
+
+    if (nextRow) {
+      sharedState.setSelectedRow(nextRow);
+      if (nextDirection === "up" || nextDirection === "down") {
+        setRowDirection(step);
+      }
+    }
+  }
+
+  function handleSuccessfulCheckinSelection() {
+    const selectedRow = sharedState.selectedRow;
+    if (!selectedRow) return;
+
+    if (autoNextEnabled) {
+      advanceToNextRow();
+      return;
+    }
+
+    sharedState.setSelectedRow(String(selectedRow));
+  }
+
+  function toggleAutoNext(value) {
+    setAutoNextEnabled(value);
+    setRowAdvanceSettings(value, nextDirection);
+  }
+
+  function handleNextDirection(direction) {
+    setNextDirection(direction);
+    setRowAdvanceSettings(autoNextEnabled, direction);
+  }
+
   async function handleSubmit() {
     setSubmitting(true);
     setFeedback({ type: "info", message: "" });
@@ -219,21 +308,7 @@ export default function FastPieceworkScreen({ sharedState, offlineQueue }) {
       };
       const result = await api.fastCheckin(payload);
       setFeedback({ type: "success", message: result.message });
-      if (sharedState.selectedRow) {
-        const rowNumbers = sortNamesNumerically([...new Set(rows.map((rowNumber) => String(rowNumber)))]);
-        const currentIndex = rowNumbers.indexOf(String(sharedState.selectedRow));
-        const blockedRows = new Set(disabledRowValues.map(String));
-        let nextRow = null;
-        if (currentIndex !== -1) {
-          for (let i = currentIndex + 1; i < rowNumbers.length; i++) {
-            const candidate = rowNumbers[i];
-            if (blockedRows.has(candidate)) continue;
-            nextRow = candidate;
-            break;
-          }
-        }
-        if (nextRow) sharedState.setSelectedRow(nextRow);
-      }
+      handleSuccessfulCheckinSelection();
       totalsState.refresh();
       blockDetailsState.refresh();
       await offlineQueue.refreshQueueCount();
@@ -301,10 +376,7 @@ export default function FastPieceworkScreen({ sharedState, offlineQueue }) {
           value={sharedState.selectedRow}
           placeholder={t("dw.selectRow")}
           options={rowOptions}
-          onSelect={(value) => {
-            sharedState.setSelectedRow(value);
-            setAllowSameJob(false);
-          }}
+          onSelect={handleRowSelect}
           emptyMessage={
             sharedState.selectedBlock
               ? t("dw.noRowsInBlock")
@@ -344,6 +416,77 @@ export default function FastPieceworkScreen({ sharedState, offlineQueue }) {
             </Text>
           </TouchableOpacity>
         )}
+        <TouchableOpacity
+          activeOpacity={0.7}
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 10,
+            paddingVertical: 8,
+          }}
+          onPress={() => toggleAutoNext(!autoNextEnabled)}
+        >
+          <View
+            style={{
+              width: 22,
+              height: 22,
+              borderRadius: 6,
+              borderWidth: 2,
+              borderColor: autoNextEnabled ? "#16a34a" : "#d1d5db",
+              backgroundColor: autoNextEnabled ? "#16a34a" : "#fff",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            {autoNextEnabled && (
+              <Text style={{ color: "#fff", fontSize: 14, fontWeight: "800" }}>✓</Text>
+            )}
+          </View>
+          <Text className="text-gray-600 text-sm" style={{ flex: 1 }}>
+            {t("dw.autoNextRow")}
+          </Text>
+        </TouchableOpacity>
+        {autoNextEnabled ? (
+          <View>
+            <Text className="text-gray-500 text-xs" style={{ marginBottom: 6 }}>
+              {t("dw.autoNextRowSub")}
+            </Text>
+            <View style={{ flexDirection: "row", gap: 8 }}>
+              {[
+                { key: "follow", label: t("dw.dirFollow") },
+                { key: "up", label: t("dw.dirUp") },
+                { key: "down", label: t("dw.dirDown") },
+              ].map((opt) => {
+                const active = nextDirection === opt.key;
+                return (
+                  <TouchableOpacity
+                    key={opt.key}
+                    activeOpacity={0.7}
+                    onPress={() => handleNextDirection(opt.key)}
+                    style={{
+                      paddingHorizontal: 10,
+                      paddingVertical: 6,
+                      borderRadius: 8,
+                      borderWidth: 1,
+                      borderColor: active ? "#16a34a" : "#d1d5db",
+                      backgroundColor: active ? "#dcfce7" : "#fff",
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 12,
+                        fontWeight: active ? "700" : "500",
+                        color: active ? "#15803d" : "#6b7280",
+                      }}
+                    >
+                      {opt.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+        ) : null}
         <FeedbackBanner type="error" message={blocksState.error || rowsState.error || blockDetailsState.error} />
       </SectionCard>
 

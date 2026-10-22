@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
-  Alert,
   Modal,
   Platform,
   StatusBar,
@@ -57,8 +56,6 @@ export default function App() {
   const [cacheEpoch, setCacheEpoch] = useState(0);
   const [refreshEpoch, setRefreshEpoch] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
-  const [installPrompt, setInstallPrompt] = useState(null);
-  const [isInstalled, setIsInstalled] = useState(false);
   const [selectedBlock, setSelectedBlock] = useState("");
   const [selectedRow, setSelectedRow] = useState("");
   const [jobType, setJobType] = useState("");
@@ -156,32 +153,6 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (Platform.OS !== "web" || typeof window === "undefined") return;
-
-    setIsInstalled(
-      window.matchMedia("(display-mode: standalone)").matches ||
-        window.navigator.standalone === true
-    );
-
-    const handleInstallPrompt = (event) => {
-      event.preventDefault();
-      setInstallPrompt(event);
-    };
-    const handleInstalled = () => {
-      setInstallPrompt(null);
-      setIsInstalled(true);
-    };
-
-    window.addEventListener("beforeinstallprompt", handleInstallPrompt);
-    window.addEventListener("appinstalled", handleInstalled);
-
-    return () => {
-      window.removeEventListener("beforeinstallprompt", handleInstallPrompt);
-      window.removeEventListener("appinstalled", handleInstalled);
-    };
-  }, []);
-
-  useEffect(() => {
     if (
       Platform.OS !== "web" ||
       typeof navigator === "undefined" ||
@@ -196,20 +167,6 @@ export default function App() {
         console.error("Could not register the Glen Oak offline app shell.", error);
       });
   }, []);
-
-  async function handleInstall() {
-    if (installPrompt) {
-      await installPrompt.prompt();
-      await installPrompt.userChoice;
-      setInstallPrompt(null);
-      return;
-    }
-
-    Alert.alert(
-      t("pwa.installHelpTitle"),
-      t("pwa.installHelpMessage")
-    );
-  }
 
   async function handleClearCache() {
     await clearAllCache();
@@ -369,8 +326,7 @@ export default function App() {
                 ) : null}
               </View>
 
-              {bootState.authenticated ||
-              (Platform.OS === "web" && !isInstalled) ? (
+              {bootState.authenticated ? (
                 <View
                   style={{
                     flexDirection: desktopSidebar ? "row" : "column",
@@ -381,25 +337,6 @@ export default function App() {
                     marginTop: 6,
                   }}
                 >
-                  {Platform.OS === "web" && !isInstalled ? (
-                    <TouchableOpacity
-                      accessibilityRole="button"
-                      activeOpacity={0.7}
-                      style={{
-                        borderRadius: 12,
-                        backgroundColor: "#eaf3ec",
-                        borderWidth: 1,
-                        borderColor: "#c7dbce",
-                        paddingHorizontal: 14,
-                        paddingVertical: 8,
-                      }}
-                      onPress={handleInstall}
-                    >
-                      <Text style={{ color: "#1a5f4a", fontSize: 12, fontWeight: "700" }}>
-                        {t("pwa.install")}
-                      </Text>
-                    </TouchableOpacity>
-                  ) : null}
                   {bootState.authenticated ? (
                     <>
                       <TouchableOpacity

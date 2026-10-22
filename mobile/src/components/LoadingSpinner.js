@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from "react";
-import { View, Animated, ActivityIndicator } from "react-native";
+import { View, Animated, ActivityIndicator, Platform } from "react-native";
 
 export default function LoadingSpinner({
   size = "large",
@@ -14,12 +14,12 @@ export default function LoadingSpinner({
       Animated.timing(scaleAnim, {
         toValue: 1,
         duration: 400,
-        useNativeDriver: true,
+        useNativeDriver: Platform.OS !== "web",
       }),
       Animated.timing(opacityAnim, {
         toValue: 1,
         duration: 400,
-        useNativeDriver: true,
+        useNativeDriver: Platform.OS !== "web",
       }),
     ]).start();
   }, [scaleAnim, opacityAnim]);
