@@ -17,7 +17,7 @@ import {
 import DashboardScreen from "./src/screens/DashboardScreen";
 import DayWorkScreen from "./src/screens/DayWorkScreen";
 import MoveWorkersScreen from "./src/screens/MoveWorkersScreen";
-import ClockScreen from "./src/screens/ClockScreen";
+import AttendanceRegisterScreen from "./src/screens/AttendanceRegisterScreen";
 import FastPieceworkScreen from "./src/screens/FastPieceworkScreen";
 import TotalsScreen from "./src/screens/TotalsScreen";
 import QueueScreen from "./src/screens/QueueScreen";
@@ -45,7 +45,7 @@ const tabs = [
   { key: "daywork", label: "DayWork" },
   { key: "working", label: "Working" },
   { key: "move", label: "Move" },
-  { key: "clock", label: "Clock" },
+  { key: "clock", label: "Register" },
   { key: "fast", label: "Fast" },
   { key: "totals", label: "Totals" },
   { key: "queue", label: "Queue" },
@@ -256,7 +256,7 @@ export default function App() {
           />
         );
       case "clock":
-        return <ClockScreen offlineQueue={offlineQueue} />;
+        return <AttendanceRegisterScreen offlineQueue={offlineQueue} />;
       case "fast":
         return (
           <FastPieceworkScreen

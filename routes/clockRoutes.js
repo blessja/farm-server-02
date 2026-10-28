@@ -5,6 +5,10 @@ const workerClock = require("../controllers/workerClock");
 
 router.post("/clockin", workerClock.addClockIn);
 router.post("/clockout", workerClock.addClockOut);
+router.put(
+  "/session/:workerID/:sessionID",
+  workerClock.updateClockSession
+);
 router.get("/monitor-clockins", monitorClockIns);
 router.get("/clocks", workerClock.getAllClockData);
 router.get("/earliest-clock-in", workerClock.getEarliestClockInDate);

@@ -300,6 +300,15 @@ export const api = {
   clockIn: (body) => queuedMutation("/api/clock/clockin", body, "Clock in"),
   clockOut: (body) => queuedMutation("/api/clock/clockout", body, "Clock out"),
   getClockData: () => request("/api/clock/clocks"),
+  updateClockSession: (workerID, sessionID, body) =>
+    request(
+      `/api/clock/session/${encodeURIComponent(workerID)}/${encodeURIComponent(sessionID)}`,
+      {
+        method: "PUT",
+        timeoutMs: WRITE_TIMEOUT_MS,
+        body: JSON.stringify(body),
+      }
+    ),
   fastCheckin: (body) =>
     queuedMutation("/api/fast-piecework/fast-checkin", body, "Fast piecework"),
   getFastTotals: (query = {}) => {

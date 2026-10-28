@@ -4,7 +4,12 @@ const WorkerClock = require("../models/WorkerClock");
 
 // Add a new clock-in entry for a worker
 exports.addClockIn = async (req, res) => {
-  const { workerID, workerName, timezone = "Africa/Johannesburg" } = req.body;
+  const {
+    workerID,
+    workerName,
+    timezone = "Africa/Johannesburg",
+    clockInAt,
+  } = req.body;
 
   try {
     // Find the worker's record or create a new one if not found
@@ -27,35 +32,40 @@ exports.addClockIn = async (req, res) => {
       });
     }
 
-    // Check if the worker is already clocked in
-    const activeSession = worker.clockIns.find(
-      (session) => !session.clockOutTime
-    );
+    let clockInTime;
+    if (clockInAt) {
+      clockInTime = moment(clockInAt).tz(timezone);
+      if (!clockInTime.isValid()) {
+        return res.status(400).json({ message: "Invalid clock-in time." });
+      }
+    } else {
+      const now = moment().tz(timezone);
+      const defaultClockInTime = moment.tz({ hour: 7, minute: 30 }, timezone);
 
-    if (activeSession) {
-      return res.status(400).json({
-        message: `Worker ${workerName} is already clocked in. Please clock out first.`,
-      });
+      if (now.isBefore(defaultClockInTime)) {
+        clockInTime = defaultClockInTime;
+      } else if (
+        now.isAfter(defaultClockInTime) &&
+        now.diff(defaultClockInTime, "minutes") <= 10
+      ) {
+        clockInTime = defaultClockInTime;
+      } else {
+        clockInTime = now;
+      }
     }
 
-    // Define 07:30 SAST as the fixed default clock-in time
-    const now = moment().tz(timezone);
-    const defaultClockInTime = moment.tz({ hour: 7, minute: 30 }, timezone);
+    const activeSessionForDate = worker.clockIns.find(
+      (session) =>
+        !session.clockOutTime &&
+        moment(session.clockInTime)
+          .tz(timezone)
+          .isSame(clockInTime, "day")
+    );
 
-    // Logic to determine the clock-in time
-    let clockInTime;
-    if (now.isBefore(defaultClockInTime)) {
-      // If the worker clocks in earlier, set it to 07:30
-      clockInTime = defaultClockInTime;
-    } else if (
-      now.isAfter(defaultClockInTime) &&
-      now.diff(defaultClockInTime, "minutes") <= 10
-    ) {
-      // If the worker clocks in within 30 minutes after 07:30, still use 07:30
-      clockInTime = defaultClockInTime;
-    } else {
-      // Otherwise, use the current time
-      clockInTime = now;
+    if (activeSessionForDate) {
+      return res.status(400).json({
+        message: `Worker ${workerName} is already clocked in for this date. Please clock out first.`,
+      });
     }
 
     // Add the clock-in entry
@@ -70,6 +80,7 @@ exports.addClockIn = async (req, res) => {
     res.status(201).json({
       message: `Clock-in entry added successfully for ${workerName}.`,
       clockInTime: clockInTime.format("YYYY-MM-DD HH:mm:ss"), // Return formatted time
+      session: worker.clockIns[worker.clockIns.length - 1].toObject(),
     });
   } catch (error) {
     console.error("Error during clock-in:", error);
@@ -78,27 +89,48 @@ exports.addClockIn = async (req, res) => {
 };
 // Clock-out a worker
 exports.addClockOut = async (req, res) => {
-  const { workerID, workerName, timezone = "UTC" } = req.body;
+  const {
+    workerID,
+    workerName,
+    timezone = "UTC",
+    sessionID,
+    clockOutAt,
+  } = req.body;
 
   try {
-    const worker = await WorkerClock.findOne({ workerID, workerName });
+    const worker = await WorkerClock.findOne({ workerID });
 
     if (!worker) {
       return res.status(404).json({ message: "Worker not found" });
     }
 
-    const currentSession = worker.clockIns.find(
-      (session) => !session.clockOutTime
-    );
-
-    if (!currentSession) {
-      return res
-        .status(400)
-        .json({ message: `Worker ${workerName} is not clocked in.` });
+    const now = clockOutAt
+      ? moment(clockOutAt).tz(timezone)
+      : moment().tz(timezone);
+    if (!now.isValid()) {
+      return res.status(400).json({ message: "Invalid clock-out time." });
     }
 
-    const now = moment().tz(timezone);
-    const officialClockOutTime = moment.tz({ hour: 17, minute: 30 }, timezone);
+    const currentSession = sessionID
+      ? worker.clockIns.id(sessionID)
+      : worker.clockIns.find(
+          (session) =>
+            !session.clockOutTime &&
+            moment(session.clockInTime).tz(timezone).isSame(now, "day")
+        );
+
+    if (!currentSession || currentSession.clockOutTime) {
+      return res
+        .status(400)
+        .json({ message: `Worker ${workerName || worker.workerName} is not clocked in.` });
+    }
+
+    const officialClockOutTime = now
+      .clone()
+      .hour(17)
+      .minute(30)
+      .second(0)
+      .millisecond(0);
 
     // Ensure the clock-out time is set to 17:30 if current time is after 17:30
     currentSession.clockOutTime = now.isAfter(officialClockOutTime)
@@ -109,7 +141,7 @@ exports.addClockOut = async (req, res) => {
     const clockInTime = moment(currentSession.clockInTime).tz(timezone);
     const clockOutTime = moment(currentSession.clockOutTime).tz(timezone);
 
-    let duration = clockOutTime.diff(clockInTime, "hours", true);
+    let duration = Math.max(0, clockOutTime.diff(clockInTime, "hours", true));
 
     const lunchStart = moment
       .tz(clockInTime, timezone)
@@ -119,11 +151,15 @@ exports.addClockOut = async (req, res) => {
       .set({ hour: 13, minute: 0 });
 
     // Deduct lunch break if applicable
-    if (clockInTime.isBefore(lunchEnd) && clockOutTime.isAfter(lunchStart)) {
+    if (
+      clockOutTime.isAfter(clockInTime) &&
+      clockInTime.isBefore(lunchEnd) &&
+      clockOutTime.isAfter(lunchStart)
+    ) {
       const overlapStart = moment.max(clockInTime, lunchStart);
       const overlapEnd = moment.min(clockOutTime, lunchEnd);
       const overlapDuration = overlapEnd.diff(overlapStart, "hours", true);
-      duration -= overlapDuration;
+      duration = Math.max(0, duration - overlapDuration);
     }
 
     currentSession.duration = duration;
@@ -139,6 +175,7 @@ exports.addClockOut = async (req, res) => {
       } clocked out successfully. Worked ${duration.toFixed(
         2
       )} hours on ${clockInDay}.`,
+      session: currentSession.toObject(),
     });
   } catch (error) {
     res.status(500).json({ message: "Server error", error });
@@ -151,7 +188,6 @@ const autoClockOut = async (timezone = "Africa/Johannesburg") => {
     const workers = await WorkerClock.find({});
 
     const now = moment().tz(timezone);
-    const officialClockOutTime = moment.tz({ hour: 17, minute: 30 }, timezone);
 
     for (const worker of workers) {
       // Find all sessions without clockOutTime
@@ -161,12 +197,19 @@ const autoClockOut = async (timezone = "Africa/Johannesburg") => {
 
       for (const session of unclockedSessions) {
         const clockInTime = moment(session.clockInTime).tz(timezone);
-        let clockOutTime = now.isAfter(officialClockOutTime)
-          ? officialClockOutTime
+        if (clockInTime.isAfter(now)) continue;
+        const sessionOfficialClockOut = clockInTime
+          .clone()
+          .hour(17)
+          .minute(30)
+          .second(0)
+          .millisecond(0);
+        let clockOutTime = now.isAfter(sessionOfficialClockOut)
+          ? sessionOfficialClockOut
           : now;
 
         // Ensure lunch break deduction if applicable
-        let duration = clockOutTime.diff(clockInTime, "hours", true);
+        let duration = Math.max(0, clockOutTime.diff(clockInTime, "hours", true));
 
         const lunchStart = moment
           .tz(clockInTime, timezone)
@@ -176,13 +219,14 @@ const autoClockOut = async (timezone = "Africa/Johannesburg") => {
           .set({ hour: 13, minute: 0 });
 
         if (
+          clockOutTime.isAfter(clockInTime) &&
           clockInTime.isBefore(lunchEnd) &&
           clockOutTime.isAfter(lunchStart)
         ) {
           const overlapStart = moment.max(clockInTime, lunchStart);
           const overlapEnd = moment.min(clockOutTime, lunchEnd);
           const overlapDuration = overlapEnd.diff(overlapStart, "hours", true);
-          duration -= overlapDuration;
+          duration = Math.max(0, duration - overlapDuration);
         }
 
         // Update the session with clock-out time and duration
@@ -228,6 +272,92 @@ exports.autoClockOutEndpoint = async (req, res) => {
     res
       .status(500)
       .json({ message: "Server error during auto clock-out.", error });
+  }
+};
+
+exports.updateClockSession = async (req, res) => {
+  const { workerID, sessionID } = req.params;
+  const { field, time } = req.body || {};
+  const timezone = "Africa/Johannesburg";
+
+  if (!["clockInTime", "clockOutTime"].includes(field)) {
+    return res.status(400).json({ message: "Choose a valid clock time to edit." });
+  }
+  const editedTime = moment(time, moment.ISO_8601, true);
+  if (!time || !editedTime.isValid()) {
+    return res.status(400).json({ message: "Enter a valid clock time." });
+  }
+
+  try {
+    const worker = await WorkerClock.findOne({ workerID });
+    if (!worker) {
+      return res.status(404).json({ message: "Worker clock record not found." });
+    }
+
+    const session = worker.clockIns.id(sessionID);
+    if (!session) {
+      return res.status(404).json({ message: "Clock session not found." });
+    }
+    if (field === "clockOutTime" && !session.clockInTime) {
+      return res.status(400).json({ message: "Clock in before editing clock out." });
+    }
+
+    session[field] = editedTime.toDate();
+    session.day = moment(session.clockInTime).tz(timezone).format("dddd");
+
+    const workedHoursPerDay = {
+      Wednesday: 0,
+      Thursday: 0,
+      Friday: 0,
+      Saturday: 0,
+      Monday: 0,
+      Tuesday: 0,
+    };
+    let totalWorkedHours = 0;
+
+    worker.clockIns.forEach((entry) => {
+      if (!entry.clockInTime || !entry.clockOutTime) {
+        entry.duration = undefined;
+        return;
+      }
+
+      const clockInTime = moment(entry.clockInTime).tz(timezone);
+      const clockOutTime = moment(entry.clockOutTime).tz(timezone);
+      let duration = Math.max(0, clockOutTime.diff(clockInTime, "hours", true));
+      const lunchStart = clockInTime.clone().hour(12).minute(0).second(0);
+      const lunchEnd = clockInTime.clone().hour(13).minute(0).second(0);
+
+      if (
+        clockOutTime.isAfter(clockInTime) &&
+        clockInTime.isBefore(lunchEnd) &&
+        clockOutTime.isAfter(lunchStart)
+      ) {
+        const overlapStart = moment.max(clockInTime, lunchStart);
+        const overlapEnd = moment.min(clockOutTime, lunchEnd);
+        duration = Math.max(
+          0,
+          duration - overlapEnd.diff(overlapStart, "hours", true)
+        );
+      }
+
+      entry.duration = duration;
+      const day = clockInTime.format("dddd");
+      if (Object.prototype.hasOwnProperty.call(workedHoursPerDay, day)) {
+        workedHoursPerDay[day] += duration;
+      }
+      totalWorkedHours += duration;
+    });
+
+    worker.workedHoursPerDay = workedHoursPerDay;
+    worker.totalWorkedHours = totalWorkedHours;
+    await worker.save();
+    res.json({
+      message: "Attendance time updated successfully.",
+      session: session.toObject(),
+    });
+  } catch (error) {
+    console.error("Error updating attendance time:", error);
+    res.status(500).json({ message: "Failed to update attendance time." });
   }
 };
 // Get all the clock data of the workers

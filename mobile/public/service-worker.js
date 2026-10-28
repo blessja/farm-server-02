@@ -1,9 +1,12 @@
-const CACHE_NAME = "glen-oak-shell-v1";
+const CACHE_NAME = "glen-oak-shell-v2";
 const SHELL_PATHS = ["/", "/index.html"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(SHELL_PATHS))
+    caches
+      .open(CACHE_NAME)
+      .then((cache) => cache.addAll(SHELL_PATHS))
+      .then(() => self.skipWaiting())
   );
 });
 
@@ -57,15 +60,17 @@ self.addEventListener("fetch", (event) => {
   if (!["script", "style", "image", "font"].includes(request.destination)) return;
 
   event.respondWith(
-    caches.match(request).then(async (cachedResponse) => {
-      if (cachedResponse) return cachedResponse;
-
-      const response = await fetch(request);
-      if (response.ok) {
-        const copy = response.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
-      }
-      return response;
-    })
+    fetch(request)
+      .then((response) => {
+        if (response.ok) {
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+        }
+        return response;
+      })
+      .catch(async () => {
+        const cachedResponse = await caches.match(request);
+        return cachedResponse || Response.error();
+      })
   );
 });
