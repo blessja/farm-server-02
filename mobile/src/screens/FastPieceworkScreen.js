@@ -11,7 +11,7 @@ import WorkerSuggestionInput from "../components/WorkerSuggestionInput";
 import SelectField from "../components/SelectField";
 import TotalsGrid from "../components/TotalsGrid";
 import TotalsSummary from "../components/TotalsSummary";
-import { exportTotalsPdf } from "../utils/totalsExport";
+import { exportTotalsExcel, exportTotalsPdf } from "../utils/totalsExport";
 import { sortNamesNumerically } from "../utils/sortNames";
 import { useLanguage } from "../i18n";
 import { getRowAdvanceSettings, setRowAdvanceSettings } from "../storage/settingsStorage";
@@ -107,6 +107,18 @@ export default function FastPieceworkScreen({ sharedState, offlineQueue }) {
       ? totalsState.data
       : [];
 
+  const varietyByBlock = useMemo(() => {
+    const blockStatus = Array.isArray(totalsState.data?.globalBlockStatus)
+      ? totalsState.data.globalBlockStatus
+      : [];
+    return blockStatus.reduce((map, block) => {
+      if (block?.blockName && block?.variety) {
+        map[block.blockName] = String(block.variety).trim();
+      }
+      return map;
+    }, {});
+  }, [totalsState.data]);
+
   const fastRows = useMemo(() => {
     const rows = [];
     totals.forEach((w) => {
@@ -120,11 +132,24 @@ export default function FastPieceworkScreen({ sharedState, offlineQueue }) {
           date: r.date,
           jobType: (r.jobType || r.job_type || "").trim().toUpperCase(),
           timeSpent: r.timeSpent || r.time_spent || 0,
+          variety: String(r.variety || varietyByBlock[r.blockName] || "").trim(),
         });
       });
     });
     return rows;
-  }, [totals]);
+  }, [totals, varietyByBlock]);
+
+  const selectedRowWorkerName = useMemo(() => {
+    const block = String(sharedState.selectedBlock || "");
+    const row = String(sharedState.selectedRow || "");
+    if (!block || !row) return "";
+    const match = fastRows.find(
+      (r) =>
+        String(r.blockName || "") === block &&
+        String(r.rowNumber) === row
+    );
+    return match ? String(match.workerName || "") : "";
+  }, [fastRows, sharedState.selectedBlock, sharedState.selectedRow]);
 
   const dayHours = useMemo(() => {
     const list = Array.isArray(hoursState.data) ? hoursState.data : [];
@@ -161,12 +186,45 @@ export default function FastPieceworkScreen({ sharedState, offlineQueue }) {
   const isFiltered = Boolean(blockFilter || jobFilter);
   const hasFastData = filteredFastRows.length > 0;
 
-  async function handleExport() {
+  async function handleExport(download = false) {
     if (exporting || !hasFastData) return;
     setExporting(true);
     setExportMessage(null);
     try {
       const result = await exportTotalsPdf({
+        rows: filteredFastRows,
+        hours: dayHours,
+        blockFilter,
+        jobFilter,
+        title: "Fast Totals",
+        download,
+      });
+      if (result.delivery === "cancelled") return;
+      const messageKey = {
+        shared: "pdf.shared",
+        downloaded: "pdf.downloaded",
+        preview: "pdf.previewOpened",
+      }[result.delivery];
+      setExportMessage({
+        text: messageKey ? t(messageKey) : t("fast.pdfCreated"),
+        ok: true,
+      });
+    } catch (error) {
+      setExportMessage({
+        text: error?.message || t("fast.pdfError"),
+        ok: false,
+      });
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  async function handleExportExcel() {
+    if (exporting || !hasFastData) return;
+    setExporting(true);
+    setExportMessage(null);
+    try {
+      const result = await exportTotalsExcel({
         rows: filteredFastRows,
         hours: dayHours,
         blockFilter,
@@ -308,6 +366,7 @@ export default function FastPieceworkScreen({ sharedState, offlineQueue }) {
       };
       const result = await api.fastCheckin(payload);
       setFeedback({ type: "success", message: result.message });
+      setForm((current) => ({ ...current, workerID: "", workerName: "" }));
       handleSuccessfulCheckinSelection();
       totalsState.refresh();
       blockDetailsState.refresh();
@@ -383,6 +442,11 @@ export default function FastPieceworkScreen({ sharedState, offlineQueue }) {
               : t("dw.selectBlockFirst")
           }
           disabledValues={disabledRowValues}
+          displayValue={
+            sharedState.selectedRow
+              ? `${sharedState.selectedRow}${selectedRowWorkerName ? ` — ${selectedRowWorkerName}` : ""}`
+              : undefined
+          }
         />
         {completedRowNumbers.length > 0 && (
           <TouchableOpacity
@@ -587,6 +651,7 @@ export default function FastPieceworkScreen({ sharedState, offlineQueue }) {
             rows={filteredFastRows}
             hours={dayHours}
             editable
+            byVariety
             onHoursChanged={() => hoursState.refresh()}
             emptyMessage={t("fast.noTotalsMatchCurrent")}
           />
@@ -600,7 +665,19 @@ export default function FastPieceworkScreen({ sharedState, offlineQueue }) {
       >
         <ActionButton
           label={exporting ? t("fast.preparingPdf") : t("fast.exportPdf")}
-          onPress={handleExport}
+          onPress={() => handleExport(false)}
+          disabled={exporting || !hasFastData}
+          tone="secondary"
+        />
+        <ActionButton
+          label={exporting ? t("fast.preparingPdf") : t("fast.exportDownload")}
+          onPress={() => handleExport(true)}
+          disabled={exporting || !hasFastData}
+          tone="primary"
+        />
+        <ActionButton
+          label={exporting ? t("fast.preparingPdf") : t("fast.exportExcel")}
+          onPress={handleExportExcel}
           disabled={exporting || !hasFastData}
           tone="secondary"
         />

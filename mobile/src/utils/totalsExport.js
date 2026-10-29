@@ -2,6 +2,7 @@ import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
 import * as FileSystem from "expo-file-system/legacy";
 import { Platform } from "react-native";
+import * as XLSX from "xlsx";
 
 function dateKey(dateStr) {
   if (!dateStr) return "unknown";
@@ -577,12 +578,104 @@ function pdfFilename(title = "") {
   return `glen-oak-${slug}-${day}.pdf`;
 }
 
+function buildTotalsWorkbook(params) {
+  const rankedRows = buildRankedRows(params.rows, params.hours);
+  const grandVines = rankedRows.reduce((sum, worker) => sum + worker.vines, 0);
+  const grandHours = rankedRows.reduce((sum, worker) => sum + worker.hours, 0);
+
+  const header = ["ID", "Last name", "First Name", "Vines", "Hours", "Vines/hour", "Position", "Fastest"];
+  const data = rankedRows.map((w) => [
+    String(w.workerID),
+    String(w.lastName ?? ""),
+    String(w.firstName ?? ""),
+    w.vines,
+    w.hours ? Number(w.hours) || 0 : 0,
+    w.rate > 0 ? Number(w.rate) || 0 : 0,
+    String(w.position),
+    String(w.fastest ?? ""),
+  ]);
+  data.push(["", "", "Total", grandVines, grandHours, "", "", ""]);
+
+  const ws = XLSX.utils.aoa_to_sheet([header, ...data]);
+  const range = XLSX.utils.decode_range(ws["!ref"] || "A1");
+
+  const headerFont = { bold: true, color: { rgb: "FFFFFF" } };
+  const headerFill = { patternType: "solid", fgColor: { rgb: "2D7A55" } };
+  const totalFont = { bold: true, color: { rgb: "15803D" } };
+
+  for (let R = range.s.r; R <= range.e.r; R++) {
+    for (let C = range.s.c; C <= range.e.c; C++) {
+      const cell = ws[XLSX.utils.encode_cell({ r: R, c: C })];
+      if (!cell) continue;
+      if (R === 0) {
+        cell.s = { ...(cell.s || {}), font: headerFont, fill: headerFill, alignment: { horizontal: "center" } };
+      } else if (R === range.e.r) {
+        cell.s = { ...(cell.s || {}), font: totalFont };
+      }
+      if (typeof cell.v === "number") cell.z = "#,##0";
+    }
+  }
+
+  ws["!cols"] = [
+    { wch: 8 },
+    { wch: 14 },
+    { wch: 14 },
+    { wch: 10 },
+    { wch: 10 },
+    { wch: 12 },
+    { wch: 10 },
+    { wch: 10 },
+  ];
+
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, ws, "Totals");
+  return workbook;
+}
+
 /**
- * Generate a PDF for the given (already filtered) totals data and share it.
+ * Generate a real Excel (.xlsx) workbook for the given (already filtered) totals
+ * data and export it, keeping the same layout/format as the PDF export.
+ * Mobile browsers download the file; native uses the print-to-file pipeline.
+ */
+export async function exportTotalsExcel(params) {
+  const workbook = buildTotalsWorkbook(params);
+  const excelData = XLSX.write(workbook, { type: "array", bookType: "xlsx" });
+
+  if (Platform.OS === "web") {
+    const blob = new Blob([excelData], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+    const filename = pdfFilename(params.title).replace(/\.pdf$/, ".xlsx");
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+    return { delivery: "downloaded" };
+  }
+
+  const base64 = XLSX.write(workbook, { type: "base64", bookType: "xlsx" });
+  if (FileSystem.documentDirectory) {
+    const uri = `${FileSystem.documentDirectory}${pdfFilename(params.title).replace(/\.pdf$/, ".xlsx")}`;
+    await FileSystem.writeAsStringAsync(uri, base64, { encoding: "base64" });
+    return { delivery: "downloaded", uri };
+  }
+  return { delivery: "downloaded" };
+}
+
+/**
+ * Generate a PDF for the given (already filtered) totals data and export it.
  * Mobile browsers open the system share sheet when file sharing is supported;
  * desktop browsers and unsupported mobile browsers download the PDF instead.
+ * Set `download: true` to skip sharing/printing and deliver the file as a
+ * direct download/save.
  */
 export async function exportTotalsPdf(params) {
+  const downloadOnly = params?.download === true;
+
   if (Platform.OS === "web") {
     const pdfString = buildTotalsPdf(params);
     const filename = pdfFilename(params.title);
@@ -591,13 +684,7 @@ export async function exportTotalsPdf(params) {
     });
     const file = new File([blob], filename, { type: "application/pdf" });
 
-    if (
-      typeof navigator !== "undefined" &&
-      typeof File !== "undefined" &&
-      typeof navigator.share === "function" &&
-      typeof navigator.canShare === "function" &&
-      navigator.canShare({ files: [file] })
-    ) {
+    if (!downloadOnly && typeof navigator !== "undefined" && typeof File !== "undefined" && typeof navigator.share === "function" && typeof navigator.canShare === "function" && navigator.canShare({ files: [file] })) {
       try {
         await navigator.share({
           files: [file],
@@ -623,6 +710,17 @@ export async function exportTotalsPdf(params) {
     base64: true,
   });
   const uri = printResult.uri;
+
+  if (downloadOnly) {
+    if (printResult.base64 && FileSystem.documentDirectory) {
+      const downloadUri = `${FileSystem.documentDirectory}${pdfFilename(params.title)}`;
+      await FileSystem.writeAsStringAsync(downloadUri, printResult.base64, {
+        encoding: "base64",
+      });
+      return { delivery: "downloaded", uri: downloadUri };
+    }
+    return { delivery: "downloaded", uri };
+  }
 
   if (await Sharing.isAvailableAsync()) {
     let shareUri = uri;

@@ -240,6 +240,7 @@ exports.getFastPieceworkTotals = async (req, res) => {
             vines: row.stock_count,
             date: row.date,
             jobType: row.job_type,
+            variety: (blockInfo[block.block_name] || {}).variety || "",
           });
 
           // Track block completion

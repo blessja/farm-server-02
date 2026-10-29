@@ -10,10 +10,12 @@ export default function SelectField({
   onSelect,
   emptyMessage,
   disabledValues = [],
+  displayValue,
 }) {
   const { t } = useLanguage();
   const [open, setOpen] = useState(false);
   const resolvedEmpty = emptyMessage ?? t("sf.noOptions");
+  const displayText = displayValue ?? value;
 
   return (
     <View style={{ gap: 6 }}>
@@ -33,8 +35,8 @@ export default function SelectField({
         }}
         onPress={() => setOpen((current) => !current)}
       >
-        <Text style={{ fontSize: 15, flex: 1, color: value ? "#111827" : "#9ca3af" }}>
-          {value || placeholder}
+        <Text style={{ fontSize: 15, flex: 1, color: displayText ? "#111827" : "#9ca3af" }}>
+          {displayText || placeholder}
         </Text>
         <Text style={{ color: "#9ca3af", fontSize: 12, fontWeight: "800", marginLeft: 10 }}>
           {open ? "▲" : "▼"}

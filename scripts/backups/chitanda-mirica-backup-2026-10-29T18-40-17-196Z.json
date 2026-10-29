@@ -1,0 +1,64 @@
+{
+  "workerID": "4044",
+  "name": "Chitanda Mirica",
+  "piecework_stock_count": 514,
+  "blocks": [
+    {
+      "block_name": "Block 7",
+      "rows": [
+        {
+          "row_number": "17B",
+          "job_type": "LEAF PICKING",
+          "stock_count": 94,
+          "date": "2026-10-29T06:08:25.429Z",
+          "day_of_week": "Thursday",
+          "recorded_by": "Jackson",
+          "_id": "6ae2e2d9219cc82a8911ce33"
+        },
+        {
+          "row_number": "17A",
+          "job_type": "LEAF PICKING",
+          "stock_count": 94,
+          "date": "2026-10-29T06:08:37.525Z",
+          "day_of_week": "Thursday",
+          "recorded_by": "",
+          "_id": "6ae2e2e5219cc82a8911cf30"
+        },
+        {
+          "row_number": "38A",
+          "job_type": "LEAF PICKING",
+          "stock_count": 92,
+          "date": "2026-10-29T09:46:57.948Z",
+          "day_of_week": "Thursday",
+          "recorded_by": "",
+          "_id": "6ae31612219cc82a8912a6fa"
+        }
+      ],
+      "_id": "6ae2e2d9219cc82a8911ce32"
+    },
+    {
+      "block_name": "Block 1",
+      "rows": [
+        {
+          "row_number": "15A",
+          "job_type": "LEAF PICKING",
+          "stock_count": 57,
+          "date": "2026-10-29T13:22:07.803Z",
+          "day_of_week": "Thursday",
+          "recorded_by": "Jackson",
+          "_id": "6ae34880219cc82a89135739"
+        },
+        {
+          "row_number": "15B",
+          "job_type": "LEAF PICKING",
+          "stock_count": 57,
+          "date": "2026-10-29T13:22:12.528Z",
+          "day_of_week": "Thursday",
+          "recorded_by": "",
+          "_id": "6ae34884219cc82a89135830"
+        }
+      ],
+      "_id": "6ae34880219cc82a89135738"
+    }
+  ]
+}

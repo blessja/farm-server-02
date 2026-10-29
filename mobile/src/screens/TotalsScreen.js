@@ -7,7 +7,7 @@ import SelectField from "../components/SelectField";
 import ActionButton from "../components/ActionButton";
 import TotalsGrid from "../components/TotalsGrid";
 import TotalsSummary from "../components/TotalsSummary";
-import { exportTotalsPdf } from "../utils/totalsExport";
+import { exportTotalsExcel, exportTotalsPdf } from "../utils/totalsExport";
 import { sortNamesNumerically } from "../utils/sortNames";
 import { useAsyncData } from "../hooks/useAsyncData";
 import { useLanguage } from "../i18n";
@@ -150,12 +150,45 @@ export default function TotalsScreen({ supervisorName = "" }) {
   const isFiltered = blockFilter || jobFilter || rowFilter;
   const hasData = filteredRows.length > 0;
 
-  async function handleExport() {
+  async function handleExport(download = false) {
     if (exporting || !hasData) return;
     setExporting(true);
     setExportMessage(null);
     try {
       const result = await exportTotalsPdf({
+        rows: filteredRows,
+        hours: dayHours,
+        blockFilter,
+        jobFilter,
+        rowFilter,
+        download,
+      });
+      if (result.delivery === "cancelled") return;
+      const messageKey = {
+        shared: "pdf.shared",
+        downloaded: "pdf.downloaded",
+        preview: "pdf.previewOpened",
+      }[result.delivery];
+      setExportMessage({
+        text: messageKey ? t(messageKey) : t("totals.pdfCreated"),
+        ok: true,
+      });
+    } catch (error) {
+      setExportMessage({
+        text: error?.message || t("totals.pdfError"),
+        ok: false,
+      });
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  async function handleExportExcel() {
+    if (exporting || !hasData) return;
+    setExporting(true);
+    setExportMessage(null);
+    try {
+      const result = await exportTotalsExcel({
         rows: filteredRows,
         hours: dayHours,
         blockFilter,
@@ -300,7 +333,19 @@ export default function TotalsScreen({ supervisorName = "" }) {
       >
         <ActionButton
           label={exporting ? t("totals.preparingPdf") : t("totals.exportPdf")}
-          onPress={handleExport}
+          onPress={() => handleExport(false)}
+          disabled={exporting || !hasData}
+          tone="secondary"
+        />
+        <ActionButton
+          label={exporting ? t("totals.preparingPdf") : t("totals.exportDownload")}
+          onPress={() => handleExport(true)}
+          disabled={exporting || !hasData}
+          tone="primary"
+        />
+        <ActionButton
+          label={exporting ? t("totals.preparingPdf") : t("totals.exportExcel")}
+          onPress={handleExportExcel}
           disabled={exporting || !hasData}
           tone="secondary"
         />

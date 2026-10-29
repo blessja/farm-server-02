@@ -17,6 +17,7 @@ const NAME_COL_WIDTH = 140;
 const ID_COL_WIDTH = 48;
 const DAY_COL_WIDTH = 76;
 const TOTAL_COL_WIDTH = 80;
+const VARIETY_COL_WIDTH = 96;
 const ROW_HEIGHT = 46;
 const HEADER_HEIGHT = 40;
 
@@ -82,6 +83,7 @@ export default function TotalsGrid({
   hours = {},
   editable = true,
   onHoursChanged,
+  byVariety = false,
   emptyMessage,
 }) {
   const { t } = useLanguage();
@@ -251,7 +253,58 @@ export default function TotalsGrid({
     [workerOrder, workerHours]
   );
 
-  const hasData = workerOrder.length > 0 && dateOrder.length > 0;
+  // Varieties present in the current (filtered) view. Drives the variety-column
+  // layout: one column per variety, name of the variety on top of its column.
+  const varieties = useMemo(() => {
+    const set = new Set();
+    rows.forEach((r) => {
+      const v = (r.variety || "").toString().trim();
+      if (v) set.add(v);
+    });
+    return [...set].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+  }, [rows]);
+
+  // Per worker × variety vine totals for the variety-column layout.
+  const varietyMatrix = useMemo(() => {
+    const map = {};
+    rows.forEach((r) => {
+      const v = (r.variety || "").toString().trim();
+      const wk = r.workerID;
+      if (!map[wk]) map[wk] = {};
+      if (!map[wk][v]) map[wk][v] = 0;
+      map[wk][v] += r.vines || 0;
+    });
+    return map;
+  }, [rows]);
+
+  const varietyTotals = useMemo(() => {
+    const totals = {};
+    varieties.forEach((v) => {
+      totals[v] = 0;
+    });
+    workerOrder.forEach((w) => {
+      const wVarieties = varietyMatrix[w.workerID] || {};
+      varieties.forEach((v) => {
+        totals[v] += wVarieties[v] || 0;
+      });
+    });
+    return totals;
+  }, [varieties, workerOrder, varietyMatrix]);
+
+  // Latest work day per worker in the current view — used by the variety-column
+  // layout to open the hours editor (hours stay keyed by worker + day).
+  const workerLatestDay = useMemo(() => {
+    const map = {};
+    rows.forEach((r) => {
+      const dk = dateKey(r.date);
+      if (!map[r.workerID] || dk > map[r.workerID]) map[r.workerID] = dk;
+    });
+    return map;
+  }, [rows]);
+
+  const byVarietyMode = byVariety && varieties.length > 0;
+
+  const hasData = workerOrder.length > 0 && (byVarietyMode ? varieties.length > 0 : dateOrder.length > 0);
 
   function handleCellPress(worker, dk) {
     if (!editable) return;
@@ -429,7 +482,8 @@ export default function TotalsGrid({
             }}
           >
             <View style={{ width: ID_COL_WIDTH }}>
-              {editable ? (
+              {byVarietyMode ? <View style={{ height: 24, backgroundColor: "#f9fafb" }} /> : null}
+              {!byVarietyMode && editable ? (
                 <View
                   style={{
                     height: HEADER_HEIGHT,
@@ -493,7 +547,8 @@ export default function TotalsGrid({
             </View>
 
             <View style={{ width: NAME_COL_WIDTH, borderLeftWidth: 1, borderLeftColor: "#e5e7eb" }}>
-              {editable ? (
+              {byVarietyMode ? <View style={{ height: 24, backgroundColor: "#f9fafb" }} /> : null}
+              {!byVarietyMode && editable ? (
                 <View
                   style={{
                     height: HEADER_HEIGHT,
@@ -572,6 +627,127 @@ export default function TotalsGrid({
           {/* ── SCROLLABLE DATE + TOTAL COLUMNS ── */}
           <ScrollView horizontal showsHorizontalScrollIndicator style={{ flex: 1 }}>
             <View>
+              {byVarietyMode ? (
+                <>
+              <View style={{ flexDirection: "row", height: 24, backgroundColor: "#f9fafb", borderBottomWidth: 1, borderBottomColor: "#e5e7eb" }}>
+                <View style={{ width: varieties.length * VARIETY_COL_WIDTH, justifyContent: "center", paddingHorizontal: 10 }}>
+                  <Text style={{ fontSize: 10, fontWeight: "800", color: "#6b7280", textTransform: "uppercase", letterSpacing: 0.5 }}>
+                    {t("grid.variety")}
+                  </Text>
+                </View>
+                <View style={{ width: TOTAL_COL_WIDTH }} />
+              </View>
+              {/* ── VARIETY HEADER ROW (name of each variety on top of its column) ── */}
+              <View style={{ flexDirection: "row", height: HEADER_HEIGHT, backgroundColor: "#f9fafb", borderBottomWidth: 1, borderBottomColor: "#e5e7eb" }}>
+                {varieties.map((v) => (
+                  <HeaderCell key={v} width={VARIETY_COL_WIDTH}>
+                    <Text style={{ fontSize: 11, fontWeight: "800", color: "#374151", textAlign: "center" }} numberOfLines={1}>
+                      {v}
+                    </Text>
+                  </HeaderCell>
+                ))}
+                <HeaderCell width={TOTAL_COL_WIDTH} style={{ backgroundColor: "#f0fdf4" }}>
+                  <Text style={{ fontSize: 11, fontWeight: "800", color: "#16a34a", textTransform: "uppercase", letterSpacing: 0.5 }}>
+                    {t("grid.total")}
+                  </Text>
+                  <Text style={{ fontSize: 9, fontWeight: "700", color: "#15803d", marginTop: 2, textTransform: "uppercase" }}>
+                    {t("grid.vinesHrs")}
+                  </Text>
+                </HeaderCell>
+              </View>
+
+              {/* ── VARIETY DATA ROWS (worker × variety totals) ── */}
+              {workerOrder.map((w, idx) => {
+                const rowBg = idx % 2 === 0 ? "#fff" : "#f9fafb";
+                const wTotal = workerTotals[w.workerID] || 0;
+                const wHours = workerHours[w.workerID] || 0;
+                const wVarieties = varietyMatrix[w.workerID] || {};
+                const dayKeyForWorker = workerLatestDay[w.workerID] || "";
+                return (
+                  <View
+                    key={w.workerID}
+                    style={{
+                      flexDirection: "row",
+                      height: ROW_HEIGHT,
+                      backgroundColor: rowBg,
+                      borderBottomWidth: 1,
+                      borderBottomColor: "#f3f4f6",
+                    }}
+                  >
+                    {varieties.map((v) => {
+                      const vines = wVarieties[v] || 0;
+                      return (
+                        <TouchableOpacity
+                          key={v}
+                          activeOpacity={editable ? 0.6 : 1}
+                          disabled={!editable}
+                          onPress={() => handleCellPress(w, dayKeyForWorker)}
+                          style={{
+                            width: VARIETY_COL_WIDTH,
+                            height: ROW_HEIGHT,
+                            justifyContent: "center",
+                            alignItems: "center",
+                            borderRightWidth: 1,
+                            borderRightColor: "#f3f4f6",
+                          }}
+                        >
+                          <Text
+                            style={{
+                              fontSize: 13,
+                              fontWeight: vines > 0 ? "700" : "400",
+                              color: vines > 0 ? "#111827" : "#d1d5db",
+                            }}
+                          >
+                            {vines > 0 ? vines : "—"}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                    <DataCell width={TOTAL_COL_WIDTH} style={{ backgroundColor: "#f0fdf4", borderRightWidth: 0 }}>
+                      <Text style={{ fontSize: 13, fontWeight: "800", color: "#16a34a" }}>
+                        {wTotal}
+                      </Text>
+                      {wHours > 0 ? (
+                        <Text style={{ fontSize: 10, fontWeight: "700", color: "#15803d", marginTop: 1 }}>
+                          {formatHours(wHours)}
+                        </Text>
+                      ) : null}
+                    </DataCell>
+                  </View>
+                );
+              })}
+
+              {/* ── VARIETY TOTAL ROW ── */}
+              <View
+                style={{
+                  flexDirection: "row",
+                  height: ROW_HEIGHT,
+                  backgroundColor: "#f0fdf4",
+                  borderTopWidth: 2,
+                  borderTopColor: "#16a34a",
+                }}
+              >
+                {varieties.map((v) => (
+                  <DataCell key={v} width={VARIETY_COL_WIDTH}>
+                    <Text style={{ fontSize: 13, fontWeight: "800", color: "#16a34a" }}>
+                      {varietyTotals[v] || 0}
+                    </Text>
+                  </DataCell>
+                ))}
+                <DataCell width={TOTAL_COL_WIDTH} style={{ backgroundColor: "#dcfce7", borderRightWidth: 0 }}>
+                  <Text style={{ fontSize: 14, fontWeight: "800", color: "#15803d" }}>
+                    {grandTotal}
+                  </Text>
+                  {grandHours > 0 ? (
+                    <Text style={{ fontSize: 10, fontWeight: "700", color: "#15803d", marginTop: 1 }}>
+                      {formatHours(grandHours)}
+                    </Text>
+                  ) : null}
+                </DataCell>
+              </View>
+                </>
+              ) : (
+              <>
               {/* ── DAY-HOURS ROW (fill a whole date column at once) ── */}
               {editable ? (
                 <View style={{ flexDirection: "row", height: HEADER_HEIGHT, backgroundColor: "#ecfeff", borderBottomWidth: 1, borderBottomColor: "#e5e7eb" }}>
@@ -734,6 +910,8 @@ export default function TotalsGrid({
                   ) : null}
                 </DataCell>
               </View>
+              </>
+              )}
             </View>
           </ScrollView>
         </View>
