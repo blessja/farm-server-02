@@ -81,6 +81,7 @@ Permanent Vrouens
 1012	Louw Karen
 1013	Vis Christeline
 1015	Sylvester Sandton
+1016	Mapolisa Concilia
 1017	Lottering Allyssia
 1018	Koopman Francis
 1023	George Rozane
@@ -122,7 +123,7 @@ Zim Vrouens
 4044	Chitanda Mirica
 4051	Phiri Jane
 4057	Chamisa Florence
-4060	Sithole Sifelani
+4060	Sithole Ayanda
 4061	Nyawaranda Tsitsi
 4102	Kaitano Moleene
 4111	Kurehwa Crecencia
