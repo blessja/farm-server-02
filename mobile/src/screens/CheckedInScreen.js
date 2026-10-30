@@ -814,8 +814,8 @@ export default function CheckedInScreen({
                           </Text>
                           <Text className={isKeptCheckedIn(item) ? "text-emerald-700 text-xs mt-0.5 font-bold" : "text-gray-400 text-xs mt-0.5"}>
                             {isKeptCheckedIn(item)
-                              ? `${item.rowRemainingStocks ?? item.remainingStocks} left / ${item.vines ?? "—"} vines`
-                              : t("ci.vinesLine", { count: item.rowRemainingStocks ?? item.vines ?? "—" })}
+                              ? `${Number(item.rowRemainingStocks ?? item.remainingStocks) || 0} left / ${Number(item.vines ?? 0) || 0} vines`
+                              : t("ci.vinesLine", { count: Number(item.vines ?? item.rowRemainingStocks ?? item.stockCount ?? item.remainingStocks ?? 0) || 0 })}
                           </Text>
                         </View>
                       </View>

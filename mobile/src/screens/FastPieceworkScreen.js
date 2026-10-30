@@ -271,11 +271,23 @@ export default function FastPieceworkScreen({ sharedState, offlineQueue }) {
 
   const disabledRowValues = allowSameJob ? [] : completedRowNumbers;
 
+  const completedRowWorkerNames = useMemo(() => {
+    const map = {};
+    fastRows.forEach((r) => {
+      const rowKey = String(r.rowNumber);
+      if (!completedRowNumbers.includes(rowKey)) return;
+      if (String(r.jobType || "").toUpperCase() !== String(selectedJob || "").toUpperCase()) return;
+      if (r.blockName && String(r.blockName) !== String(sharedState.selectedBlock || "")) return;
+      map[rowKey] = String(r.workerName || "");
+    });
+    return map;
+  }, [fastRows, completedRowNumbers, selectedJob]);
+
   const rowOptions = sortNamesNumerically(
     [...new Set(rows.map((rowNumber) => String(rowNumber)))]
   ).map((rowNumber) => ({
     label: completedRowNumbers.includes(rowNumber)
-      ? t("fast.rowCompleted", { row: rowNumber, job: selectedJob })
+      ? `${t("fast.rowCompleted", { row: rowNumber, job: selectedJob })}${completedRowWorkerNames[rowNumber] ? ` — ${completedRowWorkerNames[rowNumber]}` : ""}`
       : rowNumber,
     value: rowNumber,
   }));
