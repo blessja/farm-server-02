@@ -102,6 +102,7 @@ export default function CheckedInScreen({
 
   const [expandedWorker, setExpandedWorker] = useState(null);
   const [activeOperation, setActiveOperation] = useState(null);
+  const [collapsedBlocks, setCollapsedBlocks] = useState({});
 
   const [inlineCheckoutStock, setInlineCheckoutStock] = useState("");
   const [inlineCheckoutChoice, setInlineCheckoutChoice] = useState("keep");
@@ -201,6 +202,10 @@ export default function CheckedInScreen({
         (o.job_type || "").toUpperCase() === (expandedRecord.job_type || "").toUpperCase()
     );
   }, [inlineMoveRowOccupants, expandedRecord]);
+
+  function toggleBlockExpanded(blockName) {
+    setCollapsedBlocks((prev) => ({ ...prev, [blockName]: !prev[blockName] }));
+  }
 
   function toggleExpanded(item) {
     const key = `${item.workerID}-${item.rowNumber}`;
@@ -745,11 +750,23 @@ export default function CheckedInScreen({
           </Text>
         ) : null}
 
-        {blockNames.map((blockName) => (
+        {blockNames.map((blockName) => {
+          const isBlockCollapsed = Boolean(collapsedBlocks[blockName]);
+          return (
           <View key={blockName} className="mb-3">
-            <Text className="text-gray-500 text-xs font-bold uppercase tracking-wider mb-2">
-              {blockName}
-            </Text>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => toggleBlockExpanded(blockName)}
+              style={{ marginBottom: 8 }}
+            >
+              <Text style={{ color: "#6b7280", fontSize: 11, fontWeight: "800" }}>
+                {blockName}
+              </Text>
+              <Text style={{ color: "#9ca3af", fontSize: 10, fontWeight: "800", marginTop: 2 }}>
+                {isBlockCollapsed ? "▾" : "▸"}
+              </Text>
+            </TouchableOpacity>
+            {isBlockCollapsed ? null : (
             <View className="gap-2">
               {groupedByBlock[blockName].map((item, index) => {
                 const isExpanded = expandedWorker === `${item.workerID}-${item.rowNumber}`;
@@ -1223,8 +1240,10 @@ export default function CheckedInScreen({
                 );
               })}
             </View>
+              )}
           </View>
-        ))}
+          );
+        })}
 
         <FeedbackBanner type="error" message={checkinsState.error} />
       </SectionCard>
