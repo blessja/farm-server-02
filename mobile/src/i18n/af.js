@@ -253,6 +253,7 @@ const af = {
   "grid.noWorkersOnDay": "Geen werkers het op hierdie dag in die huidige aansig gewerk nie.",
   "grid.clearedWorkers": "{count} werker(s) vir hierdie dag uitgevee.",
   "grid.noTotalsAvailable": "Nog geen stukwerk-totale beskikbaar nie.",
+  "grid.workerDetails": "Werknegerbesonderhede",
 
   // TotalsSummary
   "summary.workers": "Werkers",

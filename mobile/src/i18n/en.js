@@ -253,6 +253,7 @@ const en = {
   "grid.noWorkersOnDay": "No workers worked on this day in the current view.",
   "grid.clearedWorkers": "Cleared {count} worker(s) for this day.",
   "grid.noTotalsAvailable": "No piecework totals available yet.",
+  "grid.workerDetails": "Worker details",
 
   // TotalsSummary
   "summary.workers": "Workers",

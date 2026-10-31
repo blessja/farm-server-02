@@ -98,6 +98,8 @@ export default function TotalsGrid({
   const [columnFeedback, setColumnFeedback] = useState({ type: "info", message: "" });
   const [columnSaving, setColumnSaving] = useState(false);
 
+  const [workerModal, setWorkerModal] = useState(null);
+
   // For each worker, the blocks and row numbers they worked in the current
   // (filtered) view. Shown under the worker name in smaller text.
   const workerLocations = useMemo(() => {
@@ -124,6 +126,19 @@ export default function TotalsGrid({
       .map((b) => `${b}: ${sortNamesNumerically([...loc[b]]).join(",")}`)
       .join("  ");
   }
+
+  const workerBlocks = useMemo(() => {
+    if (!workerModal) return [];
+    const map = {};
+    rows.forEach((r) => {
+      const wid = String(r.workerID ?? "");
+      if (wid !== String(workerModal.workerID ?? "")) return;
+      const blockKey = r.blockName || t("common.unknown");
+      if (!map[blockKey]) map[blockKey] = { blockName: blockKey, rows: [] };
+      map[blockKey].rows.push(r);
+    });
+    return Object.values(map);
+  }, [rows, workerModal, t]);
 
   const { workerOrder, dateOrder, matrix, dateLabels } = useMemo(() => {
     const wMap = {};
@@ -317,6 +332,10 @@ export default function TotalsGrid({
     });
     setHoursInput(existing ? String(existing.hours) : "");
     setHoursFeedback({ type: "info", message: "" });
+  }
+
+  function handleWorkerNamePress(worker) {
+    setWorkerModal({ workerID: worker.workerID, workerName: worker.workerName });
   }
 
   async function handleSaveHours() {
@@ -595,14 +614,20 @@ export default function TotalsGrid({
                       borderBottomColor: "#f3f4f6",
                     }}
                   >
-                    <Text numberOfLines={1} style={{ fontSize: 13, fontWeight: "700", color: "#111827" }}>
-                      {w.workerName}
-                    </Text>
-                    {locText ? (
-                      <Text numberOfLines={1} style={{ fontSize: 10, fontWeight: "500", color: "#9ca3af", marginTop: 1 }}>
-                        {locText}
+                    <TouchableOpacity
+                      activeOpacity={0.6}
+                      onPress={() => handleWorkerNamePress(w)}
+                      style={{ flex: 1 }}
+                    >
+                      <Text numberOfLines={1} style={{ fontSize: 13, fontWeight: "700", color: "#111827" }}>
+                        {w.workerName}
                       </Text>
-                    ) : null}
+                      {locText ? (
+                        <Text numberOfLines={1} style={{ fontSize: 10, fontWeight: "500", color: "#9ca3af", marginTop: 1 }}>
+                          {locText}
+                        </Text>
+                      ) : null}
+                    </TouchableOpacity>
                   </View>
                 );
               })}
@@ -1102,6 +1127,59 @@ export default function TotalsGrid({
                 </Text>
               </TouchableOpacity>
             </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ─── Worker Details Modal ─── */}
+      <Modal
+        visible={!!workerModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setWorkerModal(null)}
+      >
+        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "center", padding: 24 }}>
+          <View style={{ borderRadius: 24, backgroundColor: "#fff", padding: 24, gap: 16, maxHeight: "85%" }}>
+            <View style={{ gap: 4 }}>
+              <Text style={{ fontSize: 18, fontWeight: "800", color: "#111827" }}>
+                {t("grid.workerDetails")}
+              </Text>
+              <Text style={{ fontSize: 14, color: "#4b5563", lineHeight: 20 }}>
+                {workerModal?.workerName || ""} ({workerModal?.workerID || ""})
+              </Text>
+            </View>
+
+            <ScrollView style={{ maxHeight: 320 }} contentContainerStyle={{ gap: 12 }}>
+              {workerBlocks.length === 0 ? (
+                <Text style={{ color: "#9ca3af", fontSize: 14 }}>{t("grid.noTotalsAvailable")}</Text>
+              ) : (
+                workerBlocks.map((block) => (
+                  <View key={block.blockName} style={{ gap: 6 }}>
+                    <Text style={{ color: "#374151", fontSize: 13, fontWeight: "800" }}>{block.blockName}</Text>
+                    {block.rows.map((r) => (
+                      <View
+                        key={`${r.blockName}-${r.rowNumber}-${r.jobType}-${r.date || ""}`}
+                        style={{ borderTopWidth: 1, borderTopColor: "#f3f4f6", paddingTop: 6 }}
+                      >
+                        <Text style={{ color: "#111827", fontSize: 13, fontWeight: "700" }}>
+                          {`${r.rowNumber} · ${r.jobType || t("common.noJob")} · ${r.vines ?? 0}`}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                ))
+              )}
+            </ScrollView>
+
+            <TouchableOpacity
+              activeOpacity={0.7}
+              style={{ borderRadius: 16, paddingVertical: 14, alignItems: "center", backgroundColor: "#f3f4f6" }}
+              onPress={() => setWorkerModal(null)}
+            >
+              <Text style={{ color: "#374151", fontSize: 15, fontWeight: "800" }}>
+                {t("common.close")}
+              </Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
