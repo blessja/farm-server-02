@@ -92,26 +92,12 @@ export default function DayWorkScreen({ sharedState, offlineQueue }) {
 
   const disabledRowValues = allowMultipleWorkers ? [] : occupiedRowNumbers;
 
-  const rowOccupantNames = useMemo(() => {
-    const map = {};
-    activeCheckins.forEach((checkin) => {
-      if (checkin.blockName !== sharedState.selectedBlock) return;
-      const key = String(checkin.rowNumber);
-      if (!map[key]) map[key] = [];
-      map[key].push(checkin.workerName || checkin.workerID);
-    });
-    return map;
-  }, [activeCheckins, sharedState.selectedBlock]);
-
   const allRowOptions = sortNamesNumerically([
     ...new Set(rows.map((rowNumber) => String(rowNumber))),
-  ]).map((rowNumber) => {
-      const names = rowOccupantNames[rowNumber];
-      return {
-        label: names && names.length ? `${rowNumber} — ${names.join(", ")}` : rowNumber,
-        value: rowNumber,
-      };
-    });
+  ]).map((rowNumber) => ({
+    label: rowNumber,
+    value: rowNumber,
+  }));
 
   const blockOptions = sortNamesNumerically(
     [...new Set(blocks.map((blockName) => String(blockName)))]
