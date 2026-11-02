@@ -26,11 +26,16 @@ export default function ClockScreen({ offlineQueue }) {
     staleTime: 5 * 60 * 1000,
   });
 
-  async function submit(kind) {
+  async function performClock(kind, workerID, workerName) {
     setSubmitting(true);
     setFeedback({ type: "info", message: "" });
+    const body = {
+      workerID: workerID || form.workerID,
+      workerName: workerName || form.workerName,
+      timezone: form.timezone,
+    };
     try {
-      const result = kind === "in" ? await api.clockIn(form) : await api.clockOut(form);
+      const result = kind === "in" ? await api.clockIn(body) : await api.clockOut(body);
       setFeedback({ type: "success", message: result.message });
       clockState.refresh();
       await offlineQueue.refreshQueueCount();
@@ -39,6 +44,20 @@ export default function ClockScreen({ offlineQueue }) {
     } finally {
       setSubmitting(false);
     }
+  }
+
+  async function submit(kind) {
+    await performClock(kind, form.workerID, form.workerName);
+  }
+
+  // Instantly clock in the moment a worker name is selected from the list.
+  async function handleInstantSelect({ workerID, workerName }) {
+    setForm((current) => ({
+      ...current,
+      workerID,
+      workerName: workerName || current.workerName,
+    }));
+    await performClock("in", workerID, workerName || form.workerName);
   }
 
   const records = Array.isArray(clockState.data) ? clockState.data : [];
@@ -60,6 +79,7 @@ export default function ClockScreen({ offlineQueue }) {
               workerName: workerName || current.workerName,
             }))
           }
+          onInstantSelect={handleInstantSelect}
         />
         <LabeledInput
           label={t("clock.workerName")}

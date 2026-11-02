@@ -453,6 +453,13 @@ export default function AttendanceRegisterScreen({ offlineQueue }) {
     }
   }
 
+  async function handleWorkerNamePress(worker) {
+    const todaySessions = sessionsForDay(String(worker.workerID), todayDate);
+    const hasTodayIn = todaySessions.some((session) => session.clockInTime);
+    if (hasTodayIn) return;
+    await handlePunchIn(worker, { date: todayDate });
+  }
+
   async function handlePunchOut(worker, day, session) {
     const key = `${worker.workerID}-${session._id}-out`;
     setBusyKey(key);
@@ -1062,22 +1069,28 @@ export default function AttendanceRegisterScreen({ offlineQueue }) {
                       borderTopColor: "#e2e8f0",
                     }}
                   >
-                    <Text
+                    <TouchableOpacity
                       className="attendance-register-name-column"
-                      numberOfLines={1}
-                      ellipsizeMode="tail"
-                      style={{
-                        width: nameColumnWidth,
-                        padding: 6,
-                        overflow: "hidden",
-                        color: "#111827",
-                        fontSize: 10,
-                        fontWeight: "700",
-                        alignSelf: "center",
-                      }}
+                      onPress={() => handleWorkerNamePress(worker)}
+                      activeOpacity={0.7}
+                      style={{ flex: 1, flexShrink: 1 }}
                     >
-                      {`${worker.workerID} ${worker.name}`}
-                    </Text>
+                      <Text
+                        numberOfLines={1}
+                        ellipsizeMode="tail"
+                        style={{
+                          width: nameColumnWidth,
+                          padding: 6,
+                          overflow: "hidden",
+                          color: "#111827",
+                          fontSize: 10,
+                          fontWeight: "700",
+                          alignSelf: "center",
+                        }}
+                      >
+                        {`${worker.workerID} ${worker.name}`}
+                      </Text>
+                    </TouchableOpacity>
                     {weekDays.map((day) => {
                       const sessions = sessionsForDay(worker.workerID, day.date);
                       const cellBusy = busyKey.startsWith(`${worker.workerID}-${day.date}`);

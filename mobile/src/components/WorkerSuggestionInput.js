@@ -16,6 +16,7 @@ export default function WorkerSuggestionInput({
   workerID,
   workerName,
   onSelect,
+  onInstantSelect,
   placeholder,
 }) {
   const { t } = useLanguage();
@@ -62,6 +63,9 @@ export default function WorkerSuggestionInput({
     setQuery(worker.workerID);
     onSelect({ workerID: worker.workerID, workerName: worker.name });
     setIsOpen(false);
+    if (onInstantSelect) {
+      onInstantSelect({ workerID: worker.workerID, workerName: worker.name });
+    }
   }
 
   async function openScanner() {
