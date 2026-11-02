@@ -49,6 +49,10 @@ function isPreviousDay(isoString) {
   return Boolean(isoString) && dateKey(isoString) !== dateKey();
 }
 
+// Fast piecework jobs (leaf picking, sucker removal, shoot thinning, other) are
+// tracked through the Fast tab flows; the Working tab lists day work only.
+const FAST_JOB_TYPES = ["LEAF PICKING", "SUCKER REMOVAL", "SHOOT THINNING", "OTHER"];
+
 export default function CheckedInScreen({
   offlineQueue,
   isAdmin = false,
@@ -65,6 +69,16 @@ export default function CheckedInScreen({
   const isBlocked = checkinsState.errorStatus === 403;
   const records =
     !isBlocked && Array.isArray(checkinsState.data) ? checkinsState.data : [];
+
+  // Day work only: fast piecework jobs live in the Fast tab instead of the
+  // Working tab, so they are filtered out of the currently-working list.
+  const dayWorkRecords = useMemo(
+    () =>
+      records.filter(
+        (r) => !FAST_JOB_TYPES.includes(String(r.job_type || "").toUpperCase())
+      ),
+    [records]
+  );
 
   const blocksState = useAsyncData(() => api.getBlocks(), [], {
     cacheKey: "blocks",
@@ -106,14 +120,14 @@ export default function CheckedInScreen({
 
   const defaultCollapsedBlocks = useMemo(() => {
     const map = {};
-    records.forEach((r) => {
+    dayWorkRecords.forEach((r) => {
       const jobType = String(r.job_type || "").toUpperCase();
-      if (["LEAF PICKING", "SUCKER REMOVAL", "SHOOT THINNING", "OTHER"].includes(jobType)) {
+      if (FAST_JOB_TYPES.includes(jobType)) {
         map[r.blockName || t("common.unknown")] = true;
       }
     });
     return map;
-  }, [records, t]);
+  }, [dayWorkRecords, t]);
 
   const [inlineCheckoutStock, setInlineCheckoutStock] = useState("");
   const [inlineCheckoutChoice, setInlineCheckoutChoice] = useState("keep");
@@ -152,13 +166,13 @@ export default function CheckedInScreen({
 
   const moveRowOccupants = useMemo(() => {
     if (!moveWorker || !moveTargetBlock || !moveTargetRow) return [];
-    return records.filter(
+    return dayWorkRecords.filter(
       (r) =>
         r.workerID !== moveWorker.workerID &&
         r.blockName === moveTargetBlock &&
         r.rowNumber === moveTargetRow
     );
-  }, [records, moveWorker, moveTargetBlock, moveTargetRow]);
+  }, [dayWorkRecords, moveWorker, moveTargetBlock, moveTargetRow]);
 
   const isSameJobOccupied = useMemo(() => {
     if (!moveWorker || moveRowOccupants.length === 0) return false;
@@ -168,7 +182,7 @@ export default function CheckedInScreen({
   }, [moveRowOccupants, moveWorker]);
 
   const expandedRecord =
-    records.find((r) => `${r.workerID}-${r.rowNumber}` === expandedWorker) || null;
+    dayWorkRecords.find((r) => `${r.workerID}-${r.rowNumber}` === expandedWorker) || null;
 
   const inlineRowsState = useAsyncData(
     () =>
@@ -198,13 +212,13 @@ export default function CheckedInScreen({
 
   const inlineMoveRowOccupants = useMemo(() => {
     if (!expandedRecord || !inlineMoveTargetBlock || !inlineMoveTargetRow) return [];
-    return records.filter(
+    return dayWorkRecords.filter(
       (r) =>
         r.workerID !== expandedRecord.workerID &&
         r.blockName === inlineMoveTargetBlock &&
         r.rowNumber === inlineMoveTargetRow
     );
-  }, [records, expandedRecord, inlineMoveTargetBlock, inlineMoveTargetRow]);
+  }, [dayWorkRecords, expandedRecord, inlineMoveTargetBlock, inlineMoveTargetRow]);
 
   const inlineSameJobOccupied = useMemo(() => {
     if (!expandedRecord || inlineMoveRowOccupants.length === 0) return false;
@@ -260,7 +274,7 @@ export default function CheckedInScreen({
 
     if (!moveWorker || !moveTargetBlock || !rowValue) return;
 
-    const occupants = records.filter(
+    const occupants = dayWorkRecords.filter(
       (r) =>
         r.workerID !== moveWorker.workerID &&
         r.blockName === moveTargetBlock &&
@@ -431,7 +445,7 @@ export default function CheckedInScreen({
   function isSharedRow(record) {
     return (
       record?.sharedRow === true ||
-      records.filter(
+      dayWorkRecords.filter(
         (candidate) =>
           candidate.blockName === record?.blockName &&
           candidate.rowNumber === record?.rowNumber
@@ -682,13 +696,13 @@ export default function CheckedInScreen({
     setInlinePendingOverride(null);
   }
 
-  const workerCountByRow = records.reduce((acc, item) => {
+  const workerCountByRow = dayWorkRecords.reduce((acc, item) => {
     const key = `${item.blockName}::${item.rowNumber}`;
     acc[key] = (acc[key] || 0) + 1;
     return acc;
   }, {});
 
-  const groupedByBlock = records.reduce((acc, item) => {
+  const groupedByBlock = dayWorkRecords.reduce((acc, item) => {
     const block = item.blockName || t("common.unknown");
     if (!acc[block]) acc[block] = [];
     acc[block].push(item);
@@ -749,13 +763,13 @@ export default function CheckedInScreen({
       {!isBlocked ? (
       <SectionCard
         title={t("ci.currentlyWorking")}
-        subtitle={t("ci.currentlyWorkingSub", { count: records.length })}
+        subtitle={t("ci.currentlyWorkingSub", { count: dayWorkRecords.length })}
       >
-        {checkinsState.loading && !records.length ? (
+        {checkinsState.loading && !dayWorkRecords.length ? (
           <ActivityIndicator color="#16a34a" />
         ) : null}
 
-        {!records.length && !checkinsState.loading ? (
+        {!dayWorkRecords.length && !checkinsState.loading ? (
           <Text className="text-gray-400 text-sm">
             {t("ci.noWorkersCheckedIn")}
           </Text>
@@ -982,7 +996,7 @@ export default function CheckedInScreen({
                               <View className="bg-teal-50 border border-teal-200 rounded-xl p-3 gap-1.5">
                                 <Text className="text-teal-800 text-xs font-extrabold">
                                   {t("ci.sharedRowCheckoutNotice", {
-                                    count: records.filter(
+                                    count: dayWorkRecords.filter(
                                       (candidate) =>
                                         candidate.blockName === expandedRecord.blockName &&
                                         candidate.rowNumber === expandedRecord.rowNumber
@@ -1281,11 +1295,11 @@ export default function CheckedInScreen({
             </View>
 
           <SectionCard title={t("ci.selectWorker")} subtitle={t("ci.tapToExpandMove")}>
-            {records.length === 0 ? (
+            {dayWorkRecords.length === 0 ? (
               <Text className="text-gray-400 text-sm">{t("ci.noWorkersAvailable")}</Text>
             ) : null}
 
-            {records.map((w, index) => {
+            {dayWorkRecords.map((w, index) => {
               const active = moveWorker?.workerID === w.workerID;
               return (
                 <View key={`${w.workerID}-${w.rowNumber}-${index}`}>
@@ -1554,11 +1568,11 @@ export default function CheckedInScreen({
             </View>
 
           <SectionCard title={t("ci.selectWorker")} subtitle={t("ci.tapToExpandCheckout")}>
-            {records.length === 0 ? (
+            {dayWorkRecords.length === 0 ? (
               <Text className="text-gray-400 text-sm">{t("ci.noWorkersAvailable")}</Text>
             ) : null}
 
-            {records.map((w, index) => {
+            {dayWorkRecords.map((w, index) => {
               const active = checkoutWorker?.workerID === w.workerID;
               return (
                 <View key={`${w.workerID}-${w.rowNumber}-${index}`}>
@@ -1666,7 +1680,7 @@ export default function CheckedInScreen({
                         <View className="bg-teal-50 border border-teal-200 rounded-xl p-3 gap-1.5">
                           <Text className="text-teal-800 text-xs font-extrabold">
                             {t("ci.sharedRowCheckoutNotice", {
-                              count: records.filter(
+                              count: dayWorkRecords.filter(
                                 (candidate) =>
                                   candidate.blockName === w.blockName &&
                                   candidate.rowNumber === w.rowNumber
