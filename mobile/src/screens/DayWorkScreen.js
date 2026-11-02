@@ -75,14 +75,20 @@ export default function DayWorkScreen({ sharedState, offlineQueue }) {
 
   const occupiedRowNumbers = useMemo(() => {
     if (!sharedState.selectedBlock) return [];
-    return [
-      ...new Set(
-        activeCheckins
-          .filter((c) => c.blockName === sharedState.selectedBlock)
-          .map((c) => String(c.rowNumber))
-      ),
-    ];
-  }, [activeCheckins, sharedState.selectedBlock]);
+    const jobType = String(sharedState.jobType || "").trim().toUpperCase();
+    const occupied = new Set();
+    if (allowMultipleWorkers) return [];
+    activeCheckins
+      .filter((c) => c.blockName === sharedState.selectedBlock)
+      .forEach((c) => {
+        const occupantJob = String(c.job_type || "").trim().toUpperCase();
+        // Only block the row when the occupant is doing the same job the user
+        // wants to do. A different job on an occupied row is allowed.
+        if (jobType && occupantJob && occupantJob !== jobType) return;
+        occupied.add(String(c.rowNumber));
+      });
+    return [...occupied];
+  }, [activeCheckins, sharedState.selectedBlock, sharedState.jobType, allowMultipleWorkers]);
 
   const disabledRowValues = allowMultipleWorkers ? [] : occupiedRowNumbers;
 

@@ -104,6 +104,17 @@ export default function CheckedInScreen({
   const [activeOperation, setActiveOperation] = useState(null);
   const [collapsedBlocks, setCollapsedBlocks] = useState({});
 
+  const defaultCollapsedBlocks = useMemo(() => {
+    const map = {};
+    records.forEach((r) => {
+      const jobType = String(r.job_type || "").toUpperCase();
+      if (["LEAF PICKING", "SUCKER REMOVAL", "SHOOT THINNING", "OTHER"].includes(jobType)) {
+        map[r.blockName || t("common.unknown")] = true;
+      }
+    });
+    return map;
+  }, [records, t]);
+
   const [inlineCheckoutStock, setInlineCheckoutStock] = useState("");
   const [inlineCheckoutChoice, setInlineCheckoutChoice] = useState("keep");
   const [inlineCheckoutFeedback, setInlineCheckoutFeedback] = useState({
@@ -751,7 +762,7 @@ export default function CheckedInScreen({
         ) : null}
 
         {blockNames.map((blockName) => {
-          const isBlockCollapsed = Boolean(collapsedBlocks[blockName]);
+          const isBlockCollapsed = Boolean(collapsedBlocks[blockName] ?? defaultCollapsedBlocks[blockName]);
           return (
           <View key={blockName} className="mb-3">
             <TouchableOpacity
