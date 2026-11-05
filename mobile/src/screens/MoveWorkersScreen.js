@@ -64,6 +64,7 @@ export default function MoveWorkersScreen({ sharedState, offlineQueue }) {
   const [feedback, setFeedback] = useState({ type: "info", message: "" });
   const [pendingMoveOverride, setPendingMoveOverride] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [expandedBlocks, setExpandedBlocks] = useState({});
 
   const checkinsState = useAsyncData(() => api.getCurrentCheckins(), [], {
     cacheKey: "checkins",
@@ -96,6 +97,16 @@ export default function MoveWorkersScreen({ sharedState, offlineQueue }) {
       return `${assignment.job_type || ""}`.toLowerCase().includes(search);
     });
   }, [source, searchText, filterMode]);
+
+  const assignmentsByBlock = useMemo(() => {
+    const map = {};
+    filteredAssignments.forEach((assignment) => {
+      const block = assignment.blockName || "unknown-block";
+      if (!map[block]) map[block] = [];
+      map[block].push(assignment);
+    });
+    return map;
+  }, [filteredAssignments]);
 
   function selectAssignment(assignment, index) {
     setSelectedActiveAssignment(getAssignmentId(assignment, index));
@@ -292,54 +303,83 @@ export default function MoveWorkersScreen({ sharedState, offlineQueue }) {
           <Text className="text-gray-400 text-sm">{t("mw.noMatching")}</Text>
         ) : null}
         <View className="gap-2.5">
-          {filteredAssignments.map((assignment, index) => {
-            const assignmentId = getAssignmentId(assignment, index);
-            const active =
-              mode === "move"
-                ? selectedActiveAssignment === assignmentId
-                : selectedSwapAssignment === assignmentId;
+          {Object.keys(assignmentsByBlock)
+            .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
+            .map((blockName) => {
+              const assignments = assignmentsByBlock[blockName] || [];
+              const isBlockExpanded = Boolean(expandedBlocks[blockName]);
 
-            return (
-              <TouchableOpacity
-                key={assignmentId}
-                activeOpacity={0.7}
-                style={{
-                  borderRadius: 16,
-                  padding: 14,
-                  borderWidth: 1,
-                  backgroundColor: active ? "#2D7A55" : "#F4F7F3",
-                  borderColor: active ? "#2D7A55" : "#E5ECE4",
-                }}
-                onPress={() => {
-                  if (mode === "move") {
-                    selectAssignment(assignment, index);
-                    return;
-                  }
+              return (
+                <View key={blockName}>
+                  <TouchableOpacity
+                    activeOpacity={0.7}
+                    onPress={() =>
+                      setExpandedBlocks((current) => ({
+                        ...current,
+                        [blockName]: !current[blockName],
+                      }))
+                    }
+                    style={{ marginBottom: isBlockExpanded ? 8 : 0 }}
+                  >
+                    <Text style={{ color: "#6b7280", fontSize: 11, fontWeight: "800" }}>
+                      {blockName}
+                    </Text>
+                  </TouchableOpacity>
+                  {isBlockExpanded ? (
+                    <View className="gap-2.5">
+                      {assignments.map((assignment, index) => {
+                        const assignmentId = getAssignmentId(assignment, index);
+                        const active =
+                          mode === "move"
+                            ? selectedActiveAssignment === assignmentId
+                            : selectedSwapAssignment === assignmentId;
 
-                  if (
-                    !swapSelection.first ||
-                    swapSelection.first.workerID === assignment.workerID
-                  ) {
-                    selectSwapWorker("first", assignment, index);
-                    return;
-                  }
+                        return (
+                          <TouchableOpacity
+                            key={assignmentId}
+                            activeOpacity={0.7}
+                            style={{
+                              borderRadius: 16,
+                              padding: 14,
+                              borderWidth: 1,
+                              backgroundColor: active ? "#2D7A55" : "#F4F7F3",
+                              borderColor: active ? "#2D7A55" : "#E5ECE4",
+                            }}
+                            onPress={() => {
+                              if (mode === "move") {
+                                selectAssignment(assignment, index);
+                                return;
+                              }
 
-                  selectSwapWorker("second", assignment, index);
-                }}
-              >
-                <Text style={{ fontSize: 15, fontWeight: "800", color: active ? "#fff" : "#111827" }}>
-                  {assignment.workerName} ({assignment.workerID})
-                </Text>
-                <Text style={{ marginTop: 4, fontSize: 13, lineHeight: 18, color: active ? "#DCEFE1" : "#819080" }}>
-                  {t("mw.activePosition", {
-                    block: assignment.blockName,
-                    row: assignment.rowNumber,
-                    job: assignment.job_type || t("mw.noJobType"),
-                  })}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
+                              if (
+                                !swapSelection.first ||
+                                swapSelection.first.workerID === assignment.workerID
+                              ) {
+                                selectSwapWorker("first", assignment, index);
+                                return;
+                              }
+
+                              selectSwapWorker("second", assignment, index);
+                            }}
+                          >
+                            <Text style={{ fontSize: 15, fontWeight: "800", color: active ? "#fff" : "#111827" }}>
+                              {assignment.workerName} ({assignment.workerID})
+                            </Text>
+                            <Text style={{ marginTop: 4, fontSize: 13, lineHeight: 18, color: active ? "#DCEFE1" : "#819080" }}>
+                              {t("mw.activePosition", {
+                                block: assignment.blockName,
+                                row: assignment.rowNumber,
+                                job: assignment.job_type || t("mw.noJobType"),
+                              })}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  ) : null}
+                </View>
+              );
+            })}
         </View>
         <FeedbackBanner type="error" message={checkinsState.error} />
       </SectionCard>
