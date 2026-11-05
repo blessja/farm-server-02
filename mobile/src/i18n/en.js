@@ -156,6 +156,23 @@ const en = {
   "dw.allowWorkerCheckin": "Allow {name} to check in on the same row for the same job?",
   "dw.allowCheckinHere": "Allow — check in here",
 
+  // Clock
+  "clock.title": "Clock in and out",
+  "clock.subtitle": "Select a worker to clock them in immediately.",
+  "clock.workerID": "Worker ID",
+  "clock.workerName": "Worker name",
+  "clock.workerFullName": "Worker full name",
+  "clock.timezone": "Timezone",
+  "clock.clockIn": "Clock in",
+  "clock.clockOut": "Clock out",
+  "clock.recent": "Recent clock sessions",
+  "clock.recentSub": "Latest recorded clock-in and clock-out times.",
+  "clock.sessions": "ID {id} · {count} session(s)",
+  "clock.workerAndDate": "ID {id} · {date}",
+  "clock.sessionTimes": "In: {in} · Out: {out}",
+  "clock.active": "Still clocked in",
+  "clock.noRecords": "No clock records yet.",
+
   // Attendance register
   "attendance.title": "Attendance Register",
   "attendance.eyebrow": "Digital roll-call",
@@ -226,6 +243,7 @@ const en = {
   "fast.addTotalsFirst": "Add some fast piecework totals before exporting.",
   "fast.pdfCreated": "PDF created with the current filter.",
   "fast.pdfError": "Could not create the PDF. Try again.",
+  "fast.viewActiveWorkers": "Active fast workers",
 
   // TotalsGrid
   "grid.hrs": "HRS",

@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Modal, ScrollView, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { api } from "../api/client";
 import ScreenScroll from "../components/ScreenScroll";
 import SectionCard from "../components/SectionCard";
@@ -22,6 +23,8 @@ const initialForm = {
   jobType: "LEAF PICKING",
 };
 
+const FAST_JOB_TYPES = ["LEAF PICKING", "SUCKER REMOVAL", "SHOOT THINNING", "OTHER"];
+
 function dateKey(dateStr) {
   if (!dateStr) return "unknown";
   const d = new Date(dateStr);
@@ -41,6 +44,16 @@ export default function FastPieceworkScreen({ sharedState, offlineQueue }) {
   const [jobFilter, setJobFilter] = useState("");
   const [exporting, setExporting] = useState(false);
   const [exportMessage, setExportMessage] = useState(null);
+  const [fastWorkersOpen, setFastWorkersOpen] = useState(false);
+  const [expandedFastBlocks, setExpandedFastBlocks] = useState({});
+  const [fastWorkersSubmitting, setFastWorkersSubmitting] = useState(false);
+  const [fastWorkersFeedback, setFastWorkersFeedback] = useState({ type: "info", message: "" });
+  const [expandedFastWorkers, setExpandedFastWorkers] = useState({});
+  const [fastWorkerAction, setFastWorkerAction] = useState(null);
+  const [fastCheckoutStock, setFastCheckoutStock] = useState("");
+  const [fastCheckoutKeep, setFastCheckoutKeep] = useState(true);
+  const [fastMoveTargetBlock, setFastMoveTargetBlock] = useState("");
+  const [fastMoveTargetRow, setFastMoveTargetRow] = useState("");
 
   useEffect(() => {
     (async () => {
@@ -80,6 +93,11 @@ export default function FastPieceworkScreen({ sharedState, offlineQueue }) {
       staleTime: 15 * 60 * 1000,
     }
   );
+
+  const checkinsState = useAsyncData(() => api.getCurrentCheckins(), [], {
+    cacheKey: "checkins:fast-workers",
+    staleTime: 30 * 1000,
+  });
 
   const blockDetailsState = useAsyncData(
     () =>
@@ -138,6 +156,41 @@ export default function FastPieceworkScreen({ sharedState, offlineQueue }) {
     });
     return rows;
   }, [totals, varietyByBlock]);
+
+  const fastCheckins = useMemo(
+    () =>
+      (Array.isArray(checkinsState.data) ? checkinsState.data : []).filter((r) =>
+        FAST_JOB_TYPES.includes(String(r.job_type || "").toUpperCase())
+      ),
+    [checkinsState.data]
+  );
+
+  const fastWorkersByBlock = useMemo(() => {
+    const map = {};
+    fastCheckins.forEach((row) => {
+      const block = String(row.blockName || "unknown-block");
+      if (!map[block]) map[block] = {};
+      const workerKey = String(row.workerID);
+      if (!map[block][workerKey]) {
+        map[block][workerKey] = {
+          workerID: row.workerID,
+          workerName: row.workerName,
+          rowNumber: row.rowNumber,
+          jobType: String(row.job_type || "").toUpperCase(),
+          vines: row.vines ?? row.rowRemainingStocks ?? row.remainingStocks ?? 0,
+          timeSpent: row.timeSpent ?? row.time_spent ?? 0,
+          variety: String(row.variety || "").trim(),
+        };
+      }
+    });
+    const grouped = {};
+    sortNamesNumerically(Object.keys(map)).forEach((block) => {
+      grouped[block] = Object.values(map[block]).sort((a, b) =>
+        sortNamesNumerically([String(a.workerName || ""), String(b.workerName || "")])
+      );
+    });
+    return grouped;
+  }, [fastCheckins]);
 
   const selectedRowWorkerName = useMemo(() => {
     const block = String(sharedState.selectedBlock || "");
@@ -298,6 +351,21 @@ export default function FastPieceworkScreen({ sharedState, offlineQueue }) {
     ]);
   }
 
+  const fastMoveRowsState = useAsyncData(
+    () => (fastMoveTargetBlock ? api.getBlockRows(fastMoveTargetBlock) : []),
+    [fastMoveTargetBlock],
+    { cacheKey: `fast-move-rows-${fastMoveTargetBlock}`, staleTime: 30000 }
+  );
+
+  const fastMoveRowOptions = useMemo(() => {
+    const block = fastMoveRowsState.data;
+    const rows = block && Array.isArray(block.rows) ? block.rows : [];
+    return sortNamesNumerically([...new Set(rows.map((rowNumber) => String(rowNumber)))]).map((rowNumber) => ({
+      label: rowNumber,
+      value: rowNumber,
+    }));
+  }, [fastMoveRowsState.data]);
+
   function handleRowSelect(value) {
     const prevRow = sharedState.selectedRow;
     const nextRow = String(value);
@@ -387,6 +455,67 @@ export default function FastPieceworkScreen({ sharedState, offlineQueue }) {
       setFeedback({ type: "error", message: error.message });
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  function toggleFastWorker(blockName, worker) {
+    const key = `${blockName}::${worker.workerID}-${worker.rowNumber}`;
+    setExpandedFastWorkers((current) => ({ ...current, [key]: !current[key] }));
+    if (current[key]) {
+      setFastWorkerAction(null);
+      setFastWorkersFeedback({ type: "info", message: "" });
+    }
+  }
+
+  async function submitFastCheckout(worker) {
+    setFastWorkersSubmitting(true);
+    setFastWorkersFeedback({ type: "info", message: "" });
+    try {
+      const result = await api.regularCheckout({
+        workerID: String(worker.workerID ?? ""),
+        workerName: worker.workerName || "",
+        blockName: worker.blockName || sharedState.selectedBlock || "",
+        rowNumber: String(worker.rowNumber ?? ""),
+        jobType: worker.jobType || "",
+        stockCount: fastCheckoutStock === "" ? undefined : Number(fastCheckoutStock),
+        keepCheckedIn: fastCheckoutKeep,
+      });
+      setFastWorkersFeedback({ type: "success", message: result.message });
+      await totalsState.refresh();
+      await hoursState.refresh();
+      setTimeout(() => {
+        setFastWorkerAction(null);
+        setFastWorkersOpen(false);
+      }, 900);
+    } catch (error) {
+      setFastWorkersFeedback({ type: "error", message: error.message });
+    } finally {
+      setFastWorkersSubmitting(false);
+    }
+  }
+
+  async function submitFastMove(worker) {
+    setFastWorkersSubmitting(true);
+    setFastWorkersFeedback({ type: "info", message: "" });
+    try {
+      const result = await api.moveRegularWorker({
+        workerID: String(worker.workerID ?? ""),
+        workerName: worker.workerName || "",
+        blockName: fastMoveTargetBlock || worker.blockName || sharedState.selectedBlock || "",
+        fromRowNumber: String(worker.rowNumber ?? ""),
+        toRowNumber: String(fastMoveTargetRow || worker.rowNumber || ""),
+        jobType: worker.jobType || "",
+      });
+      setFastWorkersFeedback({ type: "success", message: result.message });
+      await totalsState.refresh();
+      setTimeout(() => {
+        setFastWorkerAction(null);
+        setFastWorkersOpen(false);
+      }, 900);
+    } catch (error) {
+      setFastWorkersFeedback({ type: "error", message: error.message });
+    } finally {
+      setFastWorkersSubmitting(false);
     }
   }
 
@@ -710,6 +839,305 @@ export default function FastPieceworkScreen({ sharedState, offlineQueue }) {
           </Text>
         ) : null}
       </SectionCard>
+
+      <ActionButton
+        label={t("fast.viewActiveWorkers")}
+        onPress={() => {
+          checkinsState.refresh();
+          setFastWorkersOpen(true);
+        }}
+        disabled={false}
+        tone="secondary"
+      />
+
+      <Modal visible={fastWorkersOpen} animationType="slide">
+        <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+              paddingHorizontal: 16,
+              paddingVertical: 12,
+            }}
+          >
+            <Text style={{ color: "#111827", fontSize: 18, fontWeight: "800" }}>
+              {t("fast.viewActiveWorkers")}
+            </Text>
+            <TouchableOpacity
+              onPress={() => setFastWorkersOpen(false)}
+              style={{
+                borderRadius: 12,
+                backgroundColor: "#f3f4f6",
+                borderWidth: 1,
+                borderColor: "#e5e7eb",
+                paddingHorizontal: 14,
+                paddingVertical: 10,
+              }}
+            >
+              <Text style={{ color: "#374151", fontSize: 13, fontWeight: "800" }}>
+                {t("common.close")}
+              </Text>
+            </TouchableOpacity>
+          </View>
+          <ScrollView
+            style={{ flex: 1 }}
+            contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24 }}
+          >
+            {Object.keys(fastWorkersByBlock)
+              .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
+              .map((blockName) => {
+                const workers = fastWorkersByBlock[blockName] || [];
+                const isBlockExpanded = Boolean(expandedFastBlocks[blockName]);
+                return (
+                  <View key={blockName}>
+                    <TouchableOpacity
+                      activeOpacity={0.7}
+                      onPress={() =>
+                        setExpandedFastBlocks((current) => ({
+                          ...current,
+                          [blockName]: !current[blockName],
+                        }))
+                      }
+                      style={{
+                        borderRadius: 14,
+                        backgroundColor: "#F4F7F3",
+                        borderWidth: 1,
+                        borderColor: "#E5ECE4",
+                        paddingHorizontal: 14,
+                        paddingVertical: 12,
+                        flexDirection: "row",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                      }}
+                    >
+                      <Text style={{ color: "#374151", fontSize: 13, fontWeight: "800" }}>
+                        {blockName}
+                      </Text>
+                      <Text style={{ color: "#6b7280", fontSize: 11, fontWeight: "800" }}>
+                        {isBlockExpanded ? "▾" : "▸"}
+                      </Text>
+                    </TouchableOpacity>
+                    {isBlockExpanded ? (
+                      <View>
+                        {workers.map((worker) => {
+                          const workerKey = `${blockName}::${worker.workerID}-${worker.rowNumber}`;
+                          const isWorkerExpanded = Boolean(expandedFastWorkers[workerKey]);
+                          return (
+                            <View
+                              key={workerKey}
+                              style={{
+                                borderRadius: 14,
+                                borderWidth: 1,
+                                borderColor: "#eef2ef",
+                                backgroundColor: "#fff",
+                                padding: 12,
+                              }}
+                            >
+                              <TouchableOpacity
+                                activeOpacity={0.7}
+                                onPress={() => toggleFastWorker(blockName, worker)}
+                              >
+                                <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                                  <View style={{ flex: 1 }}>
+                                    <Text style={{ color: "#111827", fontSize: 15, fontWeight: "800" }}>
+                                      {worker.workerName}
+                                    </Text>
+                                    <Text style={{ marginTop: 2, fontSize: 13, color: "#9ca3af" }}>
+                                      {t("ci.id", { id: worker.workerID })}
+                                    </Text>
+                                  </View>
+                                  <View style={{ alignItems: "flex-end" }}>
+                                    <Text style={{ color: "#2D7A55", fontSize: 13, fontWeight: "800" }}>
+                                      {worker.jobType || t("common.noJob")}
+                                    </Text>
+                                    <Text style={{ color: "#9ca3af", fontSize: 12, marginTop: 2 }}>
+                                      {t("ci.row", { row: worker.rowNumber })}
+                                    </Text>
+                                    <Text style={{ color: "#9ca3af", fontSize: 12, marginTop: 2 }}>
+                                      {t("ci.vinesLine", { count: Number(worker.vines || 0) || 0 })}
+                                    </Text>
+                                  </View>
+                                </View>
+                              </TouchableOpacity>
+                              {isWorkerExpanded ? (
+                                <View
+                                  style={{
+                                    marginTop: 10,
+                                    paddingTop: 10,
+                                    borderTopWidth: 1,
+                                    borderTopColor: "#f3f4f6",
+                                  }}
+                                >
+                                  {fastWorkerAction === "checkout" ? (
+                                    <View style={{ gap: 8 }}>
+                                      <Text style={{ color: "#6b7280", fontSize: 12, fontWeight: "800" }}>
+                                        {t("ci.stocksCompleted")}
+                                      </Text>
+                                      <TextInput
+                                        value={fastCheckoutStock}
+                                        onChangeText={setFastCheckoutStock}
+                                        placeholder={t("ci.stocksPlaceholder")}
+                                        placeholderTextColor="#9ca3af"
+                                        keyboardType="numeric"
+                                        style={{
+                                          borderRadius: 12,
+                                          borderWidth: 1,
+                                          borderColor: "#e5e7eb",
+                                          backgroundColor: "#fff",
+                                          paddingHorizontal: 14,
+                                          paddingVertical: 10,
+                                          color: "#111827",
+                                          fontSize: 15,
+                                        }}
+                                      />
+                                      <View style={{ flexDirection: "row", gap: 8 }}>
+                                        <TouchableOpacity
+                                          activeOpacity={0.7}
+                                          onPress={() => setFastCheckoutKeep(true)}
+                                          style={{
+                                            flex: 1,
+                                            borderRadius: 12,
+                                            paddingVertical: 10,
+                                            alignItems: "center",
+                                            backgroundColor: fastCheckoutKeep ? "#2D7A55" : "#E5ECE4",
+                                            borderWidth: fastCheckoutKeep ? 0 : 1,
+                                            borderColor: "#D4DFD3",
+                                          }}
+                                        >
+                                          <Text style={{ color: fastCheckoutKeep ? "#fff" : "#374151", fontSize: 13, fontWeight: "800" }}>
+                                            {t("ci.keepChoice", { remaining: Number(worker.vines || 0) || 0 })}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={() => setFastCheckoutKeep(false)}
+                  style={{
+                    flex: 1,
+                    borderRadius: 12,
+                    paddingVertical: 10,
+                    alignItems: "center",
+                    backgroundColor: !fastCheckoutKeep ? "#2D7A55" : "#E5ECE4",
+                    borderWidth: !fastCheckoutKeep ? 0 : 1,
+                    borderColor: "#D4DFD3",
+                  }}
+                >
+                  <Text style={{ color: !fastCheckoutKeep ? "#fff" : "#374151", fontSize: 13, fontWeight: "800" }}>
+                    {t("ci.checkout")}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+              <ActionButton
+                label={t("common.submit")}
+                onPress={() => submitFastCheckout(worker)}
+                disabled={fastWorkersSubmitting}
+                tone="primary"
+              />
+            </View>
+          ) : null}
+          {fastWorkerAction === "move" ? (
+            <View style={{ gap: 8 }}>
+              <SelectField
+                label={t("ci.targetBlock")}
+                value={fastMoveTargetBlock}
+                placeholder={t("ci.selectBlock")}
+                options={blockOptions}
+                onSelect={(value) => {
+                  setFastMoveTargetBlock(String(value));
+                  setFastMoveTargetRow("");
+                }}
+                emptyMessage={t("common.noBlocksFound")}
+              />
+              {fastMoveTargetBlock ? (
+                <SelectField
+                  label={t("ci.targetRow")}
+                  value={fastMoveTargetRow}
+                  placeholder={t("ci.selectTargetRow")}
+                  options={fastMoveRowOptions}
+                  onSelect={(value) => {
+                    setFastMoveTargetRow(String(value));
+                  }}
+                  emptyMessage={fastMoveRowsState.loading ? t("ci.loadingRows") : t("ci.noRowsAvailable")}
+                />
+              ) : null}
+              {fastMoveTargetRow ? (
+                <View
+                  style={{
+                    borderRadius: 12,
+                    backgroundColor: "#F4F7F3",
+                    borderWidth: 1,
+                    borderColor: "#E5ECE4",
+                    padding: 12,
+                  }}
+                >
+                  <Text style={{ color: "#374151", fontSize: 13, fontWeight: "800" }}>
+                    {t("common.preview")}
+                  </Text>
+                  <Text style={{ marginTop: 4, color: "#4b5563", fontSize: 13, lineHeight: 18 }}>
+                    {t("ci.willMoveFromTo", {
+                      name: worker.workerName,
+                      from: worker.rowNumber,
+                      to: fastMoveTargetRow,
+                      block: fastMoveTargetBlock,
+                    })}
+                  </Text>
+                </View>
+              ) : null}
+              <ActionButton
+                label={t("ci.moveWorker")}
+                onPress={() => submitFastMove(worker)}
+                disabled={fastWorkersSubmitting}
+              />
+            </View>
+          ) : null}
+          {fastWorkerAction ? null : (
+            <View style={{ flexDirection: "row", gap: 8 }}>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                disabled={fastWorkersSubmitting}
+                onPress={() => {
+                  setFastWorkerAction("checkout");
+                  setFastCheckoutStock("");
+                  setFastCheckoutKeep(true);
+                  setFastWorkersFeedback({ type: "info", message: "" });
+                }}
+                style={{ flex: 1, borderRadius: 12, paddingVertical: 10, alignItems: "center", backgroundColor: "#E5ECE4", borderWidth: 1, borderColor: "#D4DFD3" }}
+              >
+                <Text style={{ color: "#374151", fontSize: 13, fontWeight: "800" }}>
+                  {t("ci.checkout")}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                disabled={fastWorkersSubmitting}
+                onPress={() => {
+                  setFastWorkerAction("move");
+                  setFastMoveTargetBlock("");
+                  setFastMoveTargetRow("");
+                  setFastWorkersFeedback({ type: "info", message: "" });
+                }}
+                style={{ flex: 1, borderRadius: 12, paddingVertical: 10, alignItems: "center", backgroundColor: "#E5ECE4", borderWidth: 1, borderColor: "#D4DFD3" }}
+              >
+                <Text style={{ color: "#374151", fontSize: 13, fontWeight: "800" }}>
+                  {t("ci.moveWorker")}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
+                                </View>
+                              ) : null}
+                            </View>
+                          );
+                        })}
+                      </View>
+                    ) : null}
+                  </View>
+                );
+              })}
+            <FeedbackBanner type={fastWorkersFeedback.type} message={fastWorkersFeedback.message} />
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
     </ScreenScroll>
   );
 }

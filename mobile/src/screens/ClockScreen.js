@@ -9,6 +9,32 @@ import FeedbackBanner from "../components/FeedbackBanner";
 import { useAsyncData } from "../hooks/useAsyncData";
 import WorkerSuggestionInput from "../components/WorkerSuggestionInput";
 import { useLanguage } from "../i18n";
+import { setCache } from "../storage/cacheStorage";
+
+const TIMEZONE = "Africa/Johannesburg";
+
+function formatClockTime(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone: TIMEZONE,
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).format(date);
+}
+
+function formatClockDate(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone: TIMEZONE,
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(date);
+}
 
 const initialForm = {
   workerID: "",
@@ -32,12 +58,41 @@ export default function ClockScreen({ offlineQueue }) {
     const body = {
       workerID: workerID || form.workerID,
       workerName: workerName || form.workerName,
-      timezone: form.timezone,
+      timezone: form.timezone || TIMEZONE,
     };
     try {
       const result = kind === "in" ? await api.clockIn(body) : await api.clockOut(body);
       setFeedback({ type: "success", message: result.message });
-      clockState.refresh();
+      if (result.session) {
+        const currentRecords = Array.isArray(clockState.data) ? clockState.data : [];
+        const records = [...currentRecords];
+        const recordIndex = records.findIndex(
+          (record) => String(record.workerID) === String(body.workerID)
+        );
+        const record =
+          recordIndex >= 0
+            ? {
+                ...records[recordIndex],
+                workerName: body.workerName || records[recordIndex].workerName,
+                clockIns: [...(records[recordIndex].clockIns || [])],
+              }
+            : {
+                workerID: String(body.workerID),
+                workerName: body.workerName,
+                clockIns: [],
+              };
+        const sessionIndex = record.clockIns.findIndex(
+          (session) => String(session._id) === String(result.session._id)
+        );
+
+        if (sessionIndex >= 0) record.clockIns[sessionIndex] = result.session;
+        else record.clockIns.push(result.session);
+
+        if (recordIndex >= 0) records[recordIndex] = record;
+        else records.push(record);
+        clockState.setData(records);
+        void setCache("clocks", records);
+      }
       await offlineQueue.refreshQueueCount();
     } catch (error) {
       setFeedback({ type: "error", message: error.message });
@@ -61,6 +116,19 @@ export default function ClockScreen({ offlineQueue }) {
   }
 
   const records = Array.isArray(clockState.data) ? clockState.data : [];
+  const recentSessions = records
+    .flatMap((worker) =>
+      (Array.isArray(worker.clockIns) ? worker.clockIns : []).map((session) => ({
+        ...session,
+        workerID: worker.workerID,
+        workerName: worker.workerName,
+      }))
+    )
+    .sort(
+      (first, second) =>
+        new Date(second.clockInTime).getTime() - new Date(first.clockInTime).getTime()
+    )
+    .slice(0, 20);
 
   return (
     <ScreenScroll refreshing={clockState.loading} onRefresh={clockState.refresh}>
@@ -117,16 +185,25 @@ export default function ClockScreen({ offlineQueue }) {
         {clockState.loading && !clockState.data ? (
           <ActivityIndicator color="#16a34a" />
         ) : (
-          records.slice(0, 8).map((worker) => (
-            <View key={worker._id || worker.workerID} className="rounded-xl bg-gray-50 border border-gray-100 p-3.5">
-              <Text className="text-gray-900 text-[15px] font-extrabold">{worker.workerName}</Text>
-              <Text className="mt-1 text-gray-400 text-[13px]">
-                {t("clock.sessions", { id: worker.workerID, count: worker.clockIns?.length || 0 })}
+          recentSessions.map((session) => (
+            <View key={session._id || `${session.workerID}-${session.clockInTime}`} className="rounded-xl bg-gray-50 border border-gray-100 p-3.5">
+              <Text className="text-gray-900 text-[15px] font-extrabold">{session.workerName}</Text>
+              <Text className="mt-1 text-gray-500 text-[13px]">
+                {t("clock.workerAndDate", {
+                  id: session.workerID,
+                  date: formatClockDate(session.clockInTime),
+                })}
+              </Text>
+              <Text className="mt-1 text-gray-600 text-[13px]">
+                {t("clock.sessionTimes", {
+                  in: formatClockTime(session.clockInTime) || t("common.na"),
+                  out: formatClockTime(session.clockOutTime) || t("clock.active"),
+                })}
               </Text>
             </View>
           ))
         )}
-        {!records.length && !clockState.loading ? (
+        {!recentSessions.length && !clockState.loading ? (
           <Text className="text-gray-400 text-sm">{t("clock.noRecords")}</Text>
         ) : null}
         <FeedbackBanner type="error" message={clockState.error} />

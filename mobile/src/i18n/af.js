@@ -156,6 +156,23 @@ const af = {
   "dw.allowWorkerCheckin": "Laat {name} toe om op dieselfde ry vir dieselfde werk aan te teken?",
   "dw.allowCheckinHere": "Laat toe \u2014 teken hier aan",
 
+  // Clock
+  "clock.title": "Teken in en uit",
+  "clock.subtitle": "Kies 'n werker om hulle onmiddellik in te teken.",
+  "clock.workerID": "Werker-ID",
+  "clock.workerName": "Werkernaam",
+  "clock.workerFullName": "Werker se volle naam",
+  "clock.timezone": "Tydsone",
+  "clock.clockIn": "Teken in",
+  "clock.clockOut": "Teken uit",
+  "clock.recent": "Onlangse kloksessies",
+  "clock.recentSub": "Jongste aangetekende in- en uitteltye.",
+  "clock.sessions": "ID {id} · {count} sessie(s)",
+  "clock.workerAndDate": "ID {id} · {date}",
+  "clock.sessionTimes": "In: {in} · Uit: {out}",
+  "clock.active": "Nog aangeteken",
+  "clock.noRecords": "Nog geen klokrekords nie.",
+
   // Attendance register
   "attendance.title": "Bywoningsregister",
   "attendance.eyebrow": "Digitale roloproep",
@@ -226,6 +243,7 @@ const af = {
   "fast.addTotalsFirst": "Voeg vinnige stukwerk-totale by voordat jy uitvoer.",
   "fast.pdfCreated": "PDF geskep met die huidige filter.",
   "fast.pdfError": "Kon nie die PDF skep nie. Probeer weer.",
+  "fast.viewActiveWorkers": "Aktiewe vinnige werkers",
 
   // TotalsGrid
   "grid.hrs": "URE",
