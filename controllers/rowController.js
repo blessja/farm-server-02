@@ -100,6 +100,34 @@ function creditedStockFor(worker, blockName, rowNumber, jobType, dateKey) {
   }, 0);
 }
 
+function isUitknipJob(jobType) {
+  return String(jobType || "").trim().toUpperCase() === "UITKNIP";
+}
+
+function roundBunches(value) {
+  const n = Number(value) || 0;
+  return Math.round(n);
+}
+
+function calculateUitknipBunches(row, vinesWorked, completingRow) {
+  const totalVines = Number(row?.stock_count) || 0;
+  const totalBunches = Number(row?.bunches) || 0;
+  if (completingRow) return totalBunches;
+  const worked = Number(vinesWorked) || 0;
+  if (totalVines <= 0 || worked <= 0) return 0;
+  // Step 1: average bunches per vine, rounded half-up/nearest whole number.
+  // Step 2: multiply by vines worked (no extra rounding).
+  const avgPerVineRounded = Math.round(totalBunches / totalVines);
+  return avgPerVineRounded * worked;
+}
+
+function getRowRemainingBunches(row, jobType) {
+  if (!isUitknipJob(jobType)) return 0;
+  const stored = Number(row?.remaining_bunch_count);
+  if (Number.isFinite(stored) && stored > 0) return stored;
+  return Number(row?.bunches) || 0;
+}
+
 // Debug version of checkInWorker with detailed logging
 exports.checkInWorker = async (req, res) => {
   console.log("=== CHECK-IN REQUEST RECEIVED ===");
@@ -171,19 +199,15 @@ exports.checkInWorker = async (req, res) => {
       console.log("Conflicting worker:", sameJobType.worker_name);
     }
 
-    // Only block if override is NOT enabled
-    if (sameJobType && !allowMultipleWorkers) {
-      console.log("CONFLICT DETECTED - Sending override response");
+    // Shared rows are not allowed: never permit multiple workers on same row/job.
+    if (sameJobType) {
+      console.log("CONFLICT DETECTED - sharing not allowed");
       return res.status(409).json({
-        message: `Row ${rowNumber} is currently being worked on by ${sameJobType.worker_name} for ${normalizedJobType}.`,
+        message: `Row ${rowNumber} is currently being worked on by ${sameJobType.worker_name} for ${normalizedJobType}. Sharing the same row/job is not allowed.`,
         conflict: true,
         existingWorker: sameJobType.worker_name,
-        canOverride: true,
+        canOverride: false,
       });
-    }
-
-    if (sameJobType && allowMultipleWorkers) {
-      console.log("OVERRIDE ALLOWED - Multiple workers permitted");
     }
 
     const allBlocks = await Block.find();
@@ -289,6 +313,8 @@ exports.checkInWorker = async (req, res) => {
     // Determine actual remaining stock
     let actualRemainingStock;
     const rowBaseStock = Number(row.stock_count) || 0;
+    const rowBaseBunches = Number(row.bunches) || 0;
+    const uitknip = isUitknipJob(normalizedJobType);
     const alreadyCompletedToday = creditedStockFor(
       worker,
       blockName,
@@ -335,14 +361,45 @@ exports.checkInWorker = async (req, res) => {
       );
     }
 
-    // Every worker on the same row shares one remaining-vine balance. This
-    // prevents two workers from independently receiving the full row stock.
+    let actualRemainingBunches = 0;
+    if (uitknip) {
+      if (actualRemainingStock === 0 && rowBaseStock > 0) {
+        actualRemainingBunches = 0;
+      } else if (
+        row.remaining_bunch_count !== undefined &&
+        row.remaining_bunch_count !== null &&
+        row.remaining_bunch_count > 0
+      ) {
+        actualRemainingBunches = Number(row.remaining_bunch_count) || 0;
+      } else if (
+        actualRemainingStock > 0 &&
+        actualRemainingStock < rowBaseStock &&
+        rowBaseStock > 0
+      ) {
+        // Derive from vine progress if bunch remaining not stored yet.
+        actualRemainingBunches = Math.max(
+          0,
+          rowBaseBunches -
+            calculateUitknipBunches(row, rowBaseStock - actualRemainingStock, false)
+        );
+      } else {
+        actualRemainingBunches = rowBaseBunches;
+      }
+    }
+
+    // Every worker on the same row shares one remaining balance.
     row.remaining_stock_count = actualRemainingStock;
+    if (uitknip) {
+      row.remaining_bunch_count = actualRemainingBunches;
+    }
     if (row.active_jobs.length > 0) {
       row.shared_row = true;
     }
     row.active_jobs.forEach((job) => {
       job.remaining_stock = actualRemainingStock;
+      if (uitknip || isUitknipJob(job.job_type)) {
+        job.remaining_bunches = actualRemainingBunches;
+      }
     });
 
     // Add new job to active_jobs
@@ -353,6 +410,7 @@ exports.checkInWorker = async (req, res) => {
       job_type: normalizedJobType,
       start_time: new Date(),
       remaining_stock: actualRemainingStock,
+      remaining_bunches: uitknip ? actualRemainingBunches : 0,
       time_spent: null,
       recorded_by: recorder,
     });
@@ -391,6 +449,7 @@ exports.checkInWorker = async (req, res) => {
       rowNumber: row.row_number,
       jobType: normalizedJobType,
       remainingStock: actualRemainingStock,
+      remainingBunches: uitknip ? actualRemainingBunches : 0,
       multipleWorkersAllowed: allowMultipleWorkers || false,
       autoCheckedOut: previousAssignments.map(({ blockName: previousBlock, rowNumber: previousRow }) => ({
         blockName: previousBlock,
@@ -502,28 +561,80 @@ exports.moveWorkerToRow = async (req, res) => {
 
     ensureActiveJobs(sourceRow).splice(sourceJobIndex, 1);
 
-    targetJobs.push({
+    const movingUitknip = isUitknipJob(sourceJob.job_type);
+    let targetRemainingStock = sourceJob.remaining_stock;
+    let targetRemainingBunches = Number(sourceJob.remaining_bunches) || 0;
+
+    if (targetJobs.length > 0) {
+      // Join existing shared work on target row.
+      targetRemainingStock = targetRow.remaining_stock_count ?? targetJobs[0].remaining_stock ?? targetRemainingStock;
+      if (movingUitknip) {
+        targetRemainingBunches = targetRow.remaining_bunch_count ?? targetJobs[0].remaining_bunches ?? targetRemainingBunches;
+      }
+    } else {
+      // Adopting target row state when empty: prefer target row's own remaining if it indicates progress.
+      if (
+        targetRow.remaining_stock_count !== undefined &&
+        targetRow.remaining_stock_count !== null &&
+        targetRow.remaining_stock_count >= 0 &&
+        (targetRow.remaining_stock_count > 0 || Number(targetRow.stock_count) === 0)
+      ) {
+        targetRemainingStock = targetRow.remaining_stock_count;
+      }
+      if (movingUitknip) {
+        if (
+          targetRow.remaining_bunch_count !== undefined &&
+          targetRow.remaining_bunch_count !== null &&
+          targetRow.remaining_bunch_count >= 0
+        ) {
+          targetRemainingBunches = targetRow.remaining_bunch_count;
+        }
+      }
+    }
+
+    const movedJob = {
       worker_name: sourceJob.worker_name,
       worker_id: sourceJob.worker_id,
       job_type: sourceJob.job_type,
       start_time: sourceJob.start_time,
-      remaining_stock: sourceJob.remaining_stock,
-      time_spent: sourceJob.time_spent,
+      remaining_stock: targetRemainingStock,
+      remaining_bunches: movingUitknip ? targetRemainingBunches : (Number(sourceJob.remaining_bunches) || 0),
+      time_spent: sourceJob.time_spent ?? null,
+      recorded_by: sourceJob.recorded_by || "",
+    };
+    targetJobs.push(movedJob);
+
+    targetRow.remaining_stock_count = targetRemainingStock;
+    if (movingUitknip) targetRow.remaining_bunch_count = targetRemainingBunches;
+    targetRow.shared_row = targetJobs.length > 1;
+    targetJobs.forEach((j) => {
+      j.remaining_stock = targetRemainingStock;
+      if (movingUitknip || isUitknipJob(j.job_type)) j.remaining_bunches = targetRemainingBunches;
     });
 
+    sourceRow.shared_row = ensureActiveJobs(sourceRow).length > 1;
     if (sourceRow.worker_id === workerID) {
-      sourceRow.worker_name = "";
-      sourceRow.worker_id = "";
-      sourceRow.start_time = null;
-      sourceRow.time_spent = null;
-      sourceRow.job_type = "";
+      if (ensureActiveJobs(sourceRow).length > 0) {
+        const nextJob = ensureActiveJobs(sourceRow)[0];
+        sourceRow.worker_name = nextJob.worker_name;
+        sourceRow.worker_id = nextJob.worker_id;
+        sourceRow.start_time = nextJob.start_time;
+        sourceRow.time_spent = null;
+        sourceRow.job_type = nextJob.job_type;
+      } else {
+        sourceRow.worker_name = "";
+        sourceRow.worker_id = "";
+        sourceRow.start_time = null;
+        sourceRow.time_spent = null;
+        sourceRow.job_type = "";
+      }
     }
 
-    targetRow.worker_name = sourceJob.worker_name;
-    targetRow.worker_id = sourceJob.worker_id;
-    targetRow.start_time = sourceJob.start_time;
+    targetRow.worker_name = movedJob.worker_name;
+    targetRow.worker_id = movedJob.worker_id;
+    targetRow.start_time = movedJob.start_time;
     targetRow.time_spent = null;
-    targetRow.job_type = sourceJob.job_type;
+    targetRow.job_type = movedJob.job_type;
 
     await block.save();
 
@@ -652,7 +763,9 @@ exports.swapWorkersBetweenRows = async (req, res) => {
       job_type: secondJob.job_type,
       start_time: secondJob.start_time,
       remaining_stock: secondJob.remaining_stock,
-      time_spent: secondJob.time_spent,
+      remaining_bunches: Number(secondJob.remaining_bunches) || 0,
+      time_spent: secondJob.time_spent ?? null,
+      recorded_by: secondJob.recorded_by || "",
     };
 
     ensureActiveJobs(secondRow)[secondJobIndex] = {
@@ -661,7 +774,9 @@ exports.swapWorkersBetweenRows = async (req, res) => {
       job_type: firstJob.job_type,
       start_time: firstJob.start_time,
       remaining_stock: firstJob.remaining_stock,
-      time_spent: firstJob.time_spent,
+      remaining_bunches: Number(firstJob.remaining_bunches) || 0,
+      time_spent: firstJob.time_spent ?? null,
+      recorded_by: firstJob.recorded_by || "",
     };
 
     if (firstRow.worker_id === firstWorkerID) {
@@ -761,73 +876,69 @@ exports.checkOutWorker = async (req, res) => {
     let jobIndex = -1;
     let timeSpentInMinutes = 0;
     let currentRemaining = 0;
+    let currentRemainingBunches = 0;
     let checkinStartedAt = null;
-    let usedJobType = jobType ? jobType.trim().toUpperCase() : "UNKNOWN";
+    let usedJobType = jobType ? String(jobType).trim().toUpperCase() : "UNKNOWN";
 
     // Try NEW FORMAT first (active_jobs). Prefer a worker-plus-job match, but
-    // always fall back to a worker-only match: a checkout must remove the
-    // worker's active job even when the reported job type differs slightly from
-    // what was stored at check-in. Otherwise the worker stays visible in the
-    // Working tab and the fallen-back legacy path counts the row again.
+    // always fall back to a worker-only match.
     if (row.active_jobs && row.active_jobs.length > 0) {
       if (jobType) {
         jobIndex = row.active_jobs.findIndex(
-          (job) => job.worker_id === workerID && job.job_type.toUpperCase() === usedJobType
+          (j) => j.worker_id === workerID && String(j.job_type || "").toUpperCase() === usedJobType
         );
       }
       if (jobIndex === -1) {
-        jobIndex = row.active_jobs.findIndex(
-          (job) => job.worker_id === workerID
-        );
+        jobIndex = row.active_jobs.findIndex((j) => j.worker_id === workerID);
       }
 
       if (jobIndex !== -1) {
         job = row.active_jobs[jobIndex];
-        usedJobType = job.job_type; // Use the actual job type from the record
+        usedJobType = String(job.job_type || usedJobType).toUpperCase();
         const endTime = new Date();
-        timeSpentInMinutes = (endTime - job.start_time) / 1000 / 60;
-        currentRemaining = row.remaining_stock_count ?? job.remaining_stock;
+        timeSpentInMinutes = (endTime - new Date(job.start_time)) / 1000 / 60;
+        currentRemaining = row.remaining_stock_count ?? job.remaining_stock ?? 0;
+        currentRemainingBunches = isUitknipJob(usedJobType)
+          ? (row.remaining_bunch_count ?? job.remaining_bunches ?? getRowRemainingBunches(row, usedJobType))
+          : 0;
         checkinStartedAt = job.start_time;
       }
     }
 
     // Fallback to OLD FORMAT only when this worker has no active job record.
-    // Because the worker-only match above handles every active_jobs entry, this
-    // branch is reached only for legacy check-ins, never while an active job for
-    // this worker still exists (that combination is what showed the worker again
-    // and counted the row twice).
     if (!job && row.worker_id === workerID) {
       if (!row.start_time || row.time_spent) {
         return res
           .status(400)
           .send({ message: "Worker is not checked in to this row" });
       }
-      usedJobType = row.job_type || "UNKNOWN";
+      usedJobType = String(row.job_type || "UNKNOWN").toUpperCase();
       const endTime = new Date();
-      timeSpentInMinutes = (endTime - row.start_time) / 1000 / 60;
-      currentRemaining = row.remaining_stock_count ?? row.stock_count;
+      timeSpentInMinutes = (endTime - new Date(row.start_time)) / 1000 / 60;
+      currentRemaining = row.remaining_stock_count ?? row.stock_count ?? 0;
+      currentRemainingBunches = isUitknipJob(usedJobType)
+        ? (row.remaining_bunch_count ?? getRowRemainingBunches(row, usedJobType))
+        : 0;
       checkinStartedAt = row.start_time;
     }
 
     if (!job && row.worker_id !== workerID) {
-      // Idempotent checkout: this worker has nothing active on this row. If a
-      // previous request already checked them out (e.g. the app timed out but
-      // the server processed it, and the retry was queued), report success so
-      // queued retries flush instead of getting stuck in the offline queue.
       return res.status(200).send({
         message: "Worker is already checked out on this row.",
         alreadyCheckedOut: true,
         stockCompleted: 0,
+        bunchesCompleted: 0,
         timeSpent: "0min",
         rowNumber: row.row_number,
         remainingStocks: 0,
+        remainingBunches: 0,
         jobType: usedJobType,
       });
     }
 
     // Validate stock count
     let stockCompleted;
-    if (typeof stockCount === "undefined" || stockCount === null) {
+    if (typeof stockCount === "undefined" || stockCount === null || stockCount === "") {
       stockCompleted = currentRemaining;
     } else {
       stockCompleted = Number(stockCount);
@@ -842,9 +953,7 @@ exports.checkOutWorker = async (req, res) => {
     }
 
     // Safeguard: cap cumulative credit for this worker/row/job/work-date at one
-    // row's worth of vines. A replayed check-in, a stale auto-check-out, or a
-    // completed row that briefly got reset to full cannot push the worker's
-    // total past the row's stock count.
+    // row's worth of vines.
     let worker = await Worker.findOne({ workerID });
     if (!worker) {
       worker = new Worker({
@@ -855,6 +964,7 @@ exports.checkOutWorker = async (req, res) => {
       });
     }
     const rowBaseStock = Number(row.stock_count) || 0;
+    const rowBaseBunches = Number(row.bunches) || 0;
     const alreadyCredited = creditedStockFor(
       worker,
       blockName,
@@ -868,181 +978,192 @@ exports.checkOutWorker = async (req, res) => {
     if (rowBaseStock > 0 && stockCompleted > creditAllowance) {
       stockCompleted = creditAllowance;
       creditCapped = true;
-      console.warn(
-        `checkOutWorker capped ${workerName} (${workerID}) on ${blockName} Row ${rowNumber} ` +
-          `from ${requestedStockCompleted} to ${stockCompleted} vines (already credited ${alreadyCredited} of ${rowBaseStock})`
-      );
     }
 
-    // Update based on format
+    const leftover = Math.max(0, currentRemaining - stockCompleted);
+    const completingRow = leftover === 0;
+    const uitknip = isUitknipJob(usedJobType);
+
+    let bunchesCompleted = 0;
+    let bunchesLeftover = 0;
+    if (uitknip) {
+      if (completingRow) {
+        // Completing remaining must reconcile to exact remaining bunches (and thus exact totals overall).
+        bunchesCompleted = Math.max(0, Number(currentRemainingBunches) || 0);
+        if (currentRemaining === rowBaseStock && stockCompleted === rowBaseStock) {
+          bunchesCompleted = rowBaseBunches;
+        }
+        bunchesLeftover = 0;
+      } else {
+        bunchesCompleted = calculateUitknipBunches(row, stockCompleted, false);
+        if (bunchesCompleted > (Number(currentRemainingBunches) || 0)) {
+          bunchesCompleted = Math.max(0, Number(currentRemainingBunches) || 0);
+        }
+        bunchesLeftover = Math.max(0, (Number(currentRemainingBunches) || 0) - bunchesCompleted);
+      }
+    }
+
+    // Update block/row state
     if (job) {
-      // NEW FORMAT
-      const leftover = currentRemaining - stockCompleted;
       row.remaining_stock_count = leftover;
+      if (uitknip) {
+        row.remaining_bunch_count = bunchesLeftover;
+      }
       row.active_jobs.forEach((activeJob) => {
         activeJob.remaining_stock = leftover;
+        if (uitknip || isUitknipJob(activeJob.job_type)) {
+          activeJob.remaining_bunches = uitknip ? bunchesLeftover : (Number(activeJob.remaining_bunches) || 0);
+        }
       });
-      job.remaining_stock = leftover;
 
       if (keepCheckedIn && leftover > 0) {
-        // Keep the worker checked in with the remaining vines so the row can be
-        // continued today or tomorrow. Reset the start time so a later checkout
-        // of the same continuation does not double-count the elapsed time.
         job.start_time = new Date();
         job.time_spent = null;
-        row.start_time = job.start_time;
+        job.remaining_stock = leftover;
+        if (uitknip) job.remaining_bunches = bunchesLeftover;
       } else {
-        // Normal checkout: remove the job. The shared row balance remains the
-        // source of truth for every other worker still working this row.
-        if (row.active_jobs.length > 1) {
-          row.shared_row = true;
-        }
         row.active_jobs.splice(jobIndex, 1);
-        if (row.active_jobs.length === 0) {
-          row.remaining_stock_count = leftover;
-          row.shared_row = false;
-        }
+        row.shared_row = row.active_jobs.length > 1;
 
-        // Clear the legacy worker fields too. Otherwise the Working tab keeps
-        // showing this worker as active, and a second checkout of the same row
-        // would count the stock twice.
         if (row.worker_id === workerID) {
-          row.worker_id = "";
-          row.worker_name = "";
-          row.start_time = null;
-          row.time_spent = null;
-          row.job_type = "";
+          if (row.active_jobs.length > 0) {
+            const nextJob = row.active_jobs[0];
+            row.worker_name = nextJob.worker_name;
+            row.worker_id = nextJob.worker_id;
+            row.start_time = nextJob.start_time;
+            row.time_spent = null;
+            row.job_type = nextJob.job_type;
+          } else {
+            row.worker_name = "";
+            row.worker_id = "";
+            row.start_time = null;
+            row.time_spent = null;
+            row.job_type = "";
+          }
         }
       }
     } else {
-      // OLD FORMAT
-      row.remaining_stock_count = currentRemaining - stockCompleted;
+      // Legacy format
+      row.remaining_stock_count = leftover;
+      if (uitknip) row.remaining_bunch_count = bunchesLeftover;
+      row.time_spent = null;
       row.worker_name = "";
       row.worker_id = "";
       row.start_time = null;
-      row.time_spent = timeSpentInMinutes;
+      row.job_type = "";
     }
 
     await block.save();
 
-    // Update worker record (worker was loaded earlier for the credit cap).
-    const blockIndex = worker.blocks.findIndex(
-      (b) => b.block_name === blockName
-    );
-    const currentDate = selectedWorkDate;
+    // Update worker history
+    const recorder = recorderName(req);
     const checkoutRecordedAt = new Date();
-    const recordedBy = req.mobileAuth?.supervisorName || "System";
-    const supervisor = recorderName(req);
-    const vinesRemainingAfterCheckout = currentRemaining - stockCompleted;
-    const keptCheckedIn = Boolean(job) && keepCheckedIn && vinesRemainingAfterCheckout > 0;
-    const checkoutID = randomUUID();
-    const checkoutEvent = {
-      checkout_id: checkoutID,
-      work_date: localDateKey(currentDate),
+    const workDateKey = localDateKey(selectedWorkDate);
+    const workDateObj = new Date(`${workDateKey}T12:00:00`);
+
+    let blockEntry = worker.blocks.find((b) => b.block_name === blockName);
+    if (!blockEntry) {
+      blockEntry = { block_name: blockName, rows: [] };
+      worker.blocks.push(blockEntry);
+    }
+
+    let rowEntry = blockEntry.rows.find(
+      (r) =>
+        r.row_number === rowNumber &&
+        String(r.job_type || "").toUpperCase() === usedJobType &&
+        r.date &&
+        localDateKey(r.date) === workDateKey
+    );
+
+    if (!rowEntry) {
+      rowEntry = {
+        row_number: rowNumber,
+        job_type: usedJobType,
+        stock_count: 0,
+        bunch_count: 0,
+        time_spent: 0,
+        date: workDateObj,
+        day_of_week: workDateObj.toLocaleDateString("en-US", { weekday: "long" }),
+        checkout_events: [],
+        recorded_by: recorder,
+        checkout_recorded_by: recorder,
+        checkout_reason: checkoutReason || "",
+        backdated_checkout: isBackdated,
+        last_checkout_at: checkoutRecordedAt,
+      };
+      blockEntry.rows.push(rowEntry);
+    }
+
+    rowEntry.stock_count = (Number(rowEntry.stock_count) || 0) + stockCompleted;
+    if (uitknip) {
+      rowEntry.bunch_count = (Number(rowEntry.bunch_count) || 0) + bunchesCompleted;
+    }
+    rowEntry.time_spent = (Number(rowEntry.time_spent) || 0) + (Number(timeSpentInMinutes) || 0);
+    rowEntry.checkout_recorded_at = checkoutRecordedAt;
+    rowEntry.checkout_recorded_by = recorder;
+    rowEntry.checkout_reason = checkoutReason || rowEntry.checkout_reason || "";
+    rowEntry.backdated_checkout = Boolean(isBackdated || rowEntry.backdated_checkout);
+    rowEntry.backdated_by = isBackdated ? recorder : (rowEntry.backdated_by || "");
+    rowEntry.last_checkout_at = checkoutRecordedAt;
+
+    if (!Array.isArray(rowEntry.checkout_events)) {
+      rowEntry.checkout_events = [];
+    }
+    rowEntry.checkout_events.push({
+      checkout_id: `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+      work_date: workDateKey,
       recorded_at: checkoutRecordedAt,
-      recorded_by: recordedBy,
-      reason: String(checkoutReason || "").trim(),
+      recorded_by: recorder || "System",
+      reason: checkoutReason || "",
       backdated: isBackdated,
       vines_before: currentRemaining,
       vines_completed: stockCompleted,
-      vines_remaining: vinesRemainingAfterCheckout,
-      minutes_worked: timeSpentInMinutes,
-      kept_checked_in: keptCheckedIn,
-      checkin_started_at: checkinStartedAt,
-    };
+      vines_remaining: leftover,
+      bunches_before: uitknip ? (Number(currentRemainingBunches) || 0) : 0,
+      bunches_completed: uitknip ? bunchesCompleted : 0,
+      bunches_remaining: uitknip ? bunchesLeftover : 0,
+      minutes_worked: Math.round((Number(timeSpentInMinutes) || 0) * 100) / 100,
+      kept_checked_in: Boolean(keepCheckedIn && leftover > 0),
+      checkin_started_at: checkinStartedAt ? new Date(checkinStartedAt) : null,
+    });
 
-    if (blockIndex === -1) {
-      worker.blocks.push({
-        block_name: blockName,
-        rows: [
-          {
-            row_number: rowNumber,
-            job_type: usedJobType, // IMPORTANT: Always include job_type
-            stock_count: stockCompleted,
-            time_spent: timeSpentInMinutes,
-            date: currentDate,
-            day_of_week: currentDate.toLocaleDateString("en-US", {
-              weekday: "long",
-            }),
-            checkout_recorded_at: checkoutRecordedAt,
-            checkout_reason: String(checkoutReason || "").trim(),
-            backdated_by: isBackdated ? recordedBy : "",
-            checkout_events: [checkoutEvent],
-          },
-        ],
-      });
-    } else {
-      const rowIndex = worker.blocks[blockIndex].rows.findIndex(
-        (r) =>
-          r.row_number === rowNumber &&
-          r.job_type === usedJobType &&
-          r.date &&
-          localDateKey(r.date) === localDateKey(currentDate)
-      );
-      if (rowIndex === -1) {
-        worker.blocks[blockIndex].rows.push({
-          row_number: rowNumber,
-          job_type: usedJobType, // IMPORTANT: Always include job_type
-          stock_count: stockCompleted,
-          time_spent: timeSpentInMinutes,
-          date: currentDate,
-          day_of_week: currentDate.toLocaleDateString("en-US", {
-            weekday: "long",
-          }),
-          checkout_recorded_at: checkoutRecordedAt,
-          checkout_reason: String(checkoutReason || "").trim(),
-          backdated_by: isBackdated ? recordedBy : "",
-          checkout_events: [checkoutEvent],
-        });
-      } else {
-        worker.blocks[blockIndex].rows[rowIndex].stock_count += stockCompleted;
-        worker.blocks[blockIndex].rows[rowIndex].time_spent +=
-          timeSpentInMinutes;
-        worker.blocks[blockIndex].rows[rowIndex].date = currentDate;
-        worker.blocks[blockIndex].rows[rowIndex].day_of_week =
-          currentDate.toLocaleDateString("en-US", { weekday: "long" });
-        worker.blocks[blockIndex].rows[rowIndex].checkout_recorded_at = checkoutRecordedAt;
-        worker.blocks[blockIndex].rows[rowIndex].checkout_reason = String(checkoutReason || "").trim();
-        worker.blocks[blockIndex].rows[rowIndex].backdated_by = isBackdated ? recordedBy : "";
-        worker.blocks[blockIndex].rows[rowIndex].checkout_events.push(checkoutEvent);
-      }
-    }
-
-    worker.total_stock_count += stockCompleted;
-    if (supervisor && !sameName(worker.supervisor, supervisor)) {
-      worker.supervisor = supervisor;
+    worker.total_stock_count = (Number(worker.total_stock_count) || 0) + stockCompleted;
+    if (recorder && !sameName(worker.supervisor, recorder)) {
+      worker.supervisor = recorder;
     }
     await worker.save();
 
-    const remainingStocks = row.remaining_stock_count ?? 0;
-    res.send({
-      message: keptCheckedIn
-        ? `Check-out saved. ${workerName} stays checked in with ${remainingStocks} vines left on Row ${rowNumber}.`
-        : "Check-out successful",
-      stockCompleted: stockCompleted,
-      timeSpent: `${Math.floor(timeSpentInMinutes / 60)}hr ${Math.round(
-        timeSpentInMinutes % 60
-      )}min`,
+    const keptCheckedInResult = Boolean(keepCheckedIn && leftover > 0 && job);
+    return res.json({
+      message: keptCheckedInResult
+        ? `Checkout recorded. Worker kept checked in on Row ${rowNumber}.`
+        : `Checkout successful for Row ${rowNumber}.`,
+      stockCompleted,
+      bunchesCompleted: uitknip ? bunchesCompleted : 0,
+      timeSpent: `${Math.round((Number(timeSpentInMinutes) || 0) * 100) / 100}min`,
       rowNumber: row.row_number,
-      remainingStocks,
-      rowRemainingStocks: remainingStocks,
-      keptCheckedIn,
+      remainingStocks: leftover,
+      rowRemainingStocks: leftover,
+      remainingBunches: uitknip ? bunchesLeftover : 0,
+      rowRemainingBunches: uitknip ? bunchesLeftover : 0,
+      keptCheckedIn: keptCheckedInResult,
       jobType: usedJobType,
-      workDate: localDateKey(selectedWorkDate),
-      checkoutRecordedAt: checkoutRecordedAt.toISOString(),
-      checkoutID,
+      workDate: workDateKey,
+      checkoutRecordedAt,
+      checkoutID: rowEntry.checkout_events[rowEntry.checkout_events.length - 1].checkout_id,
       backdated: isBackdated,
-      backdatedBy: isBackdated ? recordedBy : null,
+      backdatedBy: isBackdated ? recorder : null,
       creditCapped,
       requestedVinesCompleted: requestedStockCompleted,
+      requestedStockCompleted,
     });
   } catch (error) {
-    console.error("Error during worker check-out:", error);
-    res.status(500).send({ message: "Server error", error: error.message });
+    console.error("❌ Error during check-out:", error);
+    return res.status(500).json({ message: "Server error", error: error.message });
   }
 };
 
-// Get the worker's current check-in
+
 exports.getCurrentCheckin = async (req, res) => {
   const { workerID } = req.params;
 
@@ -1128,17 +1249,26 @@ exports.getCurrentCheckins = async (req, res) => {
             ) {
               return;
             }
+            const jobTypeNorm = (job.job_type || "").trim().toUpperCase();
+            const uitknip = isUitknipJob(jobTypeNorm);
+            const remainingVines = row.remaining_stock_count ?? job.remaining_stock;
+            const remainingBunches = uitknip
+              ? (row.remaining_bunch_count ?? job.remaining_bunches ?? 0)
+              : 0;
             activeCheckins.push({
               blockName: block.block_name,
-              job_type: (job.job_type || "").trim().toUpperCase(),
+              job_type: jobTypeNorm,
               rowNumber: row.row_number,
               workerID: job.worker_id,
               workerName: job.worker_name,
-              stockCount: row.remaining_stock_count ?? job.remaining_stock,
+              stockCount: remainingVines,
               vines: row.stock_count,
+              bunches: row.bunches || 0,
               startTime: job.start_time,
-              remainingStocks: row.remaining_stock_count ?? job.remaining_stock,
+              remainingStocks: remainingVines,
               rowRemainingStocks: row.remaining_stock_count ?? row.stock_count,
+              remainingBunches,
+              rowRemainingBunches: uitknip ? (row.remaining_bunch_count ?? row.bunches ?? 0) : 0,
               sharedRow: Boolean(row.shared_row || row.active_jobs.length > 1),
             });
           });
@@ -1156,16 +1286,20 @@ exports.getCurrentCheckins = async (req, res) => {
           ) {
             return;
           }
+          const jobTypeNorm = (row.job_type || "").trim().toUpperCase();
+          const uitknip = isUitknipJob(jobTypeNorm);
           activeCheckins.push({
             blockName: block.block_name,
-            job_type: (row.job_type || "").trim().toUpperCase(),
+            job_type: jobTypeNorm,
             rowNumber: row.row_number,
             workerID: row.worker_id,
             workerName: row.worker_name,
             stockCount: row.stock_count,
             vines: row.stock_count,
+            bunches: row.bunches || 0,
             startTime: row.start_time,
             remainingStocks: row.remaining_stock_count || row.stock_count,
+            remainingBunches: uitknip ? (row.remaining_bunch_count || row.bunches || 0) : 0,
             sharedRow: Boolean(row.shared_row),
           });
         }

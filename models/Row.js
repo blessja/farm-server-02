@@ -2,8 +2,8 @@ const mongoose = require("mongoose");
 
 const rowSchema = new mongoose.Schema({
   row_number: { type: String, required: true },
-  stock_count: { type: Number, default: 0 }, // Total trees in row
-  bunches: { type: Number, default: 0 },
+  stock_count: { type: Number, default: 0 }, // Total vines in row
+  bunches: { type: Number, default: 0 }, // Total bunches (tros) in row
 
   // Array to track multiple active jobs on this row
   active_jobs: [
@@ -12,7 +12,8 @@ const rowSchema = new mongoose.Schema({
       worker_id: { type: String, required: true },
       job_type: { type: String, required: true },
       start_time: { type: Date, required: true },
-      remaining_stock: { type: Number, required: true }, // Remaining for THIS job
+      remaining_stock: { type: Number, required: true }, // Remaining vines for THIS job
+      remaining_bunches: { type: Number, default: 0 }, // Remaining bunches for UITKNIP
       time_spent: { type: Number, default: null }, // Time in minutes
       // Supervisor who checked this worker in. Drives per-supervisor scoping
       // of the Working tab while the work is still in progress.
@@ -20,13 +21,14 @@ const rowSchema = new mongoose.Schema({
     },
   ],
 
-  // Legacy fields - keep for backward compatibility during migration
+  // Legacy/shared fields - keep for backward compatibility during migration
   shared_row: { type: Boolean, default: false },
   worker_name: { type: String, default: "" },
   worker_id: { type: String, default: "" },
   time_spent: { type: Number, default: 0 },
   job_type: { type: String, required: false },
-  remaining_stock_count: Number,
+  remaining_stock_count: Number, // Shared remaining vines
+  remaining_bunch_count: { type: Number, default: 0 }, // Shared remaining bunches (UITKNIP)
   start_time: { type: Date, default: null },
   checkin_recorded_by: { type: String, default: "" },
 });

@@ -13,9 +13,11 @@ import SelectField from "../components/SelectField";
 import TotalsGrid from "../components/TotalsGrid";
 import TotalsSummary from "../components/TotalsSummary";
 import { exportTotalsExcel, exportTotalsPdf } from "../utils/totalsExport";
+import * as Clipboard from "expo-clipboard";
 import { sortNamesNumerically } from "../utils/sortNames";
 import { useLanguage } from "../i18n";
 import { getRowAdvanceSettings, setRowAdvanceSettings } from "../storage/settingsStorage";
+import { setCache } from "../storage/cacheStorage";
 
 const initialForm = {
   workerID: "",
@@ -24,6 +26,92 @@ const initialForm = {
 };
 
 const FAST_JOB_TYPES = ["LEAF PICKING", "SUCKER REMOVAL", "SHOOT THINNING", "OTHER"];
+
+const FAST_WORKER_SORT_ORDER = [
+  { workerID: "4001", workerName: "Murandu Mebo" },
+  { workerID: "4003", workerName: "Shambare Precious" },
+  { workerID: "4010", workerName: "Sande Ruth" },
+  { workerID: "4014", workerName: "Kanyinji Mildret" },
+  { workerID: "4015", workerName: "Rore Caroline" },
+  { workerID: "4017", workerName: "Chaibva Trace" },
+  { workerID: "4020", workerName: "Sithole Rumbidzai" },
+  { workerID: "4022", workerName: "Mushandu Sekayi" },
+  { workerID: "4024", workerName: "Ngazimbi Wadzanayi" },
+  { workerID: "4044", workerName: "Chitanda Mirica" },
+  { workerID: "4051", workerName: "Phiri Jane" },
+  { workerID: "4057", workerName: "Chamisa Florence" },
+  { workerID: "4060", workerName: "Sithole Sifelani" },
+  { workerID: "4061", workerName: "Nyawaranda Tsitsi" },
+  { workerID: "4070", workerName: "Chikoroond Jocyline" },
+  { workerID: "4101", workerName: "Maphupho Siwiselo" },
+  { workerID: "4102", workerName: "Kaitano Moleene" },
+  { workerID: "4111", workerName: "Kurehwa Crecencia" },
+  { workerID: "4115", workerName: "Muchacha Sibongile" },
+  { workerID: "4116", workerName: "Badza Gamuchirai" },
+  { workerID: "4120", workerName: "Chaibva Annie" },
+  { workerID: "4122", workerName: "Kamwendo Natasha Gremlin" },
+  { workerID: "4145", workerName: "Mutetwa Eunice" },
+  { workerID: "4146", workerName: "Ntiisa Puseletso" },
+  { workerID: "4149", workerName: "Phiri Agnes" },
+  { workerID: "4151", workerName: "Makonese Molleen" },
+  { workerID: "4152", workerName: "Chikago Theresa" },
+  { workerID: "4154", workerName: "Chigwinya Naume" },
+  { workerID: "4156", workerName: "Nyamadzave Temptation" },
+  { workerID: "4157", workerName: "John Charity Monica" },
+  { workerID: "4158", workerName: "Musorowego Runyararo" },
+  { workerID: "4159", workerName: "Chiku Partial" },
+  { workerID: "4160", workerName: "Takaendesa Mary" },
+  { workerID: "4161", workerName: "Bhanhire Faustinah" },
+  { workerID: "4163", workerName: "Moshoeshoe Ntheoleng Evodi" },
+  { workerID: "4164", workerName: "Ntiisa Liteboho Alina" },
+  { workerID: "4166", workerName: "Matsvai Beauty" },
+  { workerID: "", workerName: "Moyo Tendai" },
+  { workerID: "", workerName: "Muudzwa Enia" },
+  { workerID: "", workerName: "Ndlovu Tambudzai" },
+  { workerID: "", workerName: "Mereka Nomatter" },
+  { workerID: "", workerName: "Masimba Teurai" },
+  { workerID: "5010", workerName: "Lambrechts Liza" },
+  { workerID: "5020", workerName: "Swarts Audrey Nomfusi" },
+  { workerID: "5056", workerName: "Solitswayi Abenathi" },
+  { workerID: "5057", workerName: "Solitswayi Nokuphiwa" },
+  { workerID: "5107", workerName: "Toyo Notokazi Victor" },
+  { workerID: "5155", workerName: "George Elizabeth" },
+  { workerID: "5157", workerName: "Malgas Puseletso" },
+  { workerID: "5183", workerName: "Honcwana Zizo" },
+  { workerID: "5187", workerName: "Lambregts Elzaan Jamie-Le" },
+  { workerID: "5189", workerName: "Van Wyk Lorraine" },
+  { workerID: "5192", workerName: "Philander Junine Diana" },
+  { workerID: "5194", workerName: "Visser Bianca" },
+  { workerID: "5196", workerName: "Dulman Francolene" },
+  { workerID: "5198", workerName: "Plaatjies Felecia" },
+  { workerID: "5206", workerName: "Sass Jacqueline" },
+  { workerID: "5207", workerName: "Julius Chrisma Natilen" },
+  { workerID: "5208", workerName: "Conradie Justine Elaine" },
+  { workerID: "5209", workerName: "Petro Maritza Abigail" },
+  { workerID: "5210", workerName: "Manuel Michell" },
+  { workerID: "5212", workerName: "Swem Belinda" },
+  { workerID: "5213", workerName: "Esau Elana" },
+  { workerID: "5214", workerName: "Esau Salome" },
+  { workerID: "5215", workerName: "Esau Wilmary Ashlene" },
+  { workerID: "6002", workerName: "Plaatjies Gisella Giome" },
+  { workerID: "6035", workerName: "Willemse Izel Marionet" },
+  { workerID: "6047", workerName: "Rooi Desmonia Levoni" },
+  { workerID: "1005", workerName: "Van Wyk Leah" },
+  { workerID: "1006", workerName: "De Bruin Mercia" },
+  { workerID: "1008", workerName: "Van Wyk Jeandre" },
+  { workerID: "1010", workerName: "Jackson Patricia" },
+  { workerID: "1011", workerName: "De Bruin Anna" },
+  { workerID: "1012", workerName: "Louw Karen" },
+  { workerID: "1015", workerName: "Sylvester Sandton" },
+  { workerID: "1023", workerName: "George Rozane" },
+  { workerID: "1024", workerName: "Bruintjies Deidre Justine" },
+  { workerID: "1027", workerName: "Vlotman Geraldine" },
+  { workerID: "1029", workerName: "Lottering Megan Esmerelda" },
+  { workerID: "5204", workerName: "Klassen Shelley-Anne Ch" },
+  { workerID: "6006", workerName: "Rooi Lena" },
+];
+const FAST_COMBINED_BLOCKS = "Crimson Blocks 4, 5 & 12";
+const FAST_SEPARATE_BLOCK = "Block 9";
 
 function dateKey(dateStr) {
   if (!dateStr) return "unknown";
@@ -44,6 +132,7 @@ export default function FastPieceworkScreen({ sharedState, offlineQueue }) {
   const [jobFilter, setJobFilter] = useState("");
   const [exporting, setExporting] = useState(false);
   const [exportMessage, setExportMessage] = useState(null);
+  const [copyMessage, setCopyMessage] = useState(null);
   const [fastWorkersOpen, setFastWorkersOpen] = useState(false);
   const [expandedFastBlocks, setExpandedFastBlocks] = useState({});
   const [fastWorkersSubmitting, setFastWorkersSubmitting] = useState(false);
@@ -141,16 +230,30 @@ export default function FastPieceworkScreen({ sharedState, offlineQueue }) {
     const rows = [];
     totals.forEach((w) => {
       (w.rows || []).forEach((r) => {
+        const blockName = r.blockName;
+        const originalVariety = String(
+          r.variety || varietyByBlock[blockName] || ""
+        ).trim();
+        let varietyGroup = originalVariety;
+        if (blockName === "Block 9") {
+          varietyGroup = FAST_SEPARATE_BLOCK;
+        } else if (
+          blockName === "Block 4" ||
+          blockName === "Block 5" ||
+          blockName === "Block 12"
+        ) {
+          varietyGroup = FAST_COMBINED_BLOCKS;
+        }
         rows.push({
           workerID: w.workerID,
           workerName: w.workerName,
-          blockName: r.blockName,
+          blockName,
           rowNumber: r.rowNumber,
           vines: r.vines || r.stock_count || 0,
           date: r.date,
           jobType: (r.jobType || r.job_type || "").trim().toUpperCase(),
           timeSpent: r.timeSpent || r.time_spent || 0,
-          variety: String(r.variety || varietyByBlock[r.blockName] || "").trim(),
+          variety: varietyGroup,
         });
       });
     });
@@ -169,25 +272,44 @@ export default function FastPieceworkScreen({ sharedState, offlineQueue }) {
     const map = {};
     fastCheckins.forEach((row) => {
       const block = String(row.blockName || "unknown-block");
-      if (!map[block]) map[block] = {};
-      const workerKey = String(row.workerID);
-      if (!map[block][workerKey]) {
-        map[block][workerKey] = {
-          workerID: row.workerID,
-          workerName: row.workerName,
-          rowNumber: row.rowNumber,
-          jobType: String(row.job_type || "").toUpperCase(),
-          vines: row.vines ?? row.rowRemainingStocks ?? row.remainingStocks ?? 0,
-          timeSpent: row.timeSpent ?? row.time_spent ?? 0,
-          variety: String(row.variety || "").trim(),
-        };
-      }
+      if (!map[block]) map[block] = [];
+      map[block].push({
+        blockName: block,
+        workerID: row.workerID,
+        workerName: row.workerName,
+        rowNumber: row.rowNumber,
+        jobType: String(row.job_type || "").toUpperCase(),
+        vines: row.vines ?? row.rowRemainingStocks ?? row.remainingStocks ?? 0,
+        remainingStocks:
+          row.remainingStocks ??
+          row.rowRemainingStocks ??
+          row.stockCount ??
+          row.vines ??
+          0,
+        sharedRow: Boolean(row.sharedRow),
+        timeSpent: row.timeSpent ?? row.time_spent ?? 0,
+        variety: String(row.variety || "").trim(),
+      });
     });
     const grouped = {};
     sortNamesNumerically(Object.keys(map)).forEach((block) => {
-      grouped[block] = Object.values(map[block]).sort((a, b) =>
-        sortNamesNumerically([String(a.workerName || ""), String(b.workerName || "")])
-      );
+      grouped[block] = map[block].sort((a, b) => {
+        const rowOrder = String(a.rowNumber ?? "").localeCompare(
+          String(b.rowNumber ?? ""),
+          undefined,
+          { numeric: true }
+        );
+        if (rowOrder !== 0) return rowOrder;
+
+        const nameOrder = String(a.workerName || "").localeCompare(
+          String(b.workerName || ""),
+          undefined,
+          { numeric: true }
+        );
+        if (nameOrder !== 0) return nameOrder;
+
+        return String(a.jobType || "").localeCompare(String(b.jobType || ""));
+      });
     });
     return grouped;
   }, [fastCheckins]);
@@ -239,6 +361,59 @@ export default function FastPieceworkScreen({ sharedState, offlineQueue }) {
   const isFiltered = Boolean(blockFilter || jobFilter);
   const hasFastData = filteredFastRows.length > 0;
 
+  const fastCopyGroups = useMemo(
+    () => ({
+      [FAST_COMBINED_BLOCKS]: filteredFastRows.filter(
+        (row) => row.variety === FAST_COMBINED_BLOCKS
+      ),
+      [FAST_SEPARATE_BLOCK]: filteredFastRows.filter(
+        (row) => row.variety === FAST_SEPARATE_BLOCK
+      ),
+    }),
+    [filteredFastRows]
+  );
+
+  async function handleCopyGroup(groupName) {
+    setCopyMessage(null);
+    const groupRows = fastCopyGroups[groupName] || [];
+    if (!groupRows.length) return;
+
+    const workers = new Map();
+    groupRows.forEach((row) => {
+      const workerID = String(row.workerID ?? "");
+      const worker = workers.get(workerID) || {
+        name: String(row.workerName || workerID),
+        vines: 0,
+      };
+      worker.vines += Number(row.vines) || 0;
+      workers.set(workerID, worker);
+    });
+
+    const sortedWorkers = [...workers.values()].sort((a, b) =>
+      a.name.localeCompare(b.name, undefined, { numeric: true })
+    );
+    const grandTotal = sortedWorkers.reduce((sum, worker) => sum + worker.vines, 0);
+    const copyText = [
+      groupName,
+      "Worker Name\tVines",
+      ...sortedWorkers.map((worker) => `${worker.name}\t${worker.vines}`),
+      `TOTAL\t${grandTotal}`,
+    ].join("\n");
+
+    try {
+      await Clipboard.setStringAsync(copyText);
+      setCopyMessage({
+        type: "success",
+        message: t("fast.copiedGroup", { group: groupName }),
+      });
+    } catch (error) {
+      setCopyMessage({
+        type: "error",
+        message: error?.message || t("fast.copyFailed"),
+      });
+    }
+  }
+
   async function handleExport(download = false) {
     if (exporting || !hasFastData) return;
     setExporting(true);
@@ -250,6 +425,8 @@ export default function FastPieceworkScreen({ sharedState, offlineQueue }) {
         blockFilter,
         jobFilter,
         title: "Fast Totals",
+        byVariety: true,
+        workerSortOrder: FAST_WORKER_SORT_ORDER,
         download,
       });
       if (result.delivery === "cancelled") return;
@@ -283,6 +460,8 @@ export default function FastPieceworkScreen({ sharedState, offlineQueue }) {
         blockFilter,
         jobFilter,
         title: "Fast Totals",
+        byVariety: true,
+        workerSortOrder: FAST_WORKER_SORT_ORDER,
       });
       if (result.delivery === "cancelled") return;
       const messageKey = {
@@ -448,9 +627,11 @@ export default function FastPieceworkScreen({ sharedState, offlineQueue }) {
       setFeedback({ type: "success", message: result.message });
       setForm((current) => ({ ...current, workerID: "", workerName: "" }));
       handleSuccessfulCheckinSelection();
-      totalsState.refresh();
-      blockDetailsState.refresh();
-      await offlineQueue.refreshQueueCount();
+      if (!result?.queued) {
+        void totalsState.refresh();
+        void blockDetailsState.refresh();
+      }
+      void offlineQueue.refreshQueueCount();
     } catch (error) {
       setFeedback({ type: "error", message: error.message });
     } finally {
@@ -459,17 +640,86 @@ export default function FastPieceworkScreen({ sharedState, offlineQueue }) {
   }
 
   function toggleFastWorker(blockName, worker) {
-    const key = `${blockName}::${worker.workerID}-${worker.rowNumber}`;
-    setExpandedFastWorkers((current) => ({ ...current, [key]: !current[key] }));
-    if (current[key]) {
-      setFastWorkerAction(null);
-      setFastWorkersFeedback({ type: "info", message: "" });
-    }
+    const key = `${blockName}::${worker.workerID}-${worker.rowNumber}-${worker.jobType}`;
+    const isExpanded = Boolean(expandedFastWorkers[key]);
+    setExpandedFastWorkers(isExpanded ? {} : { [key]: true });
+    setFastWorkerAction(null);
+    setFastCheckoutStock("");
+    setFastCheckoutKeep(true);
+    setFastMoveTargetBlock("");
+    setFastMoveTargetRow("");
+    setFastWorkersFeedback({ type: "info", message: "" });
+  }
+
+  function toggleFastBlock(blockName) {
+    setExpandedFastBlocks((current) =>
+      current[blockName] ? {} : { [blockName]: true }
+    );
+  }
+
+  function persistFastCheckins(records) {
+    checkinsState.setData(records);
+    void setCache("checkins:fast-workers", records);
+  }
+
+  function applyFastCheckoutLocally(worker, result) {
+    if (result?.queued) return;
+    const current = Array.isArray(checkinsState.data) ? checkinsState.data : [];
+    const matchesWorker = (record) =>
+      String(record.workerID) === String(worker.workerID) &&
+      String(record.blockName) === String(worker.blockName) &&
+      String(record.rowNumber) === String(worker.rowNumber) &&
+      String(record.job_type || "").toUpperCase() ===
+        String(worker.jobType || "").toUpperCase();
+
+    const next = result.keptCheckedIn
+      ? current.map((record) =>
+          matchesWorker(record)
+            ? {
+                ...record,
+                remainingStocks: result.remainingStocks,
+                rowRemainingStocks: result.rowRemainingStocks,
+                stockCount: result.remainingStocks,
+              }
+            : record
+        )
+      : current.filter((record) => !matchesWorker(record));
+    persistFastCheckins(next);
+  }
+
+  function applyFastMoveLocally(worker) {
+    const current = Array.isArray(checkinsState.data) ? checkinsState.data : [];
+    const next = current.map((record) =>
+      String(record.workerID) === String(worker.workerID) &&
+      String(record.blockName) === String(worker.blockName) &&
+      String(record.rowNumber) === String(worker.rowNumber) &&
+      String(record.job_type || "").toUpperCase() ===
+        String(worker.jobType || "").toUpperCase()
+        ? {
+            ...record,
+            blockName: fastMoveTargetBlock,
+            rowNumber: fastMoveTargetRow,
+          }
+        : record
+    );
+    persistFastCheckins(next);
   }
 
   async function submitFastCheckout(worker) {
     setFastWorkersSubmitting(true);
     setFastWorkersFeedback({ type: "info", message: "" });
+    const previousCheckins = checkinsState.data;
+    const currentRemaining = Number(worker.remainingStocks ?? worker.vines) || 0;
+    const requestedCompletion =
+      fastCheckoutStock === "" ? currentRemaining : Number(fastCheckoutStock);
+    const optimisticRemaining = Math.max(0, currentRemaining - requestedCompletion);
+    const optimisticKept =
+      fastCheckoutKeep && optimisticRemaining > 0;
+    applyFastCheckoutLocally(worker, {
+      keptCheckedIn: optimisticKept,
+      remainingStocks: optimisticRemaining,
+      rowRemainingStocks: optimisticRemaining,
+    });
     try {
       const result = await api.regularCheckout({
         workerID: String(worker.workerID ?? ""),
@@ -481,13 +731,16 @@ export default function FastPieceworkScreen({ sharedState, offlineQueue }) {
         keepCheckedIn: fastCheckoutKeep,
       });
       setFastWorkersFeedback({ type: "success", message: result.message });
-      await totalsState.refresh();
-      await hoursState.refresh();
-      setTimeout(() => {
-        setFastWorkerAction(null);
-        setFastWorkersOpen(false);
-      }, 900);
+      if (!result?.queued) {
+        applyFastCheckoutLocally(worker, result);
+        void totalsState.refresh();
+        void hoursState.refresh();
+      }
+      void offlineQueue?.refreshQueueCount?.();
+      setFastWorkerAction(null);
+      setExpandedFastWorkers({});
     } catch (error) {
+      if (Array.isArray(previousCheckins)) persistFastCheckins(previousCheckins);
       setFastWorkersFeedback({ type: "error", message: error.message });
     } finally {
       setFastWorkersSubmitting(false);
@@ -497,6 +750,10 @@ export default function FastPieceworkScreen({ sharedState, offlineQueue }) {
   async function submitFastMove(worker) {
     setFastWorkersSubmitting(true);
     setFastWorkersFeedback({ type: "info", message: "" });
+    const previousCheckins = checkinsState.data;
+    const previousExpandedBlocks = expandedFastBlocks;
+    applyFastMoveLocally(worker);
+    setExpandedFastBlocks({ [fastMoveTargetBlock]: true });
     try {
       const result = await api.moveRegularWorker({
         workerID: String(worker.workerID ?? ""),
@@ -507,12 +764,16 @@ export default function FastPieceworkScreen({ sharedState, offlineQueue }) {
         jobType: worker.jobType || "",
       });
       setFastWorkersFeedback({ type: "success", message: result.message });
-      await totalsState.refresh();
-      setTimeout(() => {
-        setFastWorkerAction(null);
-        setFastWorkersOpen(false);
-      }, 900);
+      if (!result?.queued) {
+        applyFastMoveLocally(worker);
+        void totalsState.refresh();
+      }
+      void offlineQueue?.refreshQueueCount?.();
+      setFastWorkerAction(null);
+      setExpandedFastWorkers({});
     } catch (error) {
+      if (Array.isArray(previousCheckins)) persistFastCheckins(previousCheckins);
+      setExpandedFastBlocks(previousExpandedBlocks);
       setFastWorkersFeedback({ type: "error", message: error.message });
     } finally {
       setFastWorkersSubmitting(false);
@@ -740,6 +1001,29 @@ export default function FastPieceworkScreen({ sharedState, offlineQueue }) {
           <TotalsSummary rows={filteredFastRows} hours={dayHours} />
         ) : null}
         {fastRows.length > 0 ? (
+          <View style={{ gap: 8 }}>
+            <Text style={{ color: "#6b7280", fontSize: 13 }}>
+              {t("fast.copyTotalsSub")}
+            </Text>
+            <ActionButton
+              label={t("fast.copyGroupTotals", { group: FAST_COMBINED_BLOCKS })}
+              onPress={() => handleCopyGroup(FAST_COMBINED_BLOCKS)}
+              disabled={!fastCopyGroups[FAST_COMBINED_BLOCKS].length}
+              tone="secondary"
+            />
+            <ActionButton
+              label={t("fast.copyGroupTotals", { group: FAST_SEPARATE_BLOCK })}
+              onPress={() => handleCopyGroup(FAST_SEPARATE_BLOCK)}
+              disabled={!fastCopyGroups[FAST_SEPARATE_BLOCK].length}
+              tone="secondary"
+            />
+            <FeedbackBanner
+              type={copyMessage?.type}
+              message={copyMessage?.message}
+            />
+          </View>
+        ) : null}
+        {fastRows.length > 0 ? (
           <SelectField
             label={t("fast.filterBlock")}
             value={blockFilter}
@@ -793,7 +1077,8 @@ export default function FastPieceworkScreen({ sharedState, offlineQueue }) {
             hours={dayHours}
             editable
             byVariety
-            onHoursChanged={() => hoursState.refresh()}
+            workerSortOrder={FAST_WORKER_SORT_ORDER}
+            onHoursChanged={hoursState.refresh}
             emptyMessage={t("fast.noTotalsMatchCurrent")}
           />
         ) : null}
@@ -842,10 +1127,7 @@ export default function FastPieceworkScreen({ sharedState, offlineQueue }) {
 
       <ActionButton
         label={t("fast.viewActiveWorkers")}
-        onPress={() => {
-          checkinsState.refresh();
-          setFastWorkersOpen(true);
-        }}
+        onPress={() => setFastWorkersOpen(true)}
         disabled={false}
         tone="secondary"
       />
@@ -864,6 +1146,9 @@ export default function FastPieceworkScreen({ sharedState, offlineQueue }) {
             <Text style={{ color: "#111827", fontSize: 18, fontWeight: "800" }}>
               {t("fast.viewActiveWorkers")}
             </Text>
+            {checkinsState.loading ? (
+              <ActivityIndicator color="#2D7A55" style={{ marginLeft: 8 }} />
+            ) : null}
             <TouchableOpacity
               onPress={() => setFastWorkersOpen(false)}
               style={{
@@ -882,7 +1167,7 @@ export default function FastPieceworkScreen({ sharedState, offlineQueue }) {
           </View>
           <ScrollView
             style={{ flex: 1 }}
-            contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24 }}
+            contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 32 }}
           >
             {Object.keys(fastWorkersByBlock)
               .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
@@ -890,71 +1175,75 @@ export default function FastPieceworkScreen({ sharedState, offlineQueue }) {
                 const workers = fastWorkersByBlock[blockName] || [];
                 const isBlockExpanded = Boolean(expandedFastBlocks[blockName]);
                 return (
-                  <View key={blockName}>
+                  <View key={blockName} style={{ marginBottom: 16 }}>
                     <TouchableOpacity
                       activeOpacity={0.7}
-                      onPress={() =>
-                        setExpandedFastBlocks((current) => ({
-                          ...current,
-                          [blockName]: !current[blockName],
-                        }))
-                      }
+                      onPress={() => toggleFastBlock(blockName)}
                       style={{
-                        borderRadius: 14,
-                        backgroundColor: "#F4F7F3",
+                        borderRadius: 16,
+                        backgroundColor: isBlockExpanded ? "#EAF3EC" : "#F7F9F7",
                         borderWidth: 1,
-                        borderColor: "#E5ECE4",
-                        paddingHorizontal: 14,
-                        paddingVertical: 12,
+                        borderColor: isBlockExpanded ? "#BFD6C5" : "#E5ECE4",
+                        paddingHorizontal: 16,
+                        paddingVertical: 15,
                         flexDirection: "row",
                         alignItems: "center",
                         justifyContent: "space-between",
                       }}
                     >
-                      <Text style={{ color: "#374151", fontSize: 13, fontWeight: "800" }}>
+                      <Text style={{ color: "#263B2D", fontSize: 15, fontWeight: "800" }}>
                         {blockName}
                       </Text>
-                      <Text style={{ color: "#6b7280", fontSize: 11, fontWeight: "800" }}>
+                      <Text style={{ color: "#2D7A55", fontSize: 15, fontWeight: "800" }}>
                         {isBlockExpanded ? "▾" : "▸"}
                       </Text>
                     </TouchableOpacity>
                     {isBlockExpanded ? (
-                      <View>
+                      <View style={{ gap: 10, paddingTop: 10, paddingHorizontal: 6 }}>
                         {workers.map((worker) => {
-                          const workerKey = `${blockName}::${worker.workerID}-${worker.rowNumber}`;
+                          const workerKey = `${blockName}::${worker.workerID}-${worker.rowNumber}-${worker.jobType}`;
                           const isWorkerExpanded = Boolean(expandedFastWorkers[workerKey]);
                           return (
                             <View
                               key={workerKey}
                               style={{
-                                borderRadius: 14,
+                                borderRadius: 16,
                                 borderWidth: 1,
-                                borderColor: "#eef2ef",
-                                backgroundColor: "#fff",
-                                padding: 12,
+                                borderColor: isWorkerExpanded ? "#BFD6C5" : "#E8EEE9",
+                                backgroundColor: isWorkerExpanded ? "#FBFDFB" : "#fff",
+                                padding: 14,
+                                shadowColor: "#163B24",
+                                shadowOffset: { width: 0, height: 2 },
+                                shadowOpacity: 0.06,
+                                shadowRadius: 5,
+                                elevation: 2,
                               }}
                             >
                               <TouchableOpacity
                                 activeOpacity={0.7}
                                 onPress={() => toggleFastWorker(blockName, worker)}
+                                style={{ minHeight: 58, justifyContent: "center" }}
                               >
                                 <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-                                  <View style={{ flex: 1 }}>
-                                    <Text style={{ color: "#111827", fontSize: 15, fontWeight: "800" }}>
+                                  <View style={{ flex: 1, paddingRight: 12 }}>
+                                    <Text style={{ color: "#111827", fontSize: 15, fontWeight: "800" }} numberOfLines={1}>
                                       {worker.workerName}
                                     </Text>
-                                    <Text style={{ marginTop: 2, fontSize: 13, color: "#9ca3af" }}>
+                                    <Text style={{ marginTop: 5, fontSize: 12, color: "#7B8790" }}>
                                       {t("ci.id", { id: worker.workerID })}
                                     </Text>
+                                    <Text style={{ marginTop: 4, fontSize: 12, color: "#66736A" }}>
+                                      {t("ci.block")}: {blockName}
+                                    </Text>
                                   </View>
-                                  <View style={{ alignItems: "flex-end" }}>
-                                    <Text style={{ color: "#2D7A55", fontSize: 13, fontWeight: "800" }}>
+                                  <View style={{ alignItems: "flex-end", gap: 4 }}>
+                                    <Text style={{ color: "#236342", fontSize: 12, fontWeight: "800", backgroundColor: "#EAF3EC", overflow: "hidden", borderRadius: 8, paddingHorizontal: 9, paddingVertical: 4 }}>
                                       {worker.jobType || t("common.noJob")}
                                     </Text>
-                                    <Text style={{ color: "#9ca3af", fontSize: 12, marginTop: 2 }}>
+                                    <Text style={{ color: "#66736A", fontSize: 12 }}>
                                       {t("ci.row", { row: worker.rowNumber })}
                                     </Text>
-                                    <Text style={{ color: "#9ca3af", fontSize: 12, marginTop: 2 }}>
+                                    <Text style={{ color: "#66736A", fontSize: 12 }}>
                                       {t("ci.vinesLine", { count: Number(worker.vines || 0) || 0 })}
                                     </Text>
                                   </View>
@@ -1006,7 +1295,7 @@ export default function FastPieceworkScreen({ sharedState, offlineQueue }) {
                                           }}
                                         >
                                           <Text style={{ color: fastCheckoutKeep ? "#fff" : "#374151", fontSize: 13, fontWeight: "800" }}>
-                                            {t("ci.keepChoice", { remaining: Number(worker.vines || 0) || 0 })}
+                                            {t("ci.keepChoice", { remaining: Number(worker.remainingStocks || 0) || 0 })}
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -1028,7 +1317,7 @@ export default function FastPieceworkScreen({ sharedState, offlineQueue }) {
                 </TouchableOpacity>
               </View>
               <ActionButton
-                label={t("common.submit")}
+                label={fastWorkersSubmitting ? t("common.submitting") : t("common.submit")}
                 onPress={() => submitFastCheckout(worker)}
                 disabled={fastWorkersSubmitting}
                 tone="primary"
@@ -1084,9 +1373,13 @@ export default function FastPieceworkScreen({ sharedState, offlineQueue }) {
                 </View>
               ) : null}
               <ActionButton
-                label={t("ci.moveWorker")}
+                label={fastWorkersSubmitting ? t("common.working") : t("ci.moveWorker")}
                 onPress={() => submitFastMove(worker)}
-                disabled={fastWorkersSubmitting}
+                disabled={
+                  fastWorkersSubmitting ||
+                  !fastMoveTargetBlock ||
+                  !fastMoveTargetRow
+                }
               />
             </View>
           ) : null}
@@ -1134,6 +1427,15 @@ export default function FastPieceworkScreen({ sharedState, offlineQueue }) {
                   </View>
                 );
               })}
+            {checkinsState.loading && !fastCheckins.length ? (
+              <ActivityIndicator color="#16a34a" style={{ marginTop: 16 }} />
+            ) : null}
+            {!checkinsState.loading && !fastCheckins.length ? (
+              <Text style={{ color: "#9ca3af", fontSize: 14, marginTop: 16 }}>
+                {t("ci.noWorkersAvailable")}
+              </Text>
+            ) : null}
+            <FeedbackBanner type="error" message={checkinsState.error} />
             <FeedbackBanner type={fastWorkersFeedback.type} message={fastWorkersFeedback.message} />
           </ScrollView>
         </SafeAreaView>

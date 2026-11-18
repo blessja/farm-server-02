@@ -90,11 +90,101 @@ function formatSheetNumber(value) {
   return Number(value).toFixed(1).replace(".", ",");
 }
 
+function getVarieties(rows) {
+  const set = new Set();
+  rows.forEach((r) => {
+    const v = String(r.variety || "").trim();
+    if (v) set.add(v);
+  });
+  return [...set].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+}
+
+function preferredOrderIndex(worker, preferredOrder) {
+  if (!Array.isArray(preferredOrder) || !preferredOrder.length) return -1;
+  const wid = String(worker.workerID ?? "").trim();
+  const wname = String(
+    (worker.workerName ?? `${worker.lastName || ""} ${worker.firstName || ""}`) || ""
+  )
+    .trim()
+    .toLowerCase();
+  return preferredOrder.findIndex((entry) => {
+    const id = String(entry?.workerID ?? entry?.id ?? "").trim();
+    const name = String(entry?.workerName ?? entry?.name ?? "").trim().toLowerCase();
+    return (id && id === wid) || (name && name === wname);
+  });
+}
+
+function buildVarietyWorkers(rows, hours, preferredOrder) {
+  const workers = {};
+  rows.forEach((r) => {
+    const wid = String(r.workerID);
+    const v = String(r.variety || "").trim();
+    if (!workers[wid]) {
+      const parts = splitWorkerName(r.workerName);
+      workers[wid] = {
+        workerID: r.workerID,
+        workerName: r.workerName,
+        lastName: parts.lastName,
+        firstName: parts.firstName,
+        varieties: {},
+      };
+    }
+    workers[wid].varieties[v] = (Number(workers[wid].varieties[v]) || 0) + (Number(r.vines) || 0);
+  });
+
+  const workerList = Object.values(workers);
+  workerList.forEach((w) => {
+    w.total = Object.values(w.varieties).reduce((sum, value) => sum + (Number(value) || 0), 0);
+  });
+
+  const dayKeys = new Set();
+  rows.forEach((r) => dayKeys.add(`${String(r.workerID)}__${dateKey(r.date)}`));
+  const hoursByWorker = {};
+  Object.keys(hours || {}).forEach((key) => {
+    if (!dayKeys.has(String(key))) return;
+    const wid = String(key.split("__")[0]);
+    const w = workerList.find((x) => String(x.workerID) === wid);
+    if (!w) return;
+    hoursByWorker[String(w.workerID)] = (Number(hoursByWorker[String(w.workerID)]) || 0) + (Number(hours[key]?.hours) || 0);
+  });
+  workerList.forEach((w) => {
+    w.hours = Number(hoursByWorker[String(w.workerID)]) || 0;
+  });
+
+  workerList.sort((a, b) => {
+    if (Array.isArray(preferredOrder) && preferredOrder.length) {
+      const ai = preferredOrderIndex(a, preferredOrder);
+      const bi = preferredOrderIndex(b, preferredOrder);
+      if (ai !== -1 || bi !== -1) {
+        if (ai === -1) return 1;
+        if (bi === -1) return -1;
+        if (ai !== bi) return ai - bi;
+      }
+    }
+    return (
+      (Number(b.total) || 0) - (Number(a.total) || 0) ||
+      String(a.lastName || "").localeCompare(String(b.lastName || ""))
+    );
+  });
+
+  const varietyTotals = {};
+  workerList.forEach((w) => {
+    Object.keys(w.varieties).forEach((v) => {
+      varietyTotals[v] = (Number(varietyTotals[v]) || 0) + (Number(w.varieties[v]) || 0);
+    });
+  });
+
+  const grandVines = workerList.reduce((sum, w) => sum + (Number(w.total) || 0), 0);
+  const grandHours = workerList.reduce((sum, w) => sum + (Number(w.hours) || 0), 0);
+
+  return { workers: workerList, varieties: getVarieties(rows), varietyTotals, grandVines, grandHours };
+}
+
 /**
  * Build a print-ready HTML report (worker x day matrix) from the exact rows
  * and hours currently shown on screen, so exports stay correct under filters.
  */
-export function buildTotalsHtml({ rows = [], hours = {}, blockFilter = "", jobFilter = "", rowFilter = "", title = "" }) {
+export function buildTotalsHtml({ rows = [], hours = {}, blockFilter = "", jobFilter = "", rowFilter = "", title = "", byVariety = false, workerSortOrder }) {
   const rankedRows = buildRankedRows(rows, hours);
   const grandVines = rankedRows.reduce((sum, worker) => sum + worker.vines, 0);
   const grandHours = rankedRows.reduce((sum, worker) => sum + worker.hours, 0);
@@ -117,6 +207,51 @@ export function buildTotalsHtml({ rows = [], hours = {}, blockFilter = "", jobFi
   const heading = title
     ? `Glen Oak Farm — ${esc(title)}`
     : "Glen Oak Farm — Totals";
+
+  const varietyReport = byVariety ? buildVarietyWorkers(rows, hours, workerSortOrder) : null;
+
+  const bodyRows = varietyReport
+    ? varietyReport.workers
+        .map((w) => {
+          const cells = [
+            `<td class="id">${esc(w.workerID)}</td>`,
+            `<td class="name">${esc(w.lastName)}</td>`,
+            `<td class="name">${esc(w.firstName)}</td>`,
+          ];
+          varietyReport.varieties.forEach((v) => {
+            cells.push(`<td class="vines">${w.varieties[v] || 0}</td>`);
+          });
+          cells.push(`<td class="vines">${w.total}</td>`);
+          return `<tr>\n${cells.join("\n")}\n        </tr>`;
+        })
+        .join("\n")
+    : rankedRows.map((w) => `<tr>
+          <td class="id">${esc(w.workerID)}</td>
+          <td class="name">${esc(w.lastName)}</td>
+          <td class="name">${esc(w.firstName)}</td>
+          <td class="vines">${w.vines}</td>
+          <td>${w.hours ? esc(formatSheetNumber(w.hours)) : ""}</td>
+          <td class="rate">${esc(formatRate(w.rate))}</td>
+          <td class="position">${w.position}</td>
+          <td>${w.fastest}</td>
+        </tr>`).join("\n");
+
+  const bodyFoot = varietyReport
+    ? `<tr class="total-row">
+          <td></td><td></td><td>Total</td>
+          ${varietyReport.varieties.map((v) => `<td>${varietyReport.varietyTotals[v] || 0}</td>`).join("\n          ")}
+          <td>${varietyReport.grandVines}</td>
+          <td>${formatSheetNumber(varietyReport.grandHours)}</td>
+          <td>${formatRate(varietyReport.grandHours ? varietyReport.grandVines / varietyReport.grandHours : 0)}</td>
+          <td></td><td></td>
+        </tr>`
+    : `<tr class="total-row">
+          <td></td><td></td><td>Total</td>
+          <td>${grandVines}</td>
+          <td>${formatSheetNumber(grandHours)}</td>
+          <td>${formatRate(grandHours ? grandVines / grandHours : 0)}</td>
+          <td></td><td></td>
+        </tr>`;
 
   return `<!DOCTYPE html>
 <html>
@@ -152,21 +287,10 @@ export function buildTotalsHtml({ rows = [], hours = {}, blockFilter = "", jobFi
         </tr>
       </thead>
       <tbody>
-        ${rankedRows.map((w) => `<tr>
-          <td class="id">${esc(w.workerID)}</td>
-          <td class="name">${esc(w.lastName)}</td>
-          <td class="name">${esc(w.firstName)}</td>
-          <td class="vines">${w.vines}</td>
-          <td>${w.hours ? esc(formatSheetNumber(w.hours)) : ""}</td>
-          <td class="rate">${esc(formatRate(w.rate))}</td>
-          <td class="position">${w.position}</td>
-          <td>${w.fastest}</td>
-        </tr>`).join("\n")}
+        ${bodyRows}
+      </tbody>
       <tfoot>
-        <tr class="total-row">
-          <td></td><td></td><td>Total</td><td>${grandVines}</td>
-          <td>${formatSheetNumber(grandHours)}</td><td>${formatRate(grandHours ? grandVines / grandHours : 0)}</td><td></td><td></td>
-        </tr>
+        ${bodyFoot}
       </tfoot>
     </table>
   </body>
@@ -442,28 +566,53 @@ function buildMatrixPdf({ rows = [], hours = {}, blockFilter = "", jobFilter = "
   return pdf;
 }
 
-function buildTotalsPdf({ rows = [], hours = {}, blockFilter = "", jobFilter = "", rowFilter = "", title = "" }) {
+function buildTotalsPdf({ rows = [], hours = {}, blockFilter = "", jobFilter = "", rowFilter = "", title = "", byVariety = false, workerSortOrder }) {
   const PAGE_W = 842;
   const PAGE_H = 595;
   const M = 30;
   const rankedRows = buildRankedRows(rows, hours);
   const grandVines = rankedRows.reduce((sum, worker) => sum + worker.vines, 0);
   const grandHours = rankedRows.reduce((sum, worker) => sum + worker.hours, 0);
-  const columns = [
-    { label: "ID", width: 42 },
-    { label: "Last name", width: 86 },
-    { label: "First Name", width: 105 },
-    { label: "Vines", width: 75 },
-    { label: "Hours", width: 65 },
-    { label: "Vines/hour", width: 85 },
-    { label: "Position", width: 72 },
-    { label: "Fastest", width: 62 },
-  ];
+  const varietyReport = byVariety ? buildVarietyWorkers(rows, hours, workerSortOrder) : null;
+  const reportWorkers = varietyReport ? varietyReport.workers : null;
+  const pdfWorkers = byVariety && reportWorkers ? reportWorkers : rankedRows;
+
+  const columns = byVariety
+    ? [
+        { label: "ID", width: 42 },
+        { label: "Last name", width: 86 },
+        { label: "First Name", width: 105 },
+        ...varietyReport.varieties.map((v) => ({
+          label: v,
+          width: Math.max(
+            28,
+            Math.floor(
+              (PAGE_W -
+                2 * M -
+                (42 + 86 + 105) -
+                66 -
+                28 * Math.max(0, varietyReport.varieties.length - 1)) /
+                Math.max(1, varietyReport.varieties.length)
+            )
+          ),
+        })),
+        { label: "Total", width: 66 },
+      ]
+    : [
+        { label: "ID", width: 42 },
+        { label: "Last name", width: 86 },
+        { label: "First Name", width: 105 },
+        { label: "Vines", width: 75 },
+        { label: "Hours", width: 65 },
+        { label: "Vines/hour", width: 85 },
+        { label: "Position", width: 72 },
+        { label: "Fastest", width: 62 },
+      ];
   const headerH = 24;
   const footerH = 20;
   const titleBlockH = 78;
   const tableTop = M + titleBlockH;
-  const rowH = Math.min(16, Math.floor((PAGE_H - M - tableTop - footerH) / Math.max(1, rankedRows.length)));
+  const rowH = Math.min(16, Math.floor((PAGE_H - M - tableTop - footerH) / Math.max(1, pdfWorkers.length)));
   const tableW = columns.reduce((sum, column) => sum + column.width, 0);
   const xAt = (index) => M + columns.slice(0, index).reduce((sum, column) => sum + column.width, 0);
 
@@ -472,7 +621,7 @@ function buildTotalsPdf({ rows = [], hours = {}, blockFilter = "", jobFilter = "
     jobFilter ? `Job: ${jobFilter}` : "",
     rowFilter ? `Row: ${rowFilter}` : "",
   ].filter(Boolean).join(" · ") || "All blocks · All jobs";
-  const summaryText = `Workers: ${rankedRows.length}   Vines: ${grandVines}   Hours: ${formatHours(grandHours) || "0h"}`;
+  const summaryText = `Workers: ${pdfWorkers.length}   Vines: ${byVariety ? varietyReport.grandVines : grandVines}   Hours: ${formatHours(byVariety ? varietyReport.grandHours : grandHours) || "0h"}`;
   const R = [];
   const addText = (text, x, yTop, { font = "F1", size = 9, g = 0.129, r = 0.129, b = 0.129 } = {}) => {
     const py = PAGE_H - (yTop + size * 0.35);
@@ -493,7 +642,9 @@ function buildTotalsPdf({ rows = [], hours = {}, blockFilter = "", jobFilter = "
   R.push(`${M} ${(PAGE_H - tableTop - headerH).toFixed(2)} ${tableW} ${headerH} re f`);
   columns.forEach((column, index) => centeredText(column.label, index, tableTop + 7, { font: "F2", size: 8, g: 1, r: 1, b: 1 }));
 
-  rankedRows.forEach((worker, rowIndex) => {
+  const rowCount = Math.max(1, pdfWorkers.length);
+
+  pdfWorkers.forEach((worker, rowIndex) => {
     const yTop = tableTop + headerH + rowIndex * rowH;
     if (rowIndex % 2 === 1) {
       R.push("0.970 0.970 0.970 rg");
@@ -502,27 +653,43 @@ function buildTotalsPdf({ rows = [], hours = {}, blockFilter = "", jobFilter = "
     centeredText(worker.workerID, 0, yTop + 4, { font: "F2", size: 8, g: 0.02, r: 0.02, b: 0.35 });
     addText(worker.lastName, xAt(1) + 4, yTop + 4, { font: "F2", size: 8, g: 0.25, r: 0.82, b: 0.25 });
     addText(worker.firstName, xAt(2) + 4, yTop + 4, { font: "F2", size: 8, g: 0.25, r: 0.82, b: 0.25 });
-    centeredText(worker.vines, 3, yTop + 4, { font: "F2", size: 8, g: 0.08, r: 0.58, b: 0.28 });
-    centeredText(worker.hours ? formatSheetNumber(worker.hours) : "", 4, yTop + 4, { size: 8 });
-    centeredText(formatRate(worker.rate), 5, yTop + 4, { size: 8, g: 0.12, r: 0.12, b: 0.65 });
-    centeredText(worker.position, 6, yTop + 4, { font: "F2", size: 8, g: 0, r: 0.8, b: 0 });
-    centeredText(worker.fastest, 7, yTop + 4, { size: 8 });
+    if (byVariety) {
+      varietyReport.varieties.forEach((v, vi) => {
+        centeredText(String(worker.varieties[v] || 0), 3 + vi, yTop + 4, { font: "F2", size: 8, g: 0.08, r: 0.58, b: 0.28 });
+      });
+      centeredText(String(worker.total), columns.length - 1, yTop + 4, { font: "F2", size: 8, g: 0.08, r: 0.58, b: 0.28 });
+    } else {
+      centeredText(worker.vines, 3, yTop + 4, { font: "F2", size: 8, g: 0.08, r: 0.58, b: 0.28 });
+      centeredText(worker.hours ? formatSheetNumber(worker.hours) : "", 4, yTop + 4, { size: 8 });
+      centeredText(formatRate(worker.rate), 5, yTop + 4, { size: 8, g: 0.12, r: 0.12, b: 0.65 });
+      centeredText(worker.position, 6, yTop + 4, { font: "F2", size: 8, g: 0, r: 0.8, b: 0 });
+      centeredText(worker.fastest, 7, yTop + 4, { size: 8 });
+    }
   });
 
-  const footY = tableTop + headerH + rankedRows.length * rowH;
+  const footY = tableTop + headerH + pdfWorkers.length * rowH;
   R.push("0.941 0.992 0.957 rg");
   R.push(`${M} ${(PAGE_H - footY - footerH).toFixed(2)} ${tableW} ${footerH} re f`);
-  centeredText("Total", 2, footY + 5, { font: "F2", size: 8, g: 0.09, r: 0.09, b: 0.09 });
-  centeredText(grandVines, 3, footY + 5, { font: "F2", size: 8, g: 0.09, r: 0.09, b: 0.09 });
-  centeredText(formatSheetNumber(grandHours), 4, footY + 5, { font: "F2", size: 8, g: 0.09, r: 0.09, b: 0.09 });
-  centeredText(formatRate(grandHours ? grandVines / grandHours : 0), 5, footY + 5, { font: "F2", size: 8, g: 0.09, r: 0.09, b: 0.09 });
+  if (byVariety) {
+    varietyReport.varieties.forEach((v, vi) => {
+      centeredText(String(varietyReport.varietyTotals[v] || 0), 3 + vi, footY + 5, { font: "F2", size: 8, g: 0.09, r: 0.58, b: 0.28 });
+    });
+    centeredText(String(varietyReport.grandVines), columns.length - 1, footY + 5, { font: "F2", size: 8, g: 0.09, r: 0.58, b: 0.28 });
+  } else {
+    centeredText("Total", 2, footY + 5, { font: "F2", size: 8, g: 0.09, r: 0.09, b: 0.09 });
+    centeredText(grandVines, 3, footY + 5, { font: "F2", size: 8, g: 0.09, r: 0.09, b: 0.09 });
+    centeredText(formatSheetNumber(grandHours), 4, footY + 5, { size: 8 });
+    centeredText(formatRate(grandHours ? grandVines / grandHours : 0), 5, footY + 5, { size: 8, g: 0.12, r: 0.12, b: 0.65 });
+  }
 
   R.push("0.067 0.067 0.067 RG");
-  R.push(`${M} ${(PAGE_H - tableTop - headerH).toFixed(2)} ${tableW} ${(headerH + rankedRows.length * rowH + footerH).toFixed(2)} re S`);
-  for (let row = 0; row <= rankedRows.length; row++) {
+  R.push(`${M} ${(PAGE_H - tableTop - headerH).toFixed(2)} ${tableW} ${(headerH + pdfWorkers.length * rowH + footerH).toFixed(2)} re S`);
+  for (let row = 0; row <= pdfWorkers.length; row++) {
     const y = tableTop + headerH + row * rowH;
     R.push(`${M} ${(PAGE_H - y).toFixed(2)} m ${M + tableW} ${(PAGE_H - y).toFixed(2)} l S`);
   }
+  const yFoot = tableTop + headerH + pdfWorkers.length * rowH;
+  R.push(`${M} ${(PAGE_H - yFoot).toFixed(2)} m ${M + tableW} ${(PAGE_H - yFoot).toFixed(2)} l S`);
   columns.forEach((column, index) => {
     const x = xAt(index);
     R.push(`${x} ${(PAGE_H - tableTop - headerH).toFixed(2)} m ${x} ${(PAGE_H - footY - footerH).toFixed(2)} l S`);
@@ -537,6 +704,7 @@ function buildTotalsPdf({ rows = [], hours = {}, blockFilter = "", jobFilter = "
   objects[4] = `<< /Length ${stream.length} >>\nstream\n${stream}endstream`;
   objects[5] = "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>";
   objects[6] = "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>";
+
   let pdf = "%PDF-1.4\n";
   const offsets = [0];
   for (let index = 1; index < objects.length; index++) {
@@ -544,11 +712,13 @@ function buildTotalsPdf({ rows = [], hours = {}, blockFilter = "", jobFilter = "
     pdf += `${index} 0 obj\n${objects[index]}\nendobj\n`;
   }
   const xrefStart = pdf.length;
-  pdf += `xref\n0 7\n0000000000 65535 f \n`;
+  pdf += `xref\n0 7\n`;
+  pdf += `0000000000 65535 f \n`;
   for (let index = 1; index < 7; index++) pdf += `${String(offsets[index]).padStart(10, "0")} 00000 n \n`;
   pdf += `trailer\n<< /Size 7 /Root 1 0 R >>\nstartxref\n${xrefStart}\n%%EOF`;
   return pdf;
 }
+
 
 function pdfStringToBytes(pdfString) {
   const bytes = new Uint8Array(pdfString.length);
@@ -583,18 +753,35 @@ function buildTotalsWorkbook(params) {
   const grandVines = rankedRows.reduce((sum, worker) => sum + worker.vines, 0);
   const grandHours = rankedRows.reduce((sum, worker) => sum + worker.hours, 0);
 
-  const header = ["ID", "Last name", "First Name", "Vines", "Hours", "Vines/hour", "Position", "Fastest"];
-  const data = rankedRows.map((w) => [
-    String(w.workerID),
-    String(w.lastName ?? ""),
-    String(w.firstName ?? ""),
-    w.vines,
-    w.hours ? Number(w.hours) || 0 : 0,
-    w.rate > 0 ? Number(w.rate) || 0 : 0,
-    String(w.position),
-    String(w.fastest ?? ""),
-  ]);
-  data.push(["", "", "Total", grandVines, grandHours, "", "", ""]);
+  const byVariety = params.byVariety === true;
+  const varietyReport = byVariety ? buildVarietyWorkers(params.rows, params.hours, params.workerSortOrder) : null;
+
+  const header = byVariety
+    ? ["ID", "Last name", "First Name", ...varietyReport.varieties, "Total"]
+    : ["ID", "Last name", "First Name", "Vines", "Hours", "Vines/hour", "Position", "Fastest"];
+  const data = byVariety
+    ? varietyReport.workers.map((w) => [
+        String(w.workerID),
+        String(w.lastName ?? ""),
+        String(w.firstName ?? ""),
+        ...varietyReport.varieties.map((v) => w.varieties[v] || 0),
+        w.total,
+      ])
+    : rankedRows.map((w) => [
+        String(w.workerID),
+        String(w.lastName ?? ""),
+        String(w.firstName ?? ""),
+        w.vines,
+        w.hours ? Number(w.hours) || 0 : 0,
+        w.rate > 0 ? Number(w.rate) || 0 : 0,
+        String(w.position),
+        String(w.fastest ?? ""),
+      ]);
+  data.push(
+    byVariety
+      ? ["", "", "", ...varietyReport.varieties.map((v) => varietyReport.varietyTotals[v] || 0), varietyReport.grandVines]
+      : ["", "", "Total", grandVines, grandHours, "", "", ""]
+  );
 
   const ws = XLSX.utils.aoa_to_sheet([header, ...data]);
   const range = XLSX.utils.decode_range(ws["!ref"] || "A1");
@@ -612,20 +799,33 @@ function buildTotalsWorkbook(params) {
       } else if (R === range.e.r) {
         cell.s = { ...(cell.s || {}), font: totalFont };
       }
+      if (R > 0 && R < range.e.r) {
+        if ((R - 1) % 2 === 0) {
+          cell.s = { ...(cell.s || {}), fill: { patternType: "solid", fgColor: { rgb: "F9FAFB" } } };
+        }
+      }
       if (typeof cell.v === "number") cell.z = "#,##0";
     }
   }
 
-  ws["!cols"] = [
-    { wch: 8 },
-    { wch: 14 },
-    { wch: 14 },
-    { wch: 10 },
-    { wch: 10 },
-    { wch: 12 },
-    { wch: 10 },
-    { wch: 10 },
-  ];
+  ws["!cols"] = byVariety
+    ? [
+        { wch: 8 },
+        { wch: 14 },
+        { wch: 14 },
+        ...varietyReport.varieties.map(() => ({ wch: 12 })),
+        { wch: 10 },
+      ]
+    : [
+        { wch: 8 },
+        { wch: 14 },
+        { wch: 14 },
+        { wch: 10 },
+        { wch: 10 },
+        { wch: 12 },
+        { wch: 10 },
+        { wch: 10 },
+      ];
 
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, ws, "Totals");

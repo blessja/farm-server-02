@@ -16,7 +16,8 @@ import {
 } from "react-native-safe-area-context";
 import DashboardScreen from "./src/screens/DashboardScreen";
 import DayWorkScreen from "./src/screens/DayWorkScreen";
-import MoveWorkersScreen from "./src/screens/MoveWorkersScreen";
+import UitknipScreen from "./src/screens/UitknipScreen";
+import UitknipHoursScreen from "./src/screens/UitknipHoursScreen";
 import AttendanceRegisterScreen from "./src/screens/AttendanceRegisterScreen";
 import FastPieceworkScreen from "./src/screens/FastPieceworkScreen";
 import TotalsScreen from "./src/screens/TotalsScreen";
@@ -43,8 +44,9 @@ import { useLanguage } from "./src/i18n";
 const tabs = [
   { key: "dashboard", label: "Home" },
   { key: "daywork", label: "DayWork" },
+  { key: "uitknip", label: "Uitknip" },
   { key: "working", label: "Working" },
-  { key: "move", label: "Move" },
+  { key: "uitknipHours", label: "Uitknip Hours" },
   { key: "clock", label: "Register" },
   { key: "fast", label: "Fast" },
   { key: "totals", label: "Totals" },
@@ -240,6 +242,13 @@ export default function App() {
             offlineQueue={offlineQueue}
           />
         );
+      case "uitknip":
+        return (
+          <UitknipScreen
+            sharedState={sharedState}
+            offlineQueue={offlineQueue}
+          />
+        );
       case "working":
         return (
           <CheckedInScreen
@@ -248,11 +257,10 @@ export default function App() {
             showBackdate={false}
           />
         );
-      case "move":
+      case "uitknipHours":
         return (
-          <MoveWorkersScreen
-            sharedState={sharedState}
-            offlineQueue={offlineQueue}
+          <UitknipHoursScreen
+            supervisorName={bootState.supervisorName}
           />
         );
       case "clock":

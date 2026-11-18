@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AppState } from "react-native";
 import NetInfo from "@react-native-community/netinfo";
 import { api } from "../api/client";
@@ -16,6 +16,7 @@ export function useOfflineQueue() {
   const [queueCount, setQueueCount] = useState(0);
   const [lastSyncMessage, setLastSyncMessage] = useState("");
   const [queueItems, setQueueItems] = useState([]);
+  const syncInFlight = useRef(null);
 
   const refreshQueueCount = useCallback(async () => {
     const count = await getQueuedActionsCount();
@@ -31,25 +32,36 @@ export function useOfflineQueue() {
     await Promise.all([refreshQueueCount(), refreshQueueItems()]);
   }, [refreshQueueCount, refreshQueueItems]);
 
-  const syncQueue = useCallback(async () => {
-    const result = await flushQueuedActions((action) =>
-      api.replayQueuedAction(action)
-    );
+  const syncQueue = useCallback(() => {
+    if (syncInFlight.current) return syncInFlight.current;
 
-    if (result.flushed > 0) {
-      setLastSyncMessage(
-        `Synced ${result.flushed} queued action${result.flushed === 1 ? "" : "s"}.`
+    const syncPromise = (async () => {
+      const result = await flushQueuedActions((action) =>
+        api.replayQueuedAction(action)
       );
-    } else if (result.remaining > 0) {
-      setLastSyncMessage(
-        `${result.remaining} action${result.remaining === 1 ? "" : "s"} still waiting for connection.`
-      );
-    } else {
-      setLastSyncMessage("Queue is up to date.");
-    }
 
-    await refreshQueue();
-    return result;
+      if (result.flushed > 0) {
+        setLastSyncMessage(
+          `Synced ${result.flushed} queued action${result.flushed === 1 ? "" : "s"}.`
+        );
+      } else if (result.remaining > 0) {
+        setLastSyncMessage(
+          `${result.remaining} action${result.remaining === 1 ? "" : "s"} still waiting for connection.`
+        );
+      } else {
+        setLastSyncMessage("Queue is up to date.");
+      }
+
+      await refreshQueue();
+      return result;
+    })();
+
+    syncInFlight.current = syncPromise;
+    return syncPromise.finally(() => {
+      if (syncInFlight.current === syncPromise) {
+        syncInFlight.current = null;
+      }
+    });
   }, [refreshQueue]);
 
   const retryAction = useCallback(
@@ -89,7 +101,6 @@ export function useOfflineQueue() {
   );
 
   useEffect(() => {
-    refreshQueue();
     syncQueue();
 
     const appStateSubscription = AppState.addEventListener("change", (state) => {

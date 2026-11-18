@@ -16,6 +16,7 @@ import FeedbackBanner from "../components/FeedbackBanner";
 import ActionButton from "../components/ActionButton";
 import LabeledInput from "../components/LabeledInput";
 import SelectField from "../components/SelectField";
+import BunchImportPanel from "../components/BunchImportPanel";
 import { useAsyncData } from "../hooks/useAsyncData";
 import { LANGUAGES, useLanguage } from "../i18n";
 import { addServerWorker, resolveWorkerInput } from "../workers/workerRegistry";
@@ -645,6 +646,10 @@ export default function DashboardScreen({
                 type={adminFeedback.type === "error" ? "error" : "success"}
                 message={adminFeedback.message}
               />
+            </SectionCard>
+
+            <SectionCard title="Uitknip Bunch Import" subtitle="Upload/populate row bunch counts (CSV/Excel/JSON).">
+              <BunchImportPanel />
             </SectionCard>
           </ScreenScroll>
         </SafeAreaView>

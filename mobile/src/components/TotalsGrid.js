@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { memo, useMemo, useState } from "react";
 import {
   Modal,
   ScrollView,
@@ -78,12 +78,13 @@ function DataCell({ children, width, style }) {
  * Rows: [{ workerID, workerName, blockName, rowNumber, vines, date, jobType, timeSpent }]
  * hours: { `${workerID}__${dateKey}`: { hours } } - shows hours under each cell when provided.
  */
-export default function TotalsGrid({
+function TotalsGrid({
   rows = [],
   hours = {},
   editable = true,
   onHoursChanged,
   byVariety = false,
+  workerSortOrder,
   emptyMessage,
 }) {
   const { t } = useLanguage();
@@ -160,10 +161,38 @@ export default function TotalsGrid({
 
     const dateOrder = Object.keys(dMap).sort((a, b) => b.localeCompare(a));
 
-    // A table has one row order, so use the most recent visible work day as
-    // the primary ranking. This puts that day's highest vine totals first;
-    // the all-date total is only a tie-breaker.
+    const preferredOrder = Array.isArray(workerSortOrder)
+      ? workerSortOrder
+          .map((entry) => ({
+            id: String(entry?.workerID ?? entry?.id ?? "").trim(),
+            name: String(entry?.workerName ?? entry?.name ?? "")
+              .trim()
+              .toLowerCase(),
+          }))
+          .filter((entry) => entry.id || entry.name)
+      : [];
+
+    const preferredIndex = (worker) => {
+      if (!preferredOrder.length) return -1;
+      const wid = String(worker.workerID ?? "").trim();
+      const wname = String(worker.workerName ?? "").trim().toLowerCase();
+      return preferredOrder.findIndex(
+        (entry) =>
+          (entry.id && entry.id === wid) || (entry.name && entry.name === wname)
+      );
+    };
+
     const workerOrder = Object.values(wMap).sort((a, b) => {
+      if (preferredOrder.length) {
+        const ai = preferredIndex(a);
+        const bi = preferredIndex(b);
+        if (ai !== -1 || bi !== -1) {
+          if (ai === -1) return 1;
+          if (bi === -1) return -1;
+          if (ai !== bi) return ai - bi;
+        }
+      }
+
       const latestDate = dateOrder[0];
       const latestDifference =
         (matrix[`${b.workerID}__${latestDate}`]?.vines || 0) -
@@ -186,7 +215,7 @@ export default function TotalsGrid({
     });
 
     return { workerOrder, dateOrder, matrix, dateLabels };
-  }, [rows]);
+  }, [rows, workerSortOrder]);
 
   const columnTotals = useMemo(() => {
     const totals = {};
@@ -1186,3 +1215,5 @@ export default function TotalsGrid({
     </>
   );
 }
+
+export default memo(TotalsGrid);

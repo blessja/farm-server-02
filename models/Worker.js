@@ -16,13 +16,18 @@ const workerSchema = new mongoose.Schema({
         {
           row_number: { type: String },
           job_type: { type: String, required: false, default: "Other" },
-          stock_count: { type: Number, default: 0 },
+          stock_count: { type: Number, default: 0 }, // vines completed/credited
+          bunch_count: { type: Number, default: 0 }, // bunches completed/credited (UITKNIP)
           time_spent: { type: Number, default: 0 },
           date: { type: Date },
           day_of_week: { type: String },
+          recorded_by: { type: String, default: "" },
           checkout_recorded_at: { type: Date },
-          checkout_reason: { type: String },
+          checkout_recorded_by: { type: String, default: "" },
+          checkout_reason: { type: String, default: "" },
+          backdated_checkout: { type: Boolean, default: false },
           backdated_by: { type: String },
+          last_checkout_at: { type: Date, default: null },
           checkout_events: [
             {
               checkout_id: { type: String, required: true },
@@ -34,6 +39,9 @@ const workerSchema = new mongoose.Schema({
               vines_before: { type: Number, required: true },
               vines_completed: { type: Number, required: true },
               vines_remaining: { type: Number, required: true },
+              bunches_before: { type: Number, default: 0 },
+              bunches_completed: { type: Number, default: 0 },
+              bunches_remaining: { type: Number, default: 0 },
               minutes_worked: { type: Number, default: 0 },
               kept_checked_in: { type: Boolean, default: false },
               checkin_started_at: { type: Date, default: null },

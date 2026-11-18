@@ -15,6 +15,7 @@ const clockRoutes = require("./routes/clockRoutes");
 const syncRoutes = require("./routes/sync");
 const fastPieceworkRoutes = require("./routes/fastPieceworkRoutes");
 const hoursRoutes = require("./routes/hoursRoutes");
+const uitknipRoutes = require("./routes/uitknipRoutes");
 const { mobileAuthMiddleware } = require("./middleware/mobileAuth");
 
 const app = express();
@@ -85,6 +86,7 @@ app.use("/api/earliest-clock-in", clockRoutes);
 app.use("/api/autoClockOutEndpoint", clockRoutes);
 app.use("/api/fast-piecework", fastPieceworkRoutes);
 app.use("/api/hours", hoursRoutes);
+app.use("/api/uitknip", uitknipRoutes);
 app.use("/sync", syncRoutes);
 app.get("/", (req, res) => {
   res.send("✅ Backend is running!");

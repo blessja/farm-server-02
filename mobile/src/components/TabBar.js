@@ -117,6 +117,7 @@ export default function TabBar({ tabs, activeTab, onChange }) {
                 fontSize: 12,
                 fontWeight: "800",
                 color: active ? "#fff" : "#627060",
+                textAlign: "center",
               }}>
                 {tab.label}
               </Text>

@@ -1,0 +1,835 @@
+exports.checkOutWorker(
+        {
+          body: {
+            workerID,
+            workerName: assignment.workerName || workerName,
+            blockName: assignment.blockName,
+            rowNumber: assignment.rowNumber,
+            jobType: assignment.jobType,
+            checkoutReason: `Automatically checked out when checking in to Row ${rowNumber}`,
+          },
+          mobileAuth: req.mobileAuth,
+        },
+        checkoutResponse
+      );
+
+      if (checkoutResponse.statusCode >= 400) {
+        return res.status(500).json({
+          message: `Could not automatically check out ${workerName} from Row ${assignment.rowNumber}.`,
+          error: checkoutResponse.body?.message,
+        });
+      }
+    }
+
+    if (previousAssignments.length > 0) {
+      block = await Block.findOne({ block_name: blockName });
+      row = block?.rows.find((candidate) => candidate.row_number === rowNumber);
+      if (!row) {
+        return res.status(404).json({ message: "Row not found after automatic checkout" });
+      }
+    }
+
+    // Ensure worker record exists so we can tell whether this worker already
+    // completed this row today (which must NOT reset the row to full again).
+    let worker = await Worker.findOne({ workerID });
+    if (!worker) {
+      worker = new Worker({
+        workerID,
+        name: workerName,
+        total_stock_count: 0,
+        blocks: [],
+      });
+    }
+
+    // Determine actual remaining stock
+    let actualRemainingStock;
+    const rowBaseStock = Number(row.stock_count) || 0;
+    const rowBaseBunches = Number(row.bunches) || 0;
+    const uitknip = isUitknipJob(normalizedJobType);
+    const alreadyCompletedToday = creditedStockFor(
+      worker,
+      blockName,
+      rowNumber,
+      normalizedJobType,
+      localDateKey()
+    );
+    const completedRowToday = completedRowFor(
+      worker,
+      blockName,
+      rowNumber,
+      normalizedJobType,
+      localDateKey()
+    );
+
+    if (
+      row.remaining_stock_count === 0 &&
+      rowBaseStock > 0 &&
+      (completedRowToday || alreadyCompletedToday >= rowBaseStock)
+    ) {
+      // Safeguard: this worker already finished this row today. Keep the row
+      // completed instead of resetting it to full, otherwise the auto-checkout
+      // fired by their next check-in would credit the whole row a second time
+      // (the reported Block 12 / Neil James double count).
+      actualRemainingStock = 0;
+      console.log(
+        "Row already completed by this worker today; keeping it completed (no double credit)"
+      );
+    } else if (
+      row.remaining_stock_count !== undefined &&
+      row.remaining_stock_count !== null &&
+      row.remaining_stock_count > 0
+    ) {
+      actualRemainingStock = row.remaining_stock_count;
+      console.log(
+        "Using remaining_stock_count from previous session:",
+        actualRemainingStock
+      );
+    } else {
+      actualRemainingStock = row.stock_count;
+      console.log(
+        "First time on row, using stock_count:",
+        actualRemainingStock
+      );
+    }
+
+    let actualRemainingBunches = 0;
+    if (uitknip) {
+      if (actualRemainingStock === 0 && rowBaseStock > 0) {
+        actualRemainingBunches = 0;
+      } else if (
+        row.remaining_bunch_count !== undefined &&
+        row.remaining_bunch_count !== null &&
+        row.remaining_bunch_count > 0
+      ) {
+        actualRemainingBunches = Number(row.remaining_bunch_count) || 0;
+      } else if (
+        actualRemainingStock > 0 &&
+        actualRemainingStock < rowBaseStock &&
+        rowBaseStock > 0
+      ) {
+        // Derive from vine progress if bunch remaining not stored yet.
+        actualRemainingBunches = Math.max(
+          0,
+          rowBaseBunches -
+            calculateUitknipBunches(row, rowBaseStock - actualRemainingStock, false)
+        );
+      } else {
+        actualRemainingBunches = rowBaseBunches;
+      }
+    }
+
+    // Every worker on the same row shares one remaining balance.
+    row.remaining_stock_count = actualRemainingStock;
+    if (uitknip) {
+      row.remaining_bunch_count = actualRemainingBunches;
+    }
+    if (row.active_jobs.length > 0) {
+      row.shared_row = true;
+    }
+    row.active_jobs.forEach((job) => {
+      job.remaining_stock = actualRemainingStock;
+      if (uitknip || isUitknipJob(job.job_type)) {
+        job.remaining_bunches = actualRemainingBunches;
+      }
+    });
+
+    // Add new job to active_jobs
+    const recorder = recorderName(req);
+    row.active_jobs.push({
+      worker_name: workerName,
+      worker_id: workerID,
+      job_type: normalizedJobType,
+      start_time: new Date(),
+      remaining_stock: actualRemainingStock,
+      remaining_bunches: uitknip ? actualRemainingBunches : 0,
+      time_spent: null,
+      recorded_by: recorder,
+    });
+
+    // Update legacy fields
+    row.worker_name = workerName;
+    row.worker_id = workerID;
+    row.start_time = new Date();
+    row.job_type = normalizedJobType;
+    row.checkin_recorded_by = recorder;
+
+    console.log("=== ROW DATA AFTER CHECK-IN (before save) ===");
+    console.log("active_jobs:", JSON.stringify(row.active_jobs, null, 2));
+    console.log("remaining_stock_count:", row.remaining_stock_count);
+
+    await block.save();
+
+    console.log("�o. Check-in successful");
+
+    // Record the supervisor on the worker so the Totals tab can scope to the
+    // crew even before the first checkout of this shift is saved.
+    if (recorder && !sameName(worker.supervisor, recorder)) {
+      worker.supervisor = recorder;
+    }
+
+    await worker.save();
+
+
+    const autoCheckoutMessage = previousAssignments.length
+      ? ` Previous row${previousAssignments.length === 1 ? "" : "s"} checked out automatically.`
+      : "";
+    res.json({
+      message: `${allowMultipleWorkers
+        ? "Check-in successful (multiple workers on same row)"
+        : "Check-in successful"}${autoCheckoutMessage}`,
+      rowNumber: row.row_number,
+      jobType: normalizedJobType,
+      remainingStock: actualRemainingStock,
+      remainingBunches: uitknip ? actualRemainingBunches : 0,
+      multipleWorkersAllowed: allowMultipleWorkers || false,
+      autoCheckedOut: previousAssignments.map(({ blockName: previousBlock, rowNumber: previousRow }) => ({
+        blockName: previousBlock,
+        rowNumber: previousRow,
+      })),
+    });
+  } catch (error) {
+    console.error("❌ Error during check-in:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+exports.moveWorkerToRow = async (req, res) => {
+  const {
+    workerID,
+    workerName,
+    blockName,
+    fromRowNumber,
+    toRowNumber,
+    jobType,
+    allowMultipleWorkers,
+  } = req.body;
+
+  try {
+    if (!workerID || !blockName || !toRowNumber) {
+      return res.status(400).json({
+        message:
+          "workerID, blockName and toRowNumber are required to move a worker.",
+      });
+    }
+
+    const block = await Block.findOne({ block_name: blockName });
+    if (!block) {
+      return res.status(404).json({ message: "Block not found" });
+    }
+
+    let sourceRow = null;
+    let sourceJob = null;
+    let sourceJobIndex = -1;
+
+    if (fromRowNumber) {
+      sourceRow = block.rows.find((row) => row.row_number === fromRowNumber);
+      if (!sourceRow) {
+        return res.status(404).json({ message: "Source row not found" });
+      }
+
+      sourceJobIndex = findWorkerJobIndex(sourceRow, workerID, jobType);
+      if (sourceJobIndex !== -1) {
+        sourceJob = ensureActiveJobs(sourceRow)[sourceJobIndex];
+      }
+    } else {
+      for (const row of block.rows) {
+        const jobIndex = findWorkerJobIndex(row, workerID, jobType);
+        if (jobIndex !== -1) {
+          sourceRow = row;
+          sourceJobIndex = jobIndex;
+          sourceJob = ensureActiveJobs(row)[jobIndex];
+          break;
+        }
+      }
+    }
+
+    if (!sourceRow || !sourceJob || sourceJobIndex === -1) {
+      return res.status(404).json({
+        message: "No active job found for this worker on the source row.",
+      });
+    }
+
+    const targetRow = block.rows.find((row) => row.row_number === toRowNumber);
+    if (!targetRow) {
+      return res.status(404).json({ message: "Target row not found" });
+    }
+
+    if (sourceRow.row_number === targetRow.row_number) {
+      return res.status(400).json({
+        message: "Source row and target row cannot be the same.",
+      });
+    }
+
+    const targetJobs = ensureActiveJobs(targetRow);
+
+    const sameWorkerOnTarget = targetJobs.find(
+      (job) => job.worker_id === workerID
+    );
+
+    if (sameWorkerOnTarget) {
+      return res.status(409).json({
+        message: `Worker ${workerName || sourceJob.worker_name} already has an active assignment on Row ${toRowNumber}.`,
+        conflict: true,
+        existingWorker: sameWorkerOnTarget.worker_name,
+        existingJobType: sameWorkerOnTarget.job_type,
+      });
+    }
+
+    const sameJobTypeOnTarget = targetJobs.find(
+      (job) =>
+        job.job_type.toUpperCase() === sourceJob.job_type.toUpperCase() && job.worker_id !== sourceJob.worker_id
+    );
+
+    if (sameJobTypeOnTarget && !allowMultipleWorkers) {
+      return res.status(409).json({
+        message: `Row ${toRowNumber} is currently being worked on by ${sameJobTypeOnTarget.worker_name} for ${sourceJob.job_type}.`,
+        conflict: true,
+        existingWorker: sameJobTypeOnTarget.worker_name,
+        existingJobType: sameJobTypeOnTarget.job_type,
+        canOverride: true,
+      });
+    }
+
+    ensureActiveJobs(sourceRow).splice(sourceJobIndex, 1);
+
+    targetJobs.push({
+      worker_name: sourceJob.worker_name,
+      worker_id: sourceJob.worker_id,
+      job_type: sourceJob.job_type,
+      start_time: sourceJob.start_time,
+      remaining_stock: sourceJob.remaining_stock,
+      time_spent: sourceJob.time_spent,
+    });
+
+    if (sourceRow.worker_id === workerID) {
+      sourceRow.worker_name = "";
+      sourceRow.worker_id = "";
+      sourceRow.start_time = null;
+      sourceRow.time_spent = null;
+      sourceRow.job_type = "";
+    }
+
+    targetRow.worker_name = sourceJob.worker_name;
+    targetRow.worker_id = sourceJob.worker_id;
+    targetRow.start_time = sourceJob.start_time;
+    targetRow.time_spent = null;
+    targetRow.job_type = sourceJob.job_type;
+
+    await block.save();
+
+    return res.json({
+      message: allowMultipleWorkers
+        ? `Worker moved to Row ${toRowNumber} with override allowed.`
+        : `Worker moved to Row ${toRowNumber} successfully.`,
+      workerID,
+      workerName: sourceJob.worker_name,
+      blockName,
+      fromRowNumber: sourceRow.row_number,
+      toRowNumber: targetRow.row_number,
+      jobType: sourceJob.job_type,
+      multipleWorkersAllowed: allowMultipleWorkers || false,
+    });
+  } catch (error) {
+    console.error("Error moving worker to another row:", error);
+    return res.status(500).json({
+      message: "Server error while moving worker to another row.",
+      error: error.message,
+    });
+  }
+};
+
+exports.swapWorkersBetweenRows = async (req, res) => {
+  const {
+    firstWorkerID,
+    secondWorkerID,
+    blockName,
+    firstJobType,
+    secondJobType,
+  } = req.body;
+
+  try {
+    if (!firstWorkerID || !secondWorkerID || !blockName) {
+      return res.status(400).json({
+        message:
+          "firstWorkerID, secondWorkerID and blockName are required to swap workers.",
+      });
+    }
+
+    if (firstWorkerID === secondWorkerID) {
+      return res.status(400).json({
+        message: "Cannot swap a worker with themselves.",
+      });
+    }
+
+    const block = await Block.findOne({ block_name: blockName });
+    if (!block) {
+      return res.status(404).json({ message: "Block not found" });
+    }
+
+    let firstRow = null;
+    let firstJob = null;
+    let firstJobIndex = -1;
+    let secondRow = null;
+    let secondJob = null;
+    let secondJobIndex = -1;
+
+    for (const row of block.rows) {
+      if (!firstJob) {
+        const index = findWorkerJobIndex(row, firstWorkerID, firstJobType);
+        if (index !== -1) {
+          firstRow = row;
+          firstJobIndex = index;
+          firstJob = ensureActiveJobs(row)[index];
+        }
+      }
+
+      if (!secondJob) {
+        const index = findWorkerJobIndex(row, secondWorkerID, secondJobType);
+        if (index !== -1) {
+          secondRow = row;
+          secondJobIndex = index;
+          secondJob = ensureActiveJobs(row)[index];
+        }
+      }
+    }
+
+    if (!firstRow || !firstJob || firstJobIndex === -1) {
+      return res.status(404).json({
+        message: "First worker does not have an active assignment in this block.",
+      });
+    }
+
+    if (!secondRow || !secondJob || secondJobIndex === -1) {
+      return res.status(404).json({
+        message: "Second worker does not have an active assignment in this block.",
+      });
+    }
+
+    if (firstRow.row_number === secondRow.row_number) {
+      return res.status(400).json({
+        message: "Both workers are already on the same row.",
+      });
+    }
+
+    const firstTargetJobs = ensureActiveJobs(secondRow).filter(
+      (_, index) => index !== secondJobIndex
+    );
+    const secondTargetJobs = ensureActiveJobs(firstRow).filter(
+      (_, index) => index !== firstJobIndex
+    );
+
+    const firstTargetConflict = firstTargetJobs.find(
+      (job) => job.worker_id === firstWorkerID
+    );
+    if (firstTargetConflict) {
+      return res.status(409).json({
+        message: `${firstJob.worker_name} already has an assignment on Row ${secondRow.row_number}.`,
+      });
+    }
+
+    const secondTargetConflict = secondTargetJobs.find(
+      (job) => job.worker_id === secondWorkerID
+    );
+    if (secondTargetConflict) {
+      return res.status(409).json({
+        message: `${secondJob.worker_name} already has an assignment on Row ${firstRow.row_number}.`,
+      });
+    }
+
+    ensureActiveJobs(firstRow)[firstJobIndex] = {
+      worker_name: secondJob.worker_name,
+      worker_id: secondJob.worker_id,
+      job_type: secondJob.job_type,
+      start_time: secondJob.start_time,
+      remaining_stock: secondJob.remaining_stock,
+      time_spent: secondJob.time_spent,
+    };
+
+    ensureActiveJobs(secondRow)[secondJobIndex] = {
+      worker_name: firstJob.worker_name,
+      worker_id: firstJob.worker_id,
+      job_type: firstJob.job_type,
+      start_time: firstJob.start_time,
+      remaining_stock: firstJob.remaining_stock,
+      time_spent: firstJob.time_spent,
+    };
+
+    if (firstRow.worker_id === firstWorkerID) {
+      firstRow.worker_name = secondJob.worker_name;
+      firstRow.worker_id = secondJob.worker_id;
+      firstRow.start_time = secondJob.start_time;
+      firstRow.time_spent = null;
+      firstRow.job_type = secondJob.job_type;
+    }
+
+    if (secondRow.worker_id === secondWorkerID) {
+      secondRow.worker_name = firstJob.worker_name;
+      secondRow.worker_id = firstJob.worker_id;
+      secondRow.start_time = firstJob.start_time;
+      secondRow.time_spent = null;
+      secondRow.job_type = firstJob.job_type;
+    }
+
+    await block.save();
+
+    return res.json({
+      message: "Workers swapped successfully.",
+      blockName,
+      firstWorker: {
+        workerID: firstJob.worker_id,
+        workerName: firstJob.worker_name,
+        fromRowNumber: firstRow.row_number,
+        toRowNumber: secondRow.row_number,
+        jobType: firstJob.job_type,
+      },
+      secondWorker: {
+        workerID: secondJob.worker_id,
+        workerName: secondJob.worker_name,
+        fromRowNumber: secondRow.row_number,
+        toRowNumber: firstRow.row_number,
+        jobType: secondJob.job_type,
+      },
+    });
+  } catch (error) {
+    console.error("Error swapping workers between rows:", error);
+    return res.status(500).json({
+      message: "Server error while swapping workers.",
+      error: error.message,
+    });
+  }
+};
+
+// Check-out a worker
+exports.checkOutWorker = async (req, res) => {
+  const {
+    workerID,
+    workerName,
+    rowNumber,
+    blockName,
+    stockCount,
+    jobType,
+    keepCheckedIn,
+    workDate,
+    checkoutReason,
+  } = req.body;
+
+  try {
+    if (!workerID || !rowNumber || !blockName) {
+      return res.status(400).send({ message: "Missing required fields" });
+    }
+
+    const block = await Block.findOne({ block_name: blockName });
+    if (!block) {
+      return res.status(404).send({ message: "Block not found" });
+    }
+
+    const row = block.rows.find((row) => row.row_number === rowNumber);
+    if (!row) {
+      return res.status(404).send({ message: "Row not found" });
+    }
+
+    const selectedWorkDate = parseWorkDate(workDate);
+    if (!selectedWorkDate) {
+      return res.status(400).send({ message: "Work date must use YYYY-MM-DD format." });
+    }
+    const requestedWorkDate = workDate ? String(workDate) : localDateKey();
+    const isBackdated = requestedWorkDate !== localDateKey();
+    if (isBackdated && !req.mobileAuth?.isAdmin) {
+      return res.status(403).send({
+        message: "Only an authorized admin can backdate a checkout.",
+        requiresAdmin: true,
+      });
+    }
+    if (isBackdated && !String(checkoutReason || "").trim()) {
+      return res.status(400).send({
+        message: "A reason is required for a backdated checkout.",
+        requiresReason: true,
+      });
+    }
+
+    let job = null;
+    let jobIndex = -1;
+    let timeSpentInMinutes = 0;
+    let currentRemaining = 0;
+    let checkinStartedAt = null;
+    let usedJobType = jobType ? jobType.trim().toUpperCase() : "UNKNOWN";
+
+    // Try NEW FORMAT first (active_jobs). Prefer a worker-plus-job match, but
+    // always fall back to a worker-only match: a checkout must remove the
+    // worker's active job even when the reported job type differs slightly from
+    // what was stored at check-in. Otherwise the worker stays visible in the
+    // Working tab and the fallen-back legacy path counts the row again.
+    if (row.active_jobs && row.active_jobs.length > 0) {
+      if (jobType) {
+        jobIndex = row.active_jobs.findIndex(
+          (job) => job.worker_id === workerID && job.job_type.toUpperCase() === usedJobType
+        );
+      }
+      if (jobIndex === -1) {
+        jobIndex = row.active_jobs.findIndex(
+          (job) => job.worker_id === workerID
+        );
+      }
+
+      if (jobIndex !== -1) {
+        job = row.active_jobs[jobIndex];
+        usedJobType = job.job_type; // Use the actual job type from the record
+        const endTime = new Date();
+        timeSpentInMinutes = (endTime - job.start_time) / 1000 / 60;
+        currentRemaining = row.remaining_stock_count ?? job.remaining_stock;
+        checkinStartedAt = job.start_time;
+      }
+    }
+
+    // Fallback to OLD FORMAT only when this worker has no active job record.
+    // Because the worker-only match above handles every active_jobs entry, this
+    // branch is reached only for legacy check-ins, never while an active job for
+    // this worker still exists (that combination is what showed the worker again
+    // and counted the row twice).
+    if (!job && row.worker_id === workerID) {
+      if (!row.start_time || row.time_spent) {
+        return res
+          .status(400)
+          .send({ message: "Worker is not checked in to this row" });
+      }
+      usedJobType = row.job_type || "UNKNOWN";
+      const endTime = new Date();
+      timeSpentInMinutes = (endTime - row.start_time) / 1000 / 60;
+      currentRemaining = row.remaining_stock_count ?? row.stock_count;
+      checkinStartedAt = row.start_time;
+    }
+
+    if (!job && row.worker_id !== workerID) {
+      // Idempotent checkout: this worker has nothing active on this row. If a
+      // previous request already checked them out (e.g. the app timed out but
+      // the server processed it, and the retry was queued), report success so
+      // queued retries flush instead of getting stuck in the offline queue.
+      return res.status(200).send({
+        message: "Worker is already checked out on this row.",
+        alreadyCheckedOut: true,
+        stockCompleted: 0,
+        timeSpent: "0min",
+        rowNumber: row.row_number,
+        remainingStocks: 0,
+        jobType: usedJobType,
+      });
+    }
+
+    // Validate stock count
+    let stockCompleted;
+    if (typeof stockCount === "undefined" || stockCount === null) {
+      stockCompleted = currentRemaining;
+    } else {
+      stockCompleted = Number(stockCount);
+      if (isNaN(stockCompleted) || stockCompleted < 0) {
+        return res.status(400).send({ message: "Invalid stock count value." });
+      }
+      if (stockCompleted > currentRemaining) {
+        return res.status(400).send({
+          message: `Invalid stock count: cannot complete ${stockCompleted} vines when only ${currentRemaining} remain.`,
+        });
+      }
+    }
+
+    // Safeguard: cap cumulative credit for this worker/row/job/work-date at one
+    // row's worth of vines. A replayed check-in, a stale auto-check-out, or a
+    // completed row that briefly got reset to full cannot push the worker's
+    // total past the row's stock count.
+    let worker = await Worker.findOne({ workerID });
+    if (!worker) {
+      worker = new Worker({
+        workerID,
+        name: workerName,
+        blocks: [],
+        total_stock_count: 0,
+      });
+    }
+    const rowBaseStock = Number(row.stock_count) || 0;
+    const alreadyCredited = creditedStockFor(
+      worker,
+      blockName,
+      rowNumber,
+      usedJobType,
+      localDateKey(selectedWorkDate)
+    );
+    const creditAllowance = Math.max(0, rowBaseStock - alreadyCredited);
+    const requestedStockCompleted = stockCompleted;
+    let creditCapped = false;
+    if (rowBaseStock > 0 && stockCompleted > creditAllowance) {
+      stockCompleted = creditAllowance;
+      creditCapped = true;
+      console.warn(
+        `checkOutWorker capped ${workerName} (${workerID}) on ${blockName} Row ${rowNumber} ` +
+          `from ${requestedStockCompleted} to ${stockCompleted} vines (already credited ${alreadyCredited} of ${rowBaseStock})`
+      );
+    }
+
+    // Update based on format
+    if (job) {
+      // NEW FORMAT
+      const leftover = currentRemaining - stockCompleted;
+      row.remaining_stock_count = leftover;
+      row.active_jobs.forEach((activeJob) => {
+        activeJob.remaining_stock = leftover;
+      });
+      job.remaining_stock = leftover;
+
+      if (keepCheckedIn && leftover > 0) {
+        // Keep the worker checked in with the remaining vines so the row can be
+        // continued today or tomorrow. Reset the start time so a later checkout
+        // of the same continuation does not double-count the elapsed time.
+        job.start_time = new Date();
+        job.time_spent = null;
+        row.start_time = job.start_time;
+      } else {
+        // Normal checkout: remove the job. The shared row balance remains the
+        // source of truth for every other worker still working this row.
+        if (row.active_jobs.length > 1) {
+          row.shared_row = true;
+        }
+        row.active_jobs.splice(jobIndex, 1);
+        if (row.active_jobs.length === 0) {
+          row.remaining_stock_count = leftover;
+          row.shared_row = false;
+        }
+
+        // Clear the legacy worker fields too. Otherwise the Working tab keeps
+        // showing this worker as active, and a second checkout of the same row
+        // would count the stock twice.
+        if (row.worker_id === workerID) {
+          row.worker_id = "";
+          row.worker_name = "";
+          row.start_time = null;
+          row.time_spent = null;
+          row.job_type = "";
+        }
+      }
+    } else {
+      // OLD FORMAT
+      row.remaining_stock_count = currentRemaining - stockCompleted;
+      row.worker_name = "";
+      row.worker_id = "";
+      row.start_time = null;
+      row.time_spent = timeSpentInMinutes;
+    }
+
+    await block.save();
+
+    // Update worker record (worker was loaded earlier for the credit cap).
+    const blockIndex = worker.blocks.findIndex(
+      (b) => b.block_name === blockName
+    );
+    const currentDate = selectedWorkDate;
+    const checkoutRecordedAt = new Date();
+    const recordedBy = req.mobileAuth?.supervisorName || "System";
+    const supervisor = recorderName(req);
+    const vinesRemainingAfterCheckout = currentRemaining - stockCompleted;
+    const keptCheckedIn = Boolean(job) && keepCheckedIn && vinesRemainingAfterCheckout > 0;
+    const checkoutID = randomUUID();
+    const checkoutEvent = {
+      checkout_id: checkoutID,
+      work_date: localDateKey(currentDate),
+      recorded_at: checkoutRecordedAt,
+      recorded_by: recordedBy,
+      reason: String(checkoutReason || "").trim(),
+      backdated: isBackdated,
+      vines_before: currentRemaining,
+      vines_completed: stockCompleted,
+      vines_remaining: vinesRemainingAfterCheckout,
+      minutes_worked: timeSpentInMinutes,
+      kept_checked_in: keptCheckedIn,
+      checkin_started_at: checkinStartedAt,
+    };
+
+    if (blockIndex === -1) {
+      worker.blocks.push({
+        block_name: blockName,
+        rows: [
+          {
+            row_number: rowNumber,
+            job_type: usedJobType, // IMPORTANT: Always include job_type
+            stock_count: stockCompleted,
+            time_spent: timeSpentInMinutes,
+            date: currentDate,
+            day_of_week: currentDate.toLocaleDateString("en-US", {
+              weekday: "long",
+            }),
+            checkout_recorded_at: checkoutRecordedAt,
+            checkout_reason: String(checkoutReason || "").trim(),
+            backdated_by: isBackdated ? recordedBy : "",
+            checkout_events: [checkoutEvent],
+          },
+        ],
+      });
+    } else {
+      const rowIndex = worker.blocks[blockIndex].rows.findIndex(
+        (r) =>
+          r.row_number === rowNumber &&
+          r.job_type === usedJobType &&
+          r.date &&
+          localDateKey(r.date) === localDateKey(currentDate)
+      );
+      if (rowIndex === -1) {
+        worker.blocks[blockIndex].rows.push({
+          row_number: rowNumber,
+          job_type: usedJobType, // IMPORTANT: Always include job_type
+          stock_count: stockCompleted,
+          time_spent: timeSpentInMinutes,
+          date: currentDate,
+          day_of_week: currentDate.toLocaleDateString("en-US", {
+            weekday: "long",
+          }),
+          checkout_recorded_at: checkoutRecordedAt,
+          checkout_reason: String(checkoutReason || "").trim(),
+          backdated_by: isBackdated ? recordedBy : "",
+          checkout_events: [checkoutEvent],
+        });
+      } else {
+        worker.blocks[blockIndex].rows[rowIndex].stock_count += stockCompleted;
+        worker.blocks[blockIndex].rows[rowIndex].time_spent +=
+          timeSpentInMinutes;
+        worker.blocks[blockIndex].rows[rowIndex].date = currentDate;
+        worker.blocks[blockIndex].rows[rowIndex].day_of_week =
+          currentDate.toLocaleDateString("en-US", { weekday: "long" });
+        worker.blocks[blockIndex].rows[rowIndex].checkout_recorded_at = checkoutRecordedAt;
+        worker.blocks[blockIndex].rows[rowIndex].checkout_reason = String(checkoutReason || "").trim();
+        worker.blocks[blockIndex].rows[rowIndex].backdated_by = isBackdated ? recordedBy : "";
+        worker.blocks[blockIndex].rows[rowIndex].checkout_events.push(checkoutEvent);
+      }
+    }
+
+    worker.total_stock_count += stockCompleted;
+    if (supervisor && !sameName(worker.supervisor, supervisor)) {
+      worker.supervisor = supervisor;
+    }
+    await worker.save();
+
+    const remainingStocks = row.remaining_stock_count ?? 0;
+    res.send({
+      message: keptCheckedIn
+        ? `Check-out saved. ${workerName} stays checked in with ${remainingStocks} vines left on Row ${rowNumber}.`
+        : "Check-out successful",
+      stockCompleted: stockCompleted,
+      timeSpent: `${Math.floor(timeSpentInMinutes / 60)}hr ${Math.round(
+        timeSpentInMinutes % 60
+      )}min`,
+      rowNumber: row.row_number,
+      remainingStocks,
+      rowRemainingStocks: remainingStocks,
+      keptCheckedIn,
+      jobType: usedJobType,
+      workDate: localDateKey(selectedWorkDate),
+      checkoutRecordedAt: checkoutRecordedAt.toISOString(),
+      checkoutID,
+      backdated: isBackdated,
+      backdatedBy: isBackdated ? recordedBy : null,
+      creditCapped,
+      requestedVinesCompleted: requestedStockCompleted,
+    });
+  } catch (error) {
+    console.error("Error during worker check-out:", error);
+    res.status(500).send({ message: "Server error", error: error.message });
+  }
+};
+
+// Get the worker's current check-in

@@ -117,17 +117,44 @@ export default function CheckedInScreen({
   const [expandedWorker, setExpandedWorker] = useState(null);
   const [activeOperation, setActiveOperation] = useState(null);
   const [collapsedBlocks, setCollapsedBlocks] = useState({});
+  const [selectedWorkingJob, setSelectedWorkingJob] = useState("");
+
+  const availableWorkingJobs = useMemo(() => {
+    const set = new Set(
+      dayWorkRecords
+        .map((r) => String(r.job_type || "").trim().toUpperCase())
+        .filter(Boolean)
+    );
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [dayWorkRecords]);
+
+  React.useEffect(() => {
+    if (!availableWorkingJobs.length) {
+      if (selectedWorkingJob) setSelectedWorkingJob("");
+      return;
+    }
+    if (!selectedWorkingJob || !availableWorkingJobs.includes(selectedWorkingJob)) {
+      setSelectedWorkingJob(availableWorkingJobs[0]);
+    }
+  }, [availableWorkingJobs, selectedWorkingJob]);
+
+  const visibleDayWorkRecords = useMemo(() => {
+    if (!selectedWorkingJob) return dayWorkRecords;
+    return dayWorkRecords.filter(
+      (r) => String(r.job_type || "").trim().toUpperCase() === selectedWorkingJob
+    );
+  }, [dayWorkRecords, selectedWorkingJob]);
 
   const defaultCollapsedBlocks = useMemo(() => {
     const map = {};
-    dayWorkRecords.forEach((r) => {
+    visibleDayWorkRecords.forEach((r) => {
       const jobType = String(r.job_type || "").toUpperCase();
       if (FAST_JOB_TYPES.includes(jobType)) {
         map[r.blockName || t("common.unknown")] = true;
       }
     });
     return map;
-  }, [dayWorkRecords, t]);
+  }, [visibleDayWorkRecords, t]);
 
   const [inlineCheckoutStock, setInlineCheckoutStock] = useState("");
   const [inlineCheckoutChoice, setInlineCheckoutChoice] = useState("keep");
@@ -182,7 +209,7 @@ export default function CheckedInScreen({
   }, [moveRowOccupants, moveWorker]);
 
   const expandedRecord =
-    dayWorkRecords.find((r) => `${r.workerID}-${r.rowNumber}` === expandedWorker) || null;
+    visibleDayWorkRecords.find((r) => `${r.workerID}-${r.rowNumber}` === expandedWorker) || null;
 
   const inlineRowsState = useAsyncData(
     () =>
@@ -274,7 +301,7 @@ export default function CheckedInScreen({
 
     if (!moveWorker || !moveTargetBlock || !rowValue) return;
 
-    const occupants = dayWorkRecords.filter(
+    const occupants = visibleDayWorkRecords.filter(
       (r) =>
         r.workerID !== moveWorker.workerID &&
         r.blockName === moveTargetBlock &&
@@ -696,13 +723,13 @@ export default function CheckedInScreen({
     setInlinePendingOverride(null);
   }
 
-  const workerCountByRow = dayWorkRecords.reduce((acc, item) => {
+  const workerCountByRow = visibleDayWorkRecords.reduce((acc, item) => {
     const key = `${item.blockName}::${item.rowNumber}`;
     acc[key] = (acc[key] || 0) + 1;
     return acc;
   }, {});
 
-  const groupedByBlock = dayWorkRecords.reduce((acc, item) => {
+  const groupedByBlock = visibleDayWorkRecords.reduce((acc, item) => {
     const block = item.blockName || t("common.unknown");
     if (!acc[block]) acc[block] = [];
     acc[block].push(item);
@@ -727,6 +754,35 @@ export default function CheckedInScreen({
         title={t("ci.actions")}
         subtitle={t("ci.actionsSub")}
       >
+        {availableWorkingJobs.length > 0 ? (
+          <View style={{ gap: 8, marginBottom: 10 }}>
+            <Text style={{ color: "#6b7280", fontSize: 12, fontWeight: "700" }}>Job (view separately)</Text>
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+              {availableWorkingJobs.map((job) => {
+                const active = selectedWorkingJob === job;
+                return (
+                  <TouchableOpacity
+                    key={job}
+                    activeOpacity={0.7}
+                    onPress={() => setSelectedWorkingJob(job)}
+                    style={{
+                      paddingHorizontal: 12,
+                      paddingVertical: 8,
+                      borderRadius: 999,
+                      borderWidth: 1,
+                      borderColor: active ? "#16a34a" : "#d1d5db",
+                      backgroundColor: active ? "#dcfce7" : "#fff",
+                    }}
+                  >
+                    <Text style={{ fontSize: 12, fontWeight: active ? "800" : "600", color: active ? "#15803d" : "#374151" }}>
+                      {job}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+        ) : null}
         <View className="flex-row gap-2.5">
           <TouchableOpacity
             activeOpacity={0.7}
@@ -763,13 +819,13 @@ export default function CheckedInScreen({
       {!isBlocked ? (
       <SectionCard
         title={t("ci.currentlyWorking")}
-        subtitle={t("ci.currentlyWorkingSub", { count: dayWorkRecords.length })}
+        subtitle={selectedWorkingJob ? `${selectedWorkingJob} · ${t("ci.currentlyWorkingSub", { count: visibleDayWorkRecords.length })}` : t("ci.currentlyWorkingSub", { count: visibleDayWorkRecords.length })}
       >
-        {checkinsState.loading && !dayWorkRecords.length ? (
+        {checkinsState.loading && !visibleDayWorkRecords.length ? (
           <ActivityIndicator color="#16a34a" />
         ) : null}
 
-        {!dayWorkRecords.length && !checkinsState.loading ? (
+        {!visibleDayWorkRecords.length && !checkinsState.loading ? (
           <Text className="text-gray-400 text-sm">
             {t("ci.noWorkersCheckedIn")}
           </Text>
@@ -803,20 +859,11 @@ export default function CheckedInScreen({
                   <View
                     key={`${item.workerID}-${item.rowNumber}-${index}`}
                     className={`rounded-xl border p-3.5 ${
-                      isSharedRowItem
-                        ? "bg-teal-50 border-teal-300"
-                        : isKeptCheckedIn(item)
-                          ? "bg-emerald-50 border-emerald-300"
-                          : "bg-gray-50 border-gray-100"
+                      isKeptCheckedIn(item)
+                        ? "bg-emerald-50 border-emerald-300"
+                        : "bg-gray-50 border-gray-100"
                     }`}
                   >
-                    {isSharedRowItem ? (
-                      <View className="bg-teal-100 rounded-lg px-2.5 py-1.5 mb-2 self-start">
-                        <Text className="text-teal-800 text-[11px] font-extrabold">
-                          {t("ci.sharedRowBadge")}
-                        </Text>
-                      </View>
-                    ) : null}
                     <TouchableOpacity
                       activeOpacity={0.7}
                       onPress={() => toggleExpanded(item)}
@@ -838,9 +885,21 @@ export default function CheckedInScreen({
                             {t("ci.row", { row: item.rowNumber })}
                           </Text>
                           <Text className={isKeptCheckedIn(item) ? "text-emerald-700 text-xs mt-0.5 font-bold" : "text-gray-400 text-xs mt-0.5"}>
-                            {isKeptCheckedIn(item)
-                              ? `${Number(item.rowRemainingStocks ?? item.remainingStocks) || 0} left / ${Number(item.vines ?? 0) || 0} vines`
-                              : t("ci.vinesLine", { count: Number(item.vines ?? item.rowRemainingStocks ?? item.stockCount ?? item.remainingStocks ?? 0) || 0 })}
+                            {(() => {
+                              const isUit = String(item.job_type || "").toUpperCase() === "UITKNIP";
+                              const vLeft = Number(item.rowRemainingStocks ?? item.remainingStocks) || 0;
+                              const vTotal = Number(item.vines ?? 0) || 0;
+                              const bLeft = Number(item.rowRemainingBunches ?? item.remainingBunches ?? item.bunches ?? 0) || 0;
+                              const bTotal = Number(item.bunches ?? 0) || 0;
+                              if (isKeptCheckedIn(item)) {
+                                return isUit
+                                  ? `${vLeft} left / ${vTotal} vines · ${bLeft} left / ${bTotal} bunches`
+                                  : `${vLeft} left / ${vTotal} vines`;
+                              }
+                              return isUit
+                                ? `${vTotal} vines · ${bTotal} bunches`
+                                : t("ci.vinesLine", { count: Number(item.vines ?? item.rowRemainingStocks ?? item.stockCount ?? item.remainingStocks ?? 0) || 0 });
+                            })()}
                           </Text>
                         </View>
                       </View>
@@ -873,7 +932,8 @@ export default function CheckedInScreen({
                             disabled={
                               activeOperation === "checkout" &&
                               (inlineCheckoutSubmitting ||
-                                !canSubmitCheckout(inlineCheckoutWorkDate, inlineCheckoutReason))
+                                !canSubmitCheckout(inlineCheckoutWorkDate, inlineCheckoutReason) ||
+                                checkoutWillKeepWorker(expandedRecord, inlineCheckoutStock))
                             }
                             onPress={() => {
                               if (activeOperation === "checkout") {
@@ -992,28 +1052,15 @@ export default function CheckedInScreen({
                                 />
                               </View>
                             ) : null}
-                            {isSharedRow(expandedRecord) ? (
-                              <View className="bg-teal-50 border border-teal-200 rounded-xl p-3 gap-1.5">
-                                <Text className="text-teal-800 text-xs font-extrabold">
-                                  {t("ci.sharedRowCheckoutNotice", {
-                                    count: dayWorkRecords.filter(
-                                      (candidate) =>
-                                        candidate.blockName === expandedRecord.blockName &&
-                                        candidate.rowNumber === expandedRecord.rowNumber
-                                    ).length,
-                                  })}
-                                </Text>
-                                <Text className="text-teal-700 text-xs">
-                                  {t("ci.sharedRowCheckoutHint")}
-                                </Text>
-                              </View>
-                            ) : checkoutWillKeepWorker(expandedRecord, inlineCheckoutStock) ? (
-                              <View className="gap-1.5">
+                            {checkoutWillKeepWorker(expandedRecord, inlineCheckoutStock) ? (
+                              <View className="gap-2">
                                 <Text className="text-gray-600 text-xs font-bold">
-                                  {t("ci.partialPrompt", {
-                                    remaining: String(expandedRecord.remainingStocks ?? ""),
-                                    name: expandedRecord.workerName,
-                                  })}
+                                  {String(expandedRecord?.job_type || "").toUpperCase() === "UITKNIP"
+                                    ? `Partially done — ${String(expandedRecord?.remainingStocks ?? "")} vines / ${String(expandedRecord?.rowRemainingBunches ?? expandedRecord?.remainingBunches ?? 0)} bunches left. Keep ${expandedRecord?.workerName || "worker"} checked in?`
+                                    : t("ci.partialPrompt", {
+                                        remaining: String(expandedRecord?.remainingStocks ?? ""),
+                                        name: expandedRecord?.workerName || "",
+                                      })}
                                 </Text>
                                 <View className="flex-row gap-2">
                                   <TouchableOpacity
@@ -1029,19 +1076,12 @@ export default function CheckedInScreen({
                                       opacity: inlineCheckoutSubmitting ? 0.5 : 1,
                                     }}
                                     disabled={inlineCheckoutSubmitting}
-                                    onPress={() => handleInlineCheckout("keep")}
+                                    onPress={() => { setInlineCheckoutChoice("keep"); handleInlineCheckout("keep"); }}
                                   >
-                                    <Text
-                                      style={{
-                                        color: inlineCheckoutChoice === "keep" ? "#fff" : "#374151",
-                                        fontSize: 12,
-                                        fontWeight: "800",
-                                        textAlign: "center",
-                                      }}
-                                    >
-                                      {t("ci.keepChoice", {
-                                        remaining: String(expandedRecord.remainingStocks ?? ""),
-                                      })}
+                                    <Text style={{ color: inlineCheckoutChoice === "keep" ? "#fff" : "#374151", fontSize: 12, fontWeight: "800", textAlign: "center" }}>
+                                      {String(expandedRecord?.job_type || "").toUpperCase() === "UITKNIP"
+                                        ? `Keep checked in (${String(expandedRecord?.remainingStocks ?? "")}v / ${String(expandedRecord?.rowRemainingBunches ?? expandedRecord?.remainingBunches ?? 0)}b left)`
+                                        : t("ci.keepChoice", { remaining: String(expandedRecord?.remainingStocks ?? "") })}
                                     </Text>
                                   </TouchableOpacity>
                                   <TouchableOpacity
@@ -1057,16 +1097,9 @@ export default function CheckedInScreen({
                                       opacity: inlineCheckoutSubmitting ? 0.5 : 1,
                                     }}
                                     disabled={inlineCheckoutSubmitting}
-                                    onPress={() => handleInlineCheckout("free")}
+                                    onPress={() => { setInlineCheckoutChoice("free"); handleInlineCheckout("free"); }}
                                   >
-                                    <Text
-                                      style={{
-                                        color: inlineCheckoutChoice === "free" ? "#fff" : "#374151",
-                                        fontSize: 12,
-                                        fontWeight: "800",
-                                        textAlign: "center",
-                                      }}
-                                    >
+                                    <Text style={{ color: inlineCheckoutChoice === "free" ? "#fff" : "#374151", fontSize: 12, fontWeight: "800", textAlign: "center" }}>
                                       {t("ci.freeChoice")}
                                     </Text>
                                   </TouchableOpacity>
@@ -1295,11 +1328,11 @@ export default function CheckedInScreen({
             </View>
 
           <SectionCard title={t("ci.selectWorker")} subtitle={t("ci.tapToExpandMove")}>
-            {dayWorkRecords.length === 0 ? (
+            {visibleDayWorkRecords.length === 0 ? (
               <Text className="text-gray-400 text-sm">{t("ci.noWorkersAvailable")}</Text>
             ) : null}
 
-            {dayWorkRecords.map((w, index) => {
+            {visibleDayWorkRecords.map((w, index) => {
               const active = moveWorker?.workerID === w.workerID;
               return (
                 <View key={`${w.workerID}-${w.rowNumber}-${index}`}>
@@ -1365,6 +1398,12 @@ export default function CheckedInScreen({
                           <Text className="text-gray-500 text-xs font-bold">{t("ci.vines")}</Text>
                           <Text className="text-gray-900 text-sm font-extrabold">{w.vines ?? "—"}</Text>
                         </View>
+                        {String(w.job_type || "").toUpperCase() === "UITKNIP" ? (
+                          <View className="flex-row items-center justify-between">
+                            <Text className="text-gray-500 text-xs font-bold">Bunches</Text>
+                            <Text className="text-gray-900 text-sm font-extrabold">{w.bunches ?? "—"}</Text>
+                          </View>
+                        ) : null}
                       </View>
 
                       <SelectField
@@ -1568,11 +1607,11 @@ export default function CheckedInScreen({
             </View>
 
           <SectionCard title={t("ci.selectWorker")} subtitle={t("ci.tapToExpandCheckout")}>
-            {dayWorkRecords.length === 0 ? (
+            {visibleDayWorkRecords.length === 0 ? (
               <Text className="text-gray-400 text-sm">{t("ci.noWorkersAvailable")}</Text>
             ) : null}
 
-            {dayWorkRecords.map((w, index) => {
+            {visibleDayWorkRecords.map((w, index) => {
               const active = checkoutWorker?.workerID === w.workerID;
               return (
                 <View key={`${w.workerID}-${w.rowNumber}-${index}`}>
@@ -1631,6 +1670,12 @@ export default function CheckedInScreen({
                           <Text className="text-gray-500 text-xs font-bold">{t("ci.vines")}</Text>
                           <Text className="text-gray-900 text-sm font-extrabold">{w.vines ?? "—"}</Text>
                         </View>
+                        {String(w.job_type || "").toUpperCase() === "UITKNIP" ? (
+                          <View className="flex-row items-center justify-between">
+                            <Text className="text-gray-500 text-xs font-bold">Bunches</Text>
+                            <Text className="text-gray-900 text-sm font-extrabold">{w.bunches ?? "—"}</Text>
+                          </View>
+                        ) : null}
                         <View className="flex-row items-center justify-between">
                           <Text className="text-gray-500 text-xs font-bold">{t("ci.job")}</Text>
                           <Text className="text-gray-900 text-sm font-extrabold">{w.job_type || t("common.na")}</Text>
@@ -1676,28 +1721,15 @@ export default function CheckedInScreen({
                         </View>
                       ) : null}
 
-                      {isSharedRow(w) ? (
-                        <View className="bg-teal-50 border border-teal-200 rounded-xl p-3 gap-1.5">
-                          <Text className="text-teal-800 text-xs font-extrabold">
-                            {t("ci.sharedRowCheckoutNotice", {
-                              count: dayWorkRecords.filter(
-                                (candidate) =>
-                                  candidate.blockName === w.blockName &&
-                                  candidate.rowNumber === w.rowNumber
-                              ).length,
-                            })}
-                          </Text>
-                          <Text className="text-teal-700 text-xs">
-                            {t("ci.sharedRowCheckoutHint")}
-                          </Text>
-                        </View>
-                      ) : checkoutWillKeepWorker(w, checkoutStock) ? (
+                      {checkoutWillKeepWorker(w, checkoutStock) ? (
                         <View className="gap-2">
                           <Text className="text-gray-600 text-xs font-bold">
-                            {t("ci.partialPrompt", {
-                              remaining: String(w.remainingStocks ?? ""),
-                              name: w.workerName,
-                            })}
+                            {String(w.job_type || "").toUpperCase() === "UITKNIP"
+                              ? `Partially done — ${String(w.remainingStocks ?? "")} vines / ${String(w.rowRemainingBunches ?? w.remainingBunches ?? 0)} bunches left. Keep ${w.workerName} checked in?`
+                              : t("ci.partialPrompt", {
+                                  remaining: String(w.remainingStocks ?? ""),
+                                  name: w.workerName,
+                                })}
                           </Text>
                           <View className="flex-row gap-2">
                             <TouchableOpacity
@@ -1723,7 +1755,9 @@ export default function CheckedInScreen({
                                   textAlign: "center",
                                 }}
                               >
-                                {t("ci.keepChoice", { remaining: String(w.remainingStocks ?? "") })}
+                                {String(w.job_type || "").toUpperCase() === "UITKNIP"
+                                  ? `Keep checked in (${String(w.remainingStocks ?? "")}v / ${String(w.rowRemainingBunches ?? w.remainingBunches ?? 0)}b left)`
+                                  : t("ci.keepChoice", { remaining: String(w.remainingStocks ?? "") })}
                               </Text>
                             </TouchableOpacity>
                             <TouchableOpacity
@@ -1760,7 +1794,11 @@ export default function CheckedInScreen({
                         label={checkoutSubmitting ? t("common.submitting") : t("ci.submitCheckout")}
                         tone="secondary"
                         onPress={handleCheckout}
-                        disabled={checkoutSubmitting || !canSubmitCheckout(checkoutWorkDate, checkoutReason)}
+                        disabled={
+                          checkoutSubmitting ||
+                          !canSubmitCheckout(checkoutWorkDate, checkoutReason) ||
+                          (w ? checkoutWillKeepWorker(w, checkoutStock) : false)
+                        }
                       />
                       <FeedbackBanner
                         type={checkoutFeedback.type === "error" ? "error" : "success"}

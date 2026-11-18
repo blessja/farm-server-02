@@ -247,6 +247,7 @@ exports.getRegularPieceworkTotals = async (req, res) => {
       "SHOOT THINNING",
       "OTHER",
     ];
+    const excludedJobTypes = [...fastJobTypes, "UITKNIP"];
 
     const blockInfo = {};
     (blocks || []).forEach((block) => {
@@ -273,7 +274,7 @@ exports.getRegularPieceworkTotals = async (req, res) => {
 
           // Skip fast piecework jobs
           const rowJobType = (row.job_type || "").toUpperCase();
-          if (fastJobTypes.includes(rowJobType)) {
+          if (excludedJobTypes.includes(rowJobType)) {
             return;
           }
 

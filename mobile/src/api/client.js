@@ -340,6 +340,27 @@ export const api = {
     queuedMutation("/api/hours/save-bulk", body, "Save day hours"),
   deleteDayHours: (body) =>
     queuedMutation("/api/hours/delete", body, "Clear day hours"),
+  previewUitknipBunchImport: (body) =>
+    request("/api/uitknip/bunches/preview", {
+      method: "POST",
+      timeoutMs: WRITE_TIMEOUT_MS,
+      body: JSON.stringify(body),
+    }),
+  applyUitknipBunchImport: (body) =>
+    request("/api/uitknip/bunches/apply", {
+      method: "POST",
+      timeoutMs: WRITE_TIMEOUT_MS,
+      body: JSON.stringify(body),
+    }),
+  getUitknipTotals: () => request("/api/uitknip/totals"),
+  getUitknipHoursTotals: () => request("/api/uitknip/hours-totals"),
+  getUitknipIntervalHours: () => request("/api/uitknip/hours"),
+  saveUitknipIntervalHours: (body) =>
+    queuedMutation("/api/uitknip/hours/save", body, "Save Uitknip hours"),
+  saveUitknipIntervalHoursBulk: (body) =>
+    queuedMutation("/api/uitknip/hours/save-bulk", body, "Save Uitknip hours"),
+  deleteUitknipIntervalHours: (body) =>
+    queuedMutation("/api/uitknip/hours/delete", body, "Clear Uitknip hours"),
   replayQueuedAction: (action) =>
     request(action.path, {
       method: action.method || "POST",

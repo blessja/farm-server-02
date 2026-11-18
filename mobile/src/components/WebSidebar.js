@@ -6,8 +6,9 @@ import { useLanguage } from "../i18n";
 const tabIcons = {
   dashboard: "⌂",
   daywork: "▤",
+  uitknip: "✂",
   working: "◉",
-  move: "↔",
+  uitknipHours: "⏱",
   clock: "◷",
   fast: "✦",
   totals: "▦",
@@ -106,9 +107,11 @@ export default function WebSidebar({
                 </Text>
                 <Text
                   style={{
+                    flex: 1,
                     color: active ? "#ffffff" : "#d1ded5",
                     fontSize: 14,
                     fontWeight: active ? "800" : "600",
+                    textAlign: "center",
                   }}
                 >
                   {t(`tab.${labelKey}`)}

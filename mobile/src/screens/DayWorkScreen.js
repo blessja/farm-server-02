@@ -30,7 +30,7 @@ export default function DayWorkScreen({ sharedState, offlineQueue }) {
   const [conflictFeedback, setConflictFeedback] = useState({ type: "info", message: "" });
   const [conflictSubmitting, setConflictSubmitting] = useState(false);
 
-  const [allowMultipleWorkers, setAllowMultipleWorkers] = useState(false);
+
   const [rowDirection, setRowDirection] = useState(1);
   const [autoNextEnabled, setAutoNextEnabled] = useState(true);
   const [nextDirection, setNextDirection] = useState("follow");
@@ -73,11 +73,23 @@ export default function DayWorkScreen({ sharedState, offlineQueue }) {
     : [];
   const activeCheckins = Array.isArray(checkinsState.data) ? checkinsState.data : [];
 
+  const occupantsByRowAll = useMemo(() => {
+    const map = {};
+    if (!sharedState.selectedBlock) return map;
+    activeCheckins
+      .filter((c) => c.blockName === sharedState.selectedBlock)
+      .forEach((c) => {
+        const rn = String(c.rowNumber);
+        if (!map[rn]) map[rn] = [];
+        map[rn].push(c);
+      });
+    return map;
+  }, [activeCheckins, sharedState.selectedBlock]);
+
   const occupiedRowNumbers = useMemo(() => {
     if (!sharedState.selectedBlock) return [];
     const jobType = String(sharedState.jobType || "").trim().toUpperCase();
     const occupied = new Set();
-    if (allowMultipleWorkers) return [];
     activeCheckins
       .filter((c) => c.blockName === sharedState.selectedBlock)
       .forEach((c) => {
@@ -88,16 +100,24 @@ export default function DayWorkScreen({ sharedState, offlineQueue }) {
         occupied.add(String(c.rowNumber));
       });
     return [...occupied];
-  }, [activeCheckins, sharedState.selectedBlock, sharedState.jobType, allowMultipleWorkers]);
+  }, [activeCheckins, sharedState.selectedBlock, sharedState.jobType]);
 
-  const disabledRowValues = allowMultipleWorkers ? [] : occupiedRowNumbers;
+  const disabledRowValues = occupiedRowNumbers;
 
   const allRowOptions = sortNamesNumerically([
     ...new Set(rows.map((rowNumber) => String(rowNumber))),
-  ]).map((rowNumber) => ({
-    label: rowNumber,
-    value: rowNumber,
-  }));
+  ]).map((rowNumber) => {
+    const occ = occupantsByRowAll[rowNumber] || [];
+    const occNames = occ
+      .map((o) => o.workerName || o.worker_name || o.workerID || o.worker_id)
+      .filter(Boolean);
+    const uniqueNames = [...new Set(occNames)];
+    const occLabel = uniqueNames.length ? ` • ${uniqueNames.join(", ")}` : "";
+    return {
+      label: `${rowNumber}${occLabel}`,
+      value: rowNumber,
+    };
+  });
 
   const blockOptions = sortNamesNumerically(
     [...new Set(blocks.map((blockName) => String(blockName)))]
@@ -137,8 +157,7 @@ export default function DayWorkScreen({ sharedState, offlineQueue }) {
       }
     }
     sharedState.setSelectedRow(nextRow);
-    setAllowMultipleWorkers(false);
-  }
+    }
 
   function advanceToNextRow() {
     if (!autoNextEnabled) return;
@@ -201,7 +220,6 @@ export default function DayWorkScreen({ sharedState, offlineQueue }) {
       jobType: normalizedJobType,
       blockName: sharedState.selectedBlock,
       rowNumber: sharedState.selectedRow,
-      ...(allowMultipleWorkers ? { allowMultipleWorkers: true } : {}),
     };
 
     setSubmitting(true);
@@ -212,7 +230,6 @@ export default function DayWorkScreen({ sharedState, offlineQueue }) {
       setFeedback({ type: "success", message: result.message });
       setCheckinForm(defaultCheckin);
       handleSuccessfulCheckinSelection();
-      setAllowMultipleWorkers(false);
       offlineQueue.refreshQueueCount();
       checkinsState.refresh();
     } catch (error) {
@@ -240,7 +257,7 @@ export default function DayWorkScreen({ sharedState, offlineQueue }) {
     setConflictFeedback({ type: "info", message: "" });
 
     try {
-      const result = await api.regularCheckin({ ...conflictPayload, allowMultipleWorkers: true });
+      const result = await api.regularCheckin(conflictPayload);
       setConflictFeedback({ type: "success", message: result.message });
       setConflictModalVisible(false);
       setConflictPayload(null);
@@ -251,7 +268,6 @@ export default function DayWorkScreen({ sharedState, offlineQueue }) {
       } else {
         sharedState.setSelectedRow(String(sharedState.selectedRow || ""));
       }
-      setAllowMultipleWorkers(false);
       setFeedback({ type: "success", message: result.message });
       offlineQueue.refreshQueueCount();
       checkinsState.refresh();
@@ -312,8 +328,7 @@ export default function DayWorkScreen({ sharedState, offlineQueue }) {
           onSelect={(value) => {
             sharedState.setSelectedBlock(value);
             sharedState.setSelectedRow("");
-            setAllowMultipleWorkers(false);
-          }}
+            }}
           emptyMessage={t("common.noBlocksFound")}
         />
         <SelectField
@@ -329,38 +344,6 @@ export default function DayWorkScreen({ sharedState, offlineQueue }) {
           }
           disabledValues={disabledRowValues}
         />
-        {occupiedRowNumbers.length > 0 && (
-          <TouchableOpacity
-            activeOpacity={0.7}
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              gap: 10,
-              paddingVertical: 8,
-            }}
-            onPress={() => setAllowMultipleWorkers((prev) => !prev)}
-          >
-            <View
-              style={{
-                width: 22,
-                height: 22,
-                borderRadius: 6,
-                borderWidth: 2,
-                borderColor: allowMultipleWorkers ? "#16a34a" : "#d1d5db",
-                backgroundColor: allowMultipleWorkers ? "#16a34a" : "#fff",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              {allowMultipleWorkers && (
-                <Text style={{ color: "#fff", fontSize: 14, fontWeight: "800" }}>✓</Text>
-              )}
-            </View>
-            <Text className="text-gray-600 text-sm" style={{ flex: 1 }}>
-              {t("dw.allowMultiple")}
-            </Text>
-          </TouchableOpacity>
-        )}
         <TouchableOpacity
           activeOpacity={0.7}
           style={{
