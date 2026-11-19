@@ -268,6 +268,11 @@ async function buildUitknipTotals(req, res, { includeUitknip02 = false } = {}) {
           const jobType = String(row.job_type || "").toUpperCase();
           const match = includeUitknip02 ? isUitknipLikeJob(jobType) : jobType === "UITKNIP";
           if (!match) return;
+
+          // Avoid double-counting: when showing combined UITKNIP+UITKNIP02 (e.g. hours table),
+          // skip UITKNIP rows that are duplicates of UITKNIP02 records.
+          if (includeUitknip02 && row.totalsExcluded && jobType === "UITKNIP") return;
+
           const vines = Number(row.stock_count) || 0;
           const bunches = Number(row.bunch_count) || 0;
           if (vines <= 0 && bunches <= 0) return;

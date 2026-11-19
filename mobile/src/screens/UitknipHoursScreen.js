@@ -22,10 +22,24 @@ function dateKey(dateStr) {
   if (Number.isNaN(d.getTime())) return String(dateStr).slice(0, 10) || "unknown";
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
+function localDateKey(offsetDays = 0) {
+  const d = new Date();
+  d.setHours(12, 0, 0, 0);
+  d.setDate(d.getDate() + offsetDays);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
 function dayLabel(dateStr) {
   if (!dateStr) return "?";
   const d = new Date(dateStr);
   if (Number.isNaN(d.getTime())) return String(dateStr).slice(5, 10);
+  const day = d.toLocaleDateString("en-US", { weekday: "short" });
+  return `${day} ${d.getDate()}`;
+}
+function labelForKey(dk) {
+  if (!dk || dk === "unknown") return "?";
+  // dk is yyyy-mm-dd
+  const d = new Date(`${dk}T12:00:00`);
+  if (Number.isNaN(d.getTime())) return dk;
   const day = d.toLocaleDateString("en-US", { weekday: "short" });
   return `${day} ${d.getDate()}`;
 }
@@ -98,7 +112,13 @@ export default function UitknipHoursScreen({ supervisorName }) {
       if (!matrix[key]) matrix[key] = 0;
       matrix[key] += r.vines;
     });
-    const dateOrder = Object.keys(dMap).sort((a, b) => b.localeCompare(a));
+    // Always include today and at least 3 days ahead so morning hours can be entered in advance
+    const alwaysDates = [localDateKey(0), localDateKey(1), localDateKey(2), localDateKey(3)];
+    alwaysDates.forEach((dk) => {
+      if (dk && !dMap[dk]) dMap[dk] = `${dk}T12:00:00`;
+    });
+
+    const dateOrder = Object.keys(dMap).sort((a, b) => a.localeCompare(b));
     const workerOrder = Object.values(wMap).sort((a, b) => {
       const total = (id) => dateOrder.reduce((s, dk) => s + (matrix[`${id}__${dk}`] || 0), 0);
       const diff = total(b.workerID) - total(a.workerID);
@@ -106,7 +126,7 @@ export default function UitknipHoursScreen({ supervisorName }) {
       return String(a.workerName).localeCompare(String(b.workerName));
     });
     const dateLabels = {};
-    dateOrder.forEach((dk) => { dateLabels[dk] = dayLabel(dMap[dk]); });
+    dateOrder.forEach((dk) => { dateLabels[dk] = labelForKey(dk); });
     return { workerOrder, dateOrder, vineMatrix: matrix, dateLabels };
   }, [allRows]);
 

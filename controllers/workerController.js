@@ -247,7 +247,8 @@ exports.getRegularPieceworkTotals = async (req, res) => {
       "SHOOT THINNING",
       "OTHER",
     ];
-    const excludedJobTypes = [...fastJobTypes, "UITKNIP"];
+    // UITKNIP is included so it can be viewed/filtered in the general totals table.
+    const excludedJobTypes = [...fastJobTypes];
 
     const blockInfo = {};
     (blocks || []).forEach((block) => {
