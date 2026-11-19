@@ -245,6 +245,9 @@ export default function UitknipScreen({ sharedState, offlineQueue }) {
     }
   }
 
+  const uitknipTotals = Array.isArray(totalsState.data?.workers) ? totalsState.data.workers : [];
+  const uitknipSummary = totalsState.data?.summary || {};
+
   return (
     <ScreenScroll
       refreshing={blocksState.loading || rowsState.loading || checkinsState.loading}
@@ -349,6 +352,64 @@ export default function UitknipScreen({ sharedState, offlineQueue }) {
           disabled={checkinSubmitting || !selectedBlock || !selectedRow || !checkinForm.workerID}
         />
         <FeedbackBanner type={checkinFeedback.type === "error" ? "error" : "success"} message={checkinFeedback.message} />
+      </SectionCard>
+
+      <SectionCard
+        title="Uitknip Totals"
+        subtitle="Carried-over UITKNIP totals (vines and bunches). Bunches show 0 where not yet captured."
+      >
+        {totalsState.loading && !uitknipTotals.length ? <ActivityIndicator color="#16a34a" /> : null}
+        <FeedbackBanner type="error" message={totalsState.error} />
+        {!totalsState.loading && !uitknipTotals.length ? (
+          <Text style={{ color: "#6b7280", fontSize: 14 }}>No UITKNIP totals yet.</Text>
+        ) : null}
+        {uitknipTotals.length ? (
+          <View style={{ gap: 12 }}>
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12 }}>
+              <View style={{ borderRadius: 12, backgroundColor: "#f0fdf4", paddingVertical: 10, paddingHorizontal: 12 }}>
+                <Text style={{ color: "#166534", fontSize: 12, fontWeight: "700" }}>Workers</Text>
+                <Text style={{ color: "#14532d", fontSize: 18, fontWeight: "800" }}>{uitknipSummary.totalWorkers || uitknipTotals.length}</Text>
+              </View>
+              <View style={{ borderRadius: 12, backgroundColor: "#ecfeff", paddingVertical: 10, paddingHorizontal: 12 }}>
+                <Text style={{ color: "#155e75", fontSize: 12, fontWeight: "700" }}>Total vines</Text>
+                <Text style={{ color: "#164e63", fontSize: 18, fontWeight: "800" }}>{uitknipSummary.totalVines || 0}</Text>
+              </View>
+              <View style={{ borderRadius: 12, backgroundColor: "#fff7ed", paddingVertical: 10, paddingHorizontal: 12 }}>
+                <Text style={{ color: "#9a3412", fontSize: 12, fontWeight: "700" }}>Total bunches</Text>
+                <Text style={{ color: "#7c2d12", fontSize: 18, fontWeight: "800" }}>{uitknipSummary.totalBunches || 0}</Text>
+              </View>
+            </View>
+
+            <View style={{ borderWidth: 1, borderColor: "#e5e7eb", borderRadius: 12, overflow: "hidden" }}>
+              <View style={{ flexDirection: "row", backgroundColor: "#f9fafb", paddingVertical: 10, paddingHorizontal: 10, borderBottomWidth: 1, borderBottomColor: "#e5e7eb" }}>
+                <Text style={{ flex: 1.4, fontSize: 11, fontWeight: "800", color: "#374151" }}>Worker</Text>
+                <Text style={{ width: 90, fontSize: 11, fontWeight: "800", color: "#374151", textAlign: "right" }}>Vines</Text>
+                <Text style={{ width: 90, fontSize: 11, fontWeight: "800", color: "#374151", textAlign: "right" }}>Bunches</Text>
+              </View>
+              {uitknipTotals.map((w, idx) => (
+                <View key={`${w.workerID}-${idx}`} style={{ borderBottomWidth: idx === uitknipTotals.length - 1 ? 0 : 1, borderBottomColor: "#f3f4f6" }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", paddingVertical: 10, paddingHorizontal: 10, backgroundColor: idx % 2 === 0 ? "#fff" : "#fcfcfd" }}>
+                    <View style={{ flex: 1.4 }}>
+                      <Text style={{ fontSize: 13, fontWeight: "700", color: "#111827" }}>{w.workerName}</Text>
+                      <Text style={{ fontSize: 11, color: "#6b7280", marginTop: 2 }}>ID: {w.workerID}</Text>
+                    </View>
+                    <Text style={{ width: 90, fontSize: 13, fontWeight: "800", color: "#111827", textAlign: "right" }}>{w.totalVines || 0}</Text>
+                    <Text style={{ width: 90, fontSize: 13, fontWeight: "800", color: "#9a3412", textAlign: "right" }}>{w.totalBunches || 0}</Text>
+                  </View>
+                  {(w.rows || []).map((r, ri) => (
+                    <View key={`${w.workerID}-${r.blockName}-${r.rowNumber}-${ri}`} style={{ flexDirection: "row", paddingVertical: 6, paddingHorizontal: 10, paddingLeft: 18, backgroundColor: idx % 2 === 0 ? "#fff" : "#fcfcfd", borderTopWidth: 1, borderTopColor: "#f9fafb" }}>
+                      <Text style={{ flex: 1.4, fontSize: 12, color: "#4b5563" }}>
+                        {r.blockName} / Row {r.rowNumber}{r.date ? ` · ${String(r.date).slice(0, 10)}` : ""}
+                      </Text>
+                      <Text style={{ width: 90, fontSize: 12, fontWeight: "700", color: "#374151", textAlign: "right" }}>{r.vines || 0}v</Text>
+                      <Text style={{ width: 90, fontSize: 12, fontWeight: "700", color: "#9a3412", textAlign: "right" }}>{r.bunches || 0}b</Text>
+                    </View>
+                  ))}
+                </View>
+              ))}
+            </View>
+          </View>
+        ) : null}
       </SectionCard>
 
       <Modal visible={conflictModalVisible} transparent animationType="fade" onRequestClose={() => setConflictModalVisible(false)}>
