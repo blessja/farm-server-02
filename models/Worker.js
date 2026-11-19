@@ -47,6 +47,9 @@ const workerSchema = new mongoose.Schema({
               checkin_started_at: { type: Date, default: null },
             },
           ],
+          // When a work record is duplicated for another job-type view (e.g. UITKNIP02 -> UITKNIP),
+          // mark the duplicate so aggregate totals are not double-counted on save.
+          totalsExcluded: { type: Boolean, default: false },
         },
       ],
     },
@@ -76,6 +79,7 @@ workerSchema.pre("save", function (next) {
 
   this.blocks.forEach((block) => {
     block.rows.forEach((row) => {
+      if (row && row.totalsExcluded) return;
       const stockCount = row.stock_count || 0;
       const jobType = (row.job_type || "").toUpperCase();
 

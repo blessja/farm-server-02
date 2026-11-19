@@ -1,10 +1,12 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Modal, ScrollView, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { api } from "../api/client";
 import ScreenScroll from "../components/ScreenScroll";
 import SectionCard from "../components/SectionCard";
 import ActionButton from "../components/ActionButton";
 import FeedbackBanner from "../components/FeedbackBanner";
+import SelectField from "../components/SelectField";
+import LabeledInput from "../components/LabeledInput";
 import { useAsyncData } from "../hooks/useAsyncData";
 
 const NAME_COL_WIDTH = 150;
@@ -43,6 +45,12 @@ export default function UitknipHoursScreen({ supervisorName }) {
   const [h2Input, setH2Input] = useState("");
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState({ type: "info", message: "" });
+
+  const [bulkDateKey, setBulkDateKey] = useState("__all__");
+  const [bulkH1, setBulkH1] = useState("");
+  const [bulkH2, setBulkH2] = useState("");
+  const [bulkSaving, setBulkSaving] = useState(false);
+  const [bulkFeedback, setBulkFeedback] = useState({ type: "info", message: "" });
 
   const allRows = useMemo(() => {
     const workers = Array.isArray(totalsState.data?.workers) ? totalsState.data.workers : [];
@@ -101,6 +109,14 @@ export default function UitknipHoursScreen({ supervisorName }) {
     dateOrder.forEach((dk) => { dateLabels[dk] = dayLabel(dMap[dk]); });
     return { workerOrder, dateOrder, vineMatrix: matrix, dateLabels };
   }, [allRows]);
+
+  useEffect(() => {
+    if (!dateOrder.length) return;
+    setBulkDateKey((current) => {
+      if (current === "__all__") return current;
+      return dateOrder.includes(current) ? current : "__all__";
+    });
+  }, [dateOrder]);
 
   function getHours(wk, dk) {
     const h = hoursMap[`${wk}__${dk}`];
@@ -167,8 +183,55 @@ export default function UitknipHoursScreen({ supervisorName }) {
     }
   }
 
+  async function applyBulkHours() {
+    if (!workerOrder.length || !dateOrder.length) {
+      setBulkFeedback({ type: "error", message: "No workers/dates available to update." });
+      return;
+    }
+    const v1 = bulkH1.trim() === "" ? 0 : Number(bulkH1);
+    const v2 = bulkH2.trim() === "" ? 0 : Number(bulkH2);
+    if ([v1, v2].some((v) => Number.isNaN(v) || v < 0)) {
+      setBulkFeedback({ type: "error", message: "Enter valid non-negative hours for both intervals." });
+      return;
+    }
+    const targetDates = bulkDateKey === "__all__" ? dateOrder : [bulkDateKey];
+    if (!targetDates.length) {
+      setBulkFeedback({ type: "error", message: "Select a date to apply hours." });
+      return;
+    }
+    const i1 = Math.round(v1 * 100) / 100;
+    const i2 = Math.round(v2 * 100) / 100;
+    setBulkSaving(true);
+    setBulkFeedback({ type: "info", message: "" });
+    try {
+      for (const dk of targetDates) {
+        const entries = workerOrder.map((w) => ({
+          workerID: w.workerID,
+          workerName: w.workerName,
+          interval1Hours: i1,
+          interval2Hours: i2,
+        }));
+        await api.saveUitknipIntervalHoursBulk({ date: dk, entries });
+      }
+      await hoursState.refresh();
+      setBulkFeedback({
+        type: "success",
+        message: `Applied ${fmt(i1)}h + ${fmt(i2)}h to ${workerOrder.length} worker(s) for ${targetDates.length === 1 ? (dateLabels[targetDates[0]] || targetDates[0]) : "all dates"}. You can still edit individuals.`,
+      });
+    } catch (e) {
+      setBulkFeedback({ type: "error", message: e.message || "Could not apply hours to all workers." });
+    } finally {
+      setBulkSaving(false);
+    }
+  }
+
   const loading = totalsState.loading || hoursState.loading;
   const hasData = workerOrder.length > 0 && dateOrder.length > 0;
+
+  const bulkDateOptions = [
+    { label: "All dates", value: "__all__" },
+    ...dateOrder.map((dk) => ({ label: `${dateLabels[dk] || dk} (${dk})`, value: dk })),
+  ];
 
   return (
     <ScreenScroll refreshing={loading} onRefresh={() => { totalsState.refresh(); hoursState.refresh(); }}>
@@ -176,6 +239,49 @@ export default function UitknipHoursScreen({ supervisorName }) {
         <FeedbackBanner type="error" message={totalsState.error || hoursState.error} />
         {loading && !hasData ? <ActivityIndicator color="#16a34a" /> : null}
         {!loading && !hasData ? <Text className="text-gray-500 text-sm">No UITKNIP/UITKNIP02 records found.</Text> : null}
+
+        {hasData ? (
+          <View style={{ borderWidth: 1, borderColor: "#e5e7eb", borderRadius: 12, padding: 12, backgroundColor: "#f9fafb", gap: 10 }}>
+            <Text style={{ fontSize: 14, fontWeight: "800", color: "#111827" }}>Set hours for all workers</Text>
+            <Text style={{ fontSize: 12, color: "#6b7280" }}>Apply the same interval hours to all workers (you can still edit individual cells after).</Text>
+            <SelectField
+              label="Apply to"
+              value={bulkDateKey}
+              placeholder="Select date"
+              options={bulkDateOptions}
+              onSelect={setBulkDateKey}
+              emptyMessage="No dates available"
+              displayValue={
+                bulkDateKey === "__all__"
+                  ? "All dates"
+                  : `${dateLabels[bulkDateKey] || bulkDateKey}${bulkDateKey ? ` (${bulkDateKey})` : ""}`
+              }
+            />
+            <LabeledInput
+              label="05:00 – 07:00 (hours)"
+              value={bulkH1}
+              onChangeText={setBulkH1}
+              placeholder="e.g. 2"
+              keyboardType="decimal-pad"
+            />
+            <LabeledInput
+              label="17:30 – 19:00 (hours)"
+              value={bulkH2}
+              onChangeText={setBulkH2}
+              placeholder="e.g. 1.5"
+              keyboardType="decimal-pad"
+            />
+            <ActionButton
+              label={bulkSaving ? "Applying..." : "Apply to all workers"}
+              onPress={applyBulkHours}
+              disabled={bulkSaving || !workerOrder.length}
+            />
+            <FeedbackBanner
+              type={bulkFeedback.type === "error" ? "error" : bulkFeedback.type === "success" ? "success" : "info"}
+              message={bulkFeedback.message}
+            />
+          </View>
+        ) : null}
 
         {hasData ? (
           <View style={{ borderWidth: 1, borderColor: "#e5e7eb", borderRadius: 12, overflow: "hidden", backgroundColor: "#fff" }}>
